@@ -10,34 +10,34 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 
 ## 📚 Documentation
 
-| Guide | What it covers |
-|-------|----------------|
-| [Project Overview](docs/OVERVIEW.md) | What AI Canva is, how it works, and what you can learn from it |
-| [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step |
-| [Architecture](docs/ARCHITECTURE.md) | Deep dive into the client, backend, and Firebase layers |
-| [Box Types](docs/BOX_TYPES.md) | Every box and how to add a new one |
-| [API](docs/API.md) | The backend endpoints and environment variables |
-| [Deployment](docs/DEPLOYMENT.md) | Ship it to Firebase Hosting + Functions |
-| [Testing](docs/TESTING.md) | Running and writing Vitest unit tests for server + client |
-| [Open-Source Readiness](docs/OSS_READINESS.md) | Pre-launch security and project checks |
+| Guide                                                | What it covers                                                 |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| [Project Overview](docs/OVERVIEW.md)                 | What AI Canva is, how it works, and what you can learn from it |
+| [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step        |
+| [Architecture](docs/ARCHITECTURE.md)                 | Deep dive into the client, backend, and Firebase layers        |
+| [Box Types](docs/BOX_TYPES.md)                       | Every box and how to add a new one                             |
+| [API](docs/API.md)                                   | The backend endpoints and environment variables                |
+| [Deployment](docs/DEPLOYMENT.md)                     | Ship it to Firebase Hosting + Functions                        |
+| [Testing](docs/TESTING.md)                           | Running and writing Vitest unit tests for server + client      |
+| [Open-Source Readiness](docs/OSS_READINESS.md)       | Pre-launch security and project checks                         |
 
 ### 📘 Course guides
 
 Course materials for using AI Canva as a teaching/learning project. A complete set of briefs and how-to guides that build on the same codebase:
 
-| Guide | What it covers |
-|-------|----------------|
-| [Intro Message for Students](docs/course/00_intro_message.md) | Kick-off message to post to your class |
-| [What is AI Canva?](docs/course/01_what_is_ai_canva.md) | Beginner's intro: the big idea, box types, how it works, architecture |
-| [Student Brief — One Box per Student](docs/course/02_student_brief_one_box.md) | Individual assignment: each student designs & builds one box |
-| [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md) | Group project: turn AI Canva into a security/compliance support tool |
-| [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md) | Group project: turn AI Canva into a UX design support tool for healthcare |
-| [How to Build a Box](docs/course/05_how_to_build_a_box.md) | Step-by-step: add a new box + branching/code-management rules for beginners |
+| Guide                                                                              | What it covers                                                                                   |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [Intro Message for Students](docs/course/00_intro_message.md)                      | Kick-off message to post to your class                                                           |
+| [What is AI Canva?](docs/course/01_what_is_ai_canva.md)                            | Beginner's intro: the big idea, box types, how it works, architecture                            |
+| [Student Brief — One Box per Student](docs/course/02_student_brief_one_box.md)     | Individual assignment: each student designs & builds one box                                     |
+| [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md)    | Group project: turn AI Canva into a security/compliance support tool                             |
+| [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md)     | Group project: turn AI Canva into a UX design support tool for healthcare                        |
+| [How to Build a Box](docs/course/05_how_to_build_a_box.md)                         | Step-by-step: add a new box + branching/code-management rules for beginners                      |
 | [Group Brief — Telstra Innovation Lab](docs/course/06_telstra_innovation_brief.md) | Group project: turn AI Canva into an innovation accelerator (market research, rapid prototyping) |
-| [Group Brief — NBN Collaboration](docs/course/07_nbn_collab_brief.md) | Group project: help non-technical roles (UX/BA/product/content) collaborate faster |
+| [Group Brief — NBN Collaboration](docs/course/07_nbn_collab_brief.md)              | Group project: help non-technical roles (UX/BA/product/content) collaborate faster               |
 
 > Each guide also ships as a print-friendly **HTML handout** (`docs/course/*.html`) — open in any
-> browser and use *Print → Save as PDF* for a clean handout.
+> browser and use _Print → Save as PDF_ for a clean handout.
 
 > **Teaching with this project?** Point students at the [What is AI Canva?](docs/course/01_what_is_ai_canva.md)
 > guide first, then the [How to Build a Box](docs/course/05_how_to_build_a_box.md) walkthrough and the
@@ -57,19 +57,19 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 
 ## 📦 Box Types
 
-| Box | Icon | Type | Description |
-|-----|------|------|-------------|
-| **Idea** | 💡 | Input | Free-text input. No AI — just write your idea. The seed of most pipelines. |
-| **Image** | 🖼️ | Input | Upload an image (auto-resized to ≤1024px). Becomes input for downstream boxes. |
-| **Research** | 🔍 | Worker | Runs an AI prompt over connected inputs and returns research findings. |
-| **Summarize** | 📋 | Worker | Combines multiple upstream inputs into a concise AI summary. |
-| **PRD** | 📄 | Worker | Generates a Product Requirements Document (features, user stories, specs) — ideal input for the Code box. |
-| **Dev Plan** | 🗺️ | Worker | Transforms a PRD into a short, practical development plan (components, state, functions, build order). |
-| **Cartoon Profile** | 🎨 | Worker | Generates a cartoon avatar via fal.ai — image-to-image from an Image box, or text-to-image from an Idea box. |
-| **Slides** | 📊 | Worker | Generates a visual pitch deck with prev/next navigation. |
-| **Code** | 💻 | Worker | Generates a React prototype with a live preview, copy, and download. |
-| **UI Design** | ✨ | Worker | Generates production-quality React UIs with Tailwind CSS + Google Fonts. |
-| **Stitch UI** | 🧵 | Worker | Generates UI screens using Google Stitch; returns polished HTML directly. |
+| Box                 | Icon | Type   | Description                                                                                                  |
+| ------------------- | ---- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| **Idea**            | 💡   | Input  | Free-text input. No AI — just write your idea. The seed of most pipelines.                                   |
+| **Image**           | 🖼️   | Input  | Upload an image (auto-resized to ≤1024px). Becomes input for downstream boxes.                               |
+| **Research**        | 🔍   | Worker | Runs an AI prompt over connected inputs and returns research findings.                                       |
+| **Summarize**       | 📋   | Worker | Combines multiple upstream inputs into a concise AI summary.                                                 |
+| **PRD**             | 📄   | Worker | Generates a Product Requirements Document (features, user stories, specs) — ideal input for the Code box.    |
+| **Dev Plan**        | 🗺️   | Worker | Transforms a PRD into a short, practical development plan (components, state, functions, build order).       |
+| **Cartoon Profile** | 🎨   | Worker | Generates a cartoon avatar via fal.ai — image-to-image from an Image box, or text-to-image from an Idea box. |
+| **Slides**          | 📊   | Worker | Generates a visual pitch deck with prev/next navigation.                                                     |
+| **Code**            | 💻   | Worker | Generates a React prototype with a live preview, copy, and download.                                         |
+| **UI Design**       | ✨   | Worker | Generates production-quality React UIs with Tailwind CSS + Google Fonts.                                     |
+| **Stitch UI**       | 🧵   | Worker | Generates UI screens using Google Stitch; returns polished HTML directly.                                    |
 
 > A "custom" box category is reserved on the sidebar for future box types.
 
@@ -80,8 +80,8 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 ### 1. Clone and install
 
 ```bash
-git clone <your-repo-url> ai-canva
-cd ai-canva
+git clone https://github.com/Alex-D-4089452/ai-canva-22-nbn.git ai-canva-22-nbn
+cd ai-canva-22-nbn
 npm install                 # root tooling (concurrently)
 npm run install:all         # installs server/ + client/ deps
 ```
@@ -92,8 +92,8 @@ npm run install:all         # installs server/ + client/ deps
 cp server/.env.example server/.env
 # Edit server/.env and fill in real keys:
 #   OLLAMA_API_KEY=your-ollama-api-key              # https://ollama.com/settings/keys
-#   FAL_KEY=your-fal-key-here                      # https://fal.ai/dashboard/keys
-#   STITCH_API_KEY=your-stitch-key-here            # https://stitch.withgoogle.com
+#   FAL_KEY=your-fal-key-here                       # https://fal.ai/dashboard/keys
+#   STITCH_API_KEY=your-stitch-key-here             # https://stitch.withgoogle.com/settings
 ```
 
 The server works without Firebase for local experimentation. It only needs the AI keys above
@@ -130,12 +130,12 @@ Both processes detect if their default port is in use and switch to the next fre
 
 AI boxes use prompt templates that fill in values from connected upstream boxes:
 
-| Variable | Meaning |
-|----------|---------|
-| `{{Box Name}}` | The output of a connected box, matched by that box's **name** (case-insensitive). |
-| `{{input_1}}`, `{{input_2}}` | Positional references to the Nth connected input. |
-| `{{input}}` | Alias for the first input. |
-| `{{inputs}}` | All connected inputs, concatenated and labeled by box name. |
+| Variable                     | Meaning                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `{{Box Name}}`               | The output of a connected box, matched by that box's **name** (case-insensitive). |
+| `{{input_1}}`, `{{input_2}}` | Positional references to the Nth connected input.                                 |
+| `{{input}}`                  | Alias for the first input.                                                        |
+| `{{inputs}}`                 | All connected inputs, concatenated and labeled by box name.                       |
 
 In the settings panel you can click a connected box's name (or `{{inputs}}`) to insert the variable at the cursor.
 
