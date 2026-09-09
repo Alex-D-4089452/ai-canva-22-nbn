@@ -1,4 +1,4 @@
-export type BoxType = "agent" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "note" | "label" | "timer" | "custom";
+export type BoxType = "agent" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "handoff" | "note" | "label" | "timer" | "custom";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -352,6 +352,21 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultSystemPrompt: "",
     defaultWidth: 440,
     defaultHeight: 420,
+  },
+  handoff: {
+    label: "Handoff Brief",
+    icon: "📦",
+    color: "#8b5cf6",
+    description: "Package one role's output into a clean handoff document for the next role.",
+    hasAI: true,
+    category: "worker",
+    roles: ["product"],
+    defaultPrompt:
+      "Create a professional handoff brief from the following work. Structure it as:\n\n## Context\nBrief background and why this work was done.\n\n## What Was Completed\nList the deliverables and key outputs.\n\n## Key Decisions & Rationale\nMajor decisions made and why.\n\n## Open Questions / Risks\nAnything unresolved or risky for the next role.\n\n## Definition of Done\nWhat the next role should verify before considering this work complete.\n\n## Handoff Notes\nAny specific instructions, dependencies, or context the next role needs.\n\nUpstream work:\n{{inputs}}",
+    defaultSystemPrompt:
+      "You are a project coordinator who creates clear, professional handoff documents. Your briefs ensure the receiving role has everything they need — context, deliverables, decisions, risks, and acceptance criteria. Format as clean Markdown. Be specific and actionable.",
+    defaultWidth: 360,
+    defaultHeight: 380,
   },
   note: {
     label: "Note",
