@@ -1,4 +1,4 @@
-// Handoff Brief BoxType has been added
+// Handoff, Alignment Check BoxType have been added
 export type BoxType = "agent" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "handoff" | "alignment" | "note" | "label" | "timer" | "custom";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
