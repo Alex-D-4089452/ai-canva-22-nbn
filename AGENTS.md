@@ -65,7 +65,7 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `generateStitchUI(prompt)` in `client/src/lib/api.ts` hides this (start + poll). Local dev uses an
   in-memory job store in `server/src/app.ts`; production uses Firestore (`stitchJobs/{jobId}`, no
   client access) plus a Cloud Task worker `processStitchJob` in `functions/src/stitchJobs.ts`.
-  `stitch.ts` caps prompt length (6000) and uses the fast `GEMINI_3_FLASH` model (`STITCH_MODEL`).
+  `stitch.ts` caps prompt length (6000) and only sends required params (`projectId` + `prompt`)
   Keep the two backends' stitch endpoints in sync.
 - **Local server is split for testability.** `server/src/app.ts` exports `createApp()` (the Express
   app + all routes + the in-memory stitch job store) with **no side effects at import**;
