@@ -14,9 +14,9 @@ has changed." If you change a model, **update the table and append to the change
 | **Image, image→image** | Cartoon Profile box (when an Image box is connected) | fal.ai | `fal-ai/qwen-image-edit` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |
 | **Image, text→image** | Cartoon Profile box (no Image box connected) | fal.ai | `fal-ai/flux/schnell` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |
 
-> There is currently **no Anthropic / OpenAI usage anywhere in the code** — `ANTHROPIC_API_KEY`
-> present in `server/.env` / `functions/.env` is unused. Remove it or wire up a provider
-> deliberately (and document it here).
+> There is currently **no Anthropic / OpenAI usage anywhere in the code**. An unused
+> `ANTHROPIC_API_KEY` that had been sitting in `server/.env` / `functions/.env` was removed on
+> 2026-02-08 — if you ever wire up another provider, document it in this file.
 
 ## Provider configuration
 
@@ -75,4 +75,4 @@ has changed." If you change a model, **update the table and append to the change
 
 - **2026-02-08** — Documented the initial state: text = Ollama `deepseek-v4-flash` (default),
   Stitch = `GEMINI_3_FLASH`, fal.ai = `fal-ai/qwen-image-edit` / `fal-ai/flux/schnell`. No env
-  overrides active; unused `ANTHROPIC_API_KEY` noted for cleanup.
+  overrides active. Removed the unused `ANTHROPIC_API_KEY` from `server/.env` / `functions/.env`.

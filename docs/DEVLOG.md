@@ -38,9 +38,9 @@ current state).
   `server/src/` + `functions/src/`), runtime observability (`tokenUsage` docs record the model),
   and a change log. Cross-referenced from `docs/API.md` (env section) and `AGENTS.md` (docs
   lists + rule to update it on model changes). Also replaced the stale Anthropic comments in
-  `server/.env` with a note — an `ANTHROPIC_API_KEY` exists in `server/.env`/`functions/.env`
-  but no Anthropic code exists; flagged as unused for cleanup.
-- **In flight:** deciding whether to remove the unused `ANTHROPIC_API_KEY` from the env files.
+  `server/.env` with a note — an `ANTHROPIC_API_KEY` existed in `server/.env`/`functions/.env`
+  but no Anthropic code exists; **deleted the unused key from both env files**.
+- **In flight:** —
 - **Next steps:** if models are switched for the booth, append to the MODELS.md change log;
   optionally centralize the hardcoded model IDs into a per-backend `models.ts` module.
 
