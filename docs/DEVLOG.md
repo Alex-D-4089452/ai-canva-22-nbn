@@ -29,6 +29,14 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: new default model live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` (Hosting 200; `/api/health` all keys
+  configured; live `/api/generate` verified serving `"model":"deepseek-v4.1-flash"`). Production
+  now runs the new default text model; functions `api` + `processStitchJob` updated.
+- **In flight:** —
+- **Next steps:** —.
+
 ## 2026-02-08 — Default text model → deepseek-v4.1-flash
 
 - **Done:** Changed the hardcoded default in BOTH `server/src/ollama.ts` and `functions/src/ollama.ts`

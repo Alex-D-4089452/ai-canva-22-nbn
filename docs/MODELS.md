@@ -75,7 +75,9 @@ has changed." If you change a model, **update the table and append to the change
 
 - **2026-02-08** — Default text model changed `deepseek-v4-flash` → **`deepseek-v4.1-flash`**
   (hardcoded default in both `server/src/ollama.ts` and `functions/src/ollama.ts`; env templates
-  and docs updated to match). Production picks it up on the next `npm run deploy`.
+  and docs updated to match). **Deployed to `carbondocs` the same day — verified live:**
+  `POST /api/generate` on https://carbondocs.web.app responds with
+  `"model":"deepseek-v4.1-flash"`.
 - **2026-02-08** — Documented the initial state: text = Ollama `deepseek-v4-flash` (default),
   Stitch = `GEMINI_3_FLASH`, fal.ai = `fal-ai/qwen-image-edit` / `fal-ai/flux/schnell`. No env
   overrides active. Removed the unused `ANTHROPIC_API_KEY` from `server/.env` / `functions/.env`.
