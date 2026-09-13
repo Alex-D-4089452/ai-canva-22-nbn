@@ -283,6 +283,9 @@ via `auth.updateUser`. An admin cannot block their own account.
 Copy the templates from `server/.env.example` / `functions/.env.example` into `.env` and fill in
 real values.
 
+> **Which model handles what?** See [docs/MODELS.md](MODELS.md) — the single source of truth for
+> the model map (text / UI screens / images), how to switch, and the change log.
+
 ## Workshops (facilitator & guests)
 
 ### `POST /api/workshop/join` — `{ code }`

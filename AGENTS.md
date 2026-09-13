@@ -30,7 +30,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 | `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/health`). |
 | `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
-| `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
+| `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
 | `firebase.json`, `firestore.rules`, `storage.rules` | Firebase config and security rules. |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
@@ -507,6 +507,9 @@ app; the directory just lives in this repo so the plugins stay under version con
   of work. State lives here, knowledge lives in this file.
 - `docs/ARCHITECTURE.md` — deep dive into client, backend, and Firebase layers.
 - `docs/API.md` — backend endpoints and environment variables.
+- `docs/MODELS.md` — **model registry** (single source of truth): which model serves text / Stitch
+  UI / fal.ai images, the env overrides (`OLLAMA_MODEL`, `STITCH_MODEL`), how to switch, and a
+  change log — **update it whenever a model changes**.
 - `docs/DEPLOYMENT.md` — production deploy steps.
 - `docs/course/` — teaching/learning materials (briefs + how-to guides, each also as an HTML
   handout for print/PDF).

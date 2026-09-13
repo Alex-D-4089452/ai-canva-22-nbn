@@ -29,6 +29,21 @@ current state).
 
 ---
 
+## 2026-02-08 — docs/MODELS.md: model registry (single source of truth)
+
+- **Done:** Added `docs/MODELS.md` — one page mapping every model to its concern (text =
+  Ollama `deepseek-v4-flash` default via `OLLAMA_MODEL`; Stitch = `GEMINI_3_FLASH` via
+  `STITCH_MODEL`; fal.ai images = `fal-ai/qwen-image-edit` / `fal-ai/flux/schnell`, hardcoded),
+  provider config, how to switch (env override vs duplicated code defaults in BOTH
+  `server/src/` + `functions/src/`), runtime observability (`tokenUsage` docs record the model),
+  and a change log. Cross-referenced from `docs/API.md` (env section) and `AGENTS.md` (docs
+  lists + rule to update it on model changes). Also replaced the stale Anthropic comments in
+  `server/.env` with a note — an `ANTHROPIC_API_KEY` exists in `server/.env`/`functions/.env`
+  but no Anthropic code exists; flagged as unused for cleanup.
+- **In flight:** deciding whether to remove the unused `ANTHROPIC_API_KEY` from the env files.
+- **Next steps:** if models are switched for the booth, append to the MODELS.md change log;
+  optionally centralize the hardcoded model IDs into a per-backend `models.ts` module.
+
 ## 2026-02-08 — Tablet / iPad (coarse-pointer) support across the canvas
 
 - **Done:** Made the app usable on a large tablet for the booth demo. All touch behavior is
