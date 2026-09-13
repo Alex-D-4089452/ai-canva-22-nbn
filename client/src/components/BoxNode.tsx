@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
 import { BOX_TYPES, LABEL_COLORS } from "../types.js";
+import { chatbotName } from "../lib/chatbot.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import {
@@ -34,6 +35,9 @@ import { toStackBlitzProject } from "../lib/project.js";
 const CodeEditor = lazy(() => import("./CodeEditor.js"));
 // The split-view modal also pulls in CodeMirror, so lazy-load it too.
 const CodeModal = lazy(() => import("./CodeModal.js"));
+// The chatbot companion's tick figure + chat panel.
+import StickFigure from "./StickFigure.js";
+import ChatbotPanel from "./ChatbotPanel.js";
 // Sandpack (in-browser bundler) is heavy, so lazy-load it for the real-project
 // preview of Code boxes. This module is also lazy-imported by CodeModal. React
 // lazy always resolves a dynamic import to its `.default` export, so a bare
@@ -120,6 +124,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   // Label box: click-to-edit text (same pattern as the box-name editor).
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
+  // Chatbot companion: chat panel open state (per-node).
+  const [chatPanelOpen, setChatPanelOpen] = useState(false);
   // Timer box: duration input draft. null = show the stored duration.
   const [durationDraft, setDurationDraft] = useState<string | null>(null);
   // Timer box: live clock. Only this box instance ticks, and only while its
@@ -193,6 +199,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   const isIdea = boxType === "idea";
   const isAgent = boxType === "agent";
+  const isChatbot = boxType === "chatbot";
   const isImage = boxType === "image";
   const isDocuments = boxType === "documents";
   const isCartoon = boxType === "cartoon";
@@ -295,7 +302,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 key={c}
                 onClick={() => updateBoxData(id, { labelColor: c })}
                 className={
-                  "w-4 h-4 rounded-full border transition " +
+                  "label-color-dot w-4 h-4 rounded-full border transition " +
                   ((boxData.labelColor || LABEL_COLORS[0]) === c
                     ? "border-slate-700 scale-125"
                     : "border-slate-300")
@@ -305,6 +312,54 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               />
             ))}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // ===== Chatbot companion: a stick figure standing on the board =====
+  // Renders as an annotation (no box card, no handles, no Run/Gear) — click
+  // it to open the chat panel (portaled to document.body by ChatbotPanel).
+  if (isChatbot && boxData) {
+    const thinking = boxData.status === "running";
+    const name = chatbotName(data.title as string);
+    const msgs = boxData.chatMessages || [];
+    const lastBot = [...msgs].reverse().find((m) => m.role === "bot");
+    return (
+      <div className={"chatbot-node" + (selected ? " selected" : "")}>
+        <button
+          className="chatbot-delete nodrag"
+          onClick={() => deleteBox(id)}
+          title="Delete companion"
+        >
+          ✕
+        </button>
+        {/* Speech bubble: latest bot line, or thinking dots */}
+        {thinking ? (
+          <div className="chatbot-bubble nodrag">
+            <span className="chatbot-dots"><span /><span /><span /></span>
+          </div>
+        ) : lastBot ? (
+          <div className="chatbot-bubble nodrag" title={lastBot.text}>
+            {lastBot.text.length > 140 ? lastBot.text.slice(0, 140) + "…" : lastBot.text}
+          </div>
+        ) : null}
+        {/* The figure itself — click to chat */}
+        <button
+          className="flex flex-col items-center gap-1 cursor-pointer"
+          onClick={() => setChatPanelOpen(true)}
+          title={`Chat with ${name}`}
+        >
+          <StickFigure size={104} tone={meta.color} busy={thinking} />
+          <span
+            className="chatbot-name"
+            style={{ backgroundColor: meta.color + "14", color: "#334155" }}
+          >
+            {name}
+          </span>
+        </button>
+        {chatPanelOpen && (
+          <ChatbotPanel id={id} onClose={() => setChatPanelOpen(false)} />
         )}
       </div>
     );
@@ -491,15 +546,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         </div>
         <button
           onClick={() => deleteBox(id)}
-          className="text-slate-400 hover:text-red-500 transition text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-red-50"
+          className="box-delete nodrag text-slate-400 hover:text-red-500 transition text-sm w-5 h-5 flex items-center justify-center rounded hover:bg-red-50"
           title="Delete box"
         >
           ✕
         </button>
       </div>
 
-      {/* Body */}
-      <div className="px-3 py-2 flex-1 min-h-0 overflow-y-auto">
+      {/* Body. `nodrag` lets a finger scroll long output inside the box on
+          touch devices (the box is dragged by its header instead) — paired
+          with `touch-action: pan-y` on `.box-body` for coarse pointers. */}
+      <div className="box-body nodrag px-3 py-2 flex-1 min-h-0 overflow-y-auto">
         {/* Timer box (collab) — the only collaboration box rendered inside the
             standard card; note/label early-return above as annotations. */}
         {/* Timer box — shared countdown clock, synced via the board doc */}
@@ -538,7 +595,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 <div className="text-xs font-semibold text-rose-400 animate-pulse">⏰ Time's up</div>
               )}
               {/* Controls */}
-              <div className="flex items-center gap-1.5">
+              <div className="timer-controls flex items-center gap-1.5">
                 {(status === "idle" || status === "stopped") && (
                   <>
                     <input
@@ -859,7 +916,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                         </div>
                         <button
                           onClick={() => removeDocument(d.id)}
-                          className="w-5 h-5 rounded-full text-[10px] text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition"
+                          className="touch-visible w-5 h-5 rounded-full text-[10px] text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition"
                           title="Remove this document"
                         >
                           ✕
@@ -1015,7 +1072,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <button
                     onClick={() => setSlideIndex(Math.max(0, currentSlide - 1))}
                     disabled={currentSlide === 0}
-                    className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    className="slide-nav w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
                     title="Previous slide"
                   >
                     ◀
@@ -1026,7 +1083,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <button
                     onClick={() => setSlideIndex(Math.min(slides.length - 1, currentSlide + 1))}
                     disabled={currentSlide === slides.length - 1}
-                    className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                    className="slide-nav w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-sm flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
                     title="Next slide"
                   >
                     ▶
@@ -1168,7 +1225,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Footer — AI boxes only */}
       {!isInputBox && !isUtility && (
-        <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+        <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
           <button
             onClick={() => runBox(id)}
             disabled={isRunning}

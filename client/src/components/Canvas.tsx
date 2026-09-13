@@ -24,6 +24,7 @@ import Cursors from "./Cursors.js";
 
 const nodeTypes = {
   agent: BoxNode,
+  chatbot: BoxNode,
   idea: BoxNode,
   research: BoxNode,
   summarize: BoxNode,
@@ -65,10 +66,53 @@ export default function Canvas() {
     [screenToFlowPosition, updateCursorPosition]
   );
 
+  // Touch mirror of the presence cursor — iPads never fire mousemove, so
+  // collaborators would otherwise not see where the tablet user is pointing.
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const pos = screenToFlowPosition({ x: t.clientX, y: t.clientY });
+      if (pos) {
+        updateCursorPosition(pos.x, pos.y);
+      }
+    },
+    [screenToFlowPosition, updateCursorPosition]
+  );
+
   // Cleanup presence on unmount
   useEffect(() => {
     return () => cleanupPresence();
   }, [cleanupPresence]);
+
+  // === Chatbot auto-placement ===
+  // Chatbots added from the palette carry data.autoPlace; on the effect tick
+  // (and after every store update — it early-returns when none are pending)
+  // each one is placed at the BOTTOM-CENTER of the current viewport, offset
+  // horizontally so multiple companions don't stack.
+  const placeChatbot = useBoardStore((s) => s.placeChatbot);
+  useEffect(() => {
+    const place = () => {
+      const st = useBoardStore.getState();
+      const pending = st.nodes.filter(
+        (n) => n.type === "chatbot" && (n.data as Record<string, unknown> | undefined)?.autoPlace
+      );
+      if (pending.length === 0) return;
+      const el = document.querySelector(".react-flow");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const alreadyHere = st.nodes.filter((n) => n.type === "chatbot").length - pending.length;
+      pending.forEach((b, i) => {
+        const pos = screenToFlowPosition({
+          x: rect.left + rect.width / 2 + (alreadyHere + i) * 150,
+          y: rect.top + rect.height - 130,
+        });
+        if (pos) placeChatbot(b.id, pos);
+      });
+    };
+    place();
+    return useBoardStore.subscribe(place);
+  }, [placeChatbot, screenToFlowPosition]);
 
   // === Area drawing tool ===
   const addArea = useBoardStore((s) => s.addArea);
@@ -96,12 +140,13 @@ export default function Canvas() {
 
   useEffect(() => {
     if (!draft) return;
-    const onMove = (e: MouseEvent) => {
+    const track = (clientX: number, clientY: number) => {
       const d = draftRef.current;
       if (!d) return;
-      setDraft({ ...d, current: screenToFlowPosition({ x: e.clientX, y: e.clientY }) });
+      setDraft({ ...d, current: screenToFlowPosition({ x: clientX, y: clientY }) });
     };
-    const onUp = () => {
+    const onMove = (e: MouseEvent) => track(e.clientX, e.clientY);
+    const commit = () => {
       const d = draftRef.current;
       setDraft(null);
       if (!d) return;
@@ -111,13 +156,47 @@ export default function Canvas() {
         addArea(rect, c.fill, c.border);
       }
     };
+    const onTouchMove = (e: Event) => {
+      const te = e as TouchEvent;
+      if (te.touches.length !== 1) return;
+      te.preventDefault();
+      track(te.touches[0].clientX, te.touches[0].clientY);
+    };
+    const onTouchCancel = () => setDraft(null);
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseup", commit);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", commit);
+    window.addEventListener("touchcancel", onTouchCancel);
     return () => {
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseup", commit);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", commit);
+      window.removeEventListener("touchcancel", onTouchCancel);
     };
   }, [draft !== null, areaColorIdx, addArea, screenToFlowPosition]);
+
+  // Touch mirror of onCanvasMouseDown — iPads never fire the synthesized
+  // mousedown on the pane (React Flow's touch handlers suppress it), so the
+  // Area tool needs its own touchstart listener while it is active.
+  useEffect(() => {
+    if (!areaTool) return;
+    const pane = document.querySelector<HTMLElement>(".react-flow__pane");
+    if (!pane) return;
+    const onTouchStart = (e: Event) => {
+      const te = e as TouchEvent;
+      if (te.touches.length !== 1) return;
+      const target = te.target as HTMLElement;
+      if (!target.classList.contains("react-flow__pane")) return;
+      const t = te.touches[0];
+      const p = screenToFlowPosition({ x: t.clientX, y: t.clientY });
+      setDraft({ start: p, current: p });
+      te.preventDefault();
+    };
+    pane.addEventListener("touchstart", onTouchStart, { passive: false });
+    return () => pane.removeEventListener("touchstart", onTouchStart);
+  }, [areaTool, screenToFlowPosition]);
 
   // Escape cancels an in-progress draft and deactivates the tool.
   useEffect(() => {
@@ -142,6 +221,10 @@ export default function Canvas() {
       onConnect={onConnect}
       onMouseMove={onMouseMove}
       onMouseDown={onCanvasMouseDown}
+      onTouchMove={onTouchMove}
+      // Double-tap / double-click zoom is surprising on touch — the pinch
+      // gesture already covers zooming.
+      zoomOnDoubleClick={false}
       // While the area tool is active, dragging draws a rectangle instead of
       // panning the canvas or moving nodes.
       panOnDrag={!areaTool}
@@ -198,6 +281,7 @@ export default function Canvas() {
         nodeColor={(node: Node) => {
           const colors: Record<string, string> = {
             agent: "#4f46e5",
+            chatbot: "#e11d48",
             idea: "#fbbf24",
             research: "#60a5fa",
             summarize: "#a78bfa",
