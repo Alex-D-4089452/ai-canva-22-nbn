@@ -31,6 +31,19 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: SDLC pipeline live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `ef184d2` — Hosting released
+  (19 files, new entry `assets/index-Bs1JfCFH.js`), `functions/api` + `processStitchJob` skipped
+  (no server/functions changes in this feature: the gates are entirely client-side). Verified live:
+  `/` 200, `/api/health` all keys configured, `/api/generate` → `{"content":"Hi","model":"deepseek-v4.1-flash"}`,
+  and the served bundle contains the feature (`sdlc-intent`/`sdlc-merge`, the `SDLC` palette
+  section + `🔁 SDLC` View profile, `Require approval before the next stage can run`, `intent.md`,
+  `sdlc-audit-`, the hard-gate copy) — i.e. the deployed HTML points at the same
+  `assets/index-Bs1JfCFH.js` hash as the local build.
+- **In flight:** —.
+- **Next steps:** —.
+
 ## 2026-02-08 — SDLC pipeline group + per-box outcome downloads
 
 - **Done:** Added the **SDLC** palette group (`BoxCategory: "sdlc"`, section "SDLC" between Inputs
