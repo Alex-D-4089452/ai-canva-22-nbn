@@ -31,6 +31,22 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: Code Map worker + `/api/repo-digest` live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `2da51db` — Hosting released (new
+  entry `assets/index-MPiINrYV.js`, same hash as the local build) **and Cloud Functions updated**
+  (`api` + `processStitchJob`), which this feature needed: `/api/repo-digest` does not exist in
+  production without them. Verified live: `/api/health` → `githubToken: "optional"`;
+  `POST /api/repo-digest` against a real public repo returned 200 in 1.8s (10 files of 163, 73k
+  chars, capped, with the clip/ignore notes); a non-GitHub URL was rejected with the 400 guard
+  message (the endpoint is not a request proxy); `/api/generate` still answers; and the served
+  bundle contains the box (`codemap`, `Code Map`, `repo-digest`, `code-map.md`, `Digest notes`).
+  **No `GITHUB_TOKEN` was set** (decided: public repos are enough for now) — private repositories
+  and the higher rate limit need it added to `functions/.env` and a re-deploy.
+- **In flight:** —.
+- **Next steps:** — (optional: add `GITHUB_TOKEN` to `functions/.env` + `server/.env` for private
+  repos).
+
 ## 2026-02-08 — Code Map worker (repo understanding) + `/api/repo-digest`
 
 - **Done:** New **Code Map** worker (🔭 `codemap`, Workers section, `roles: ["developer", "sdlc"]`)
