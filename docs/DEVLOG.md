@@ -47,6 +47,53 @@ current state).
 - **Next steps:** — (optional: add `GITHUB_TOKEN` to `functions/.env` + `server/.env` for private
   repos).
 
+---
+
+## 2026-02-08 — Deploy: Code Edit worker live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `ab5d417` — Hosting released (new
+  entry `assets/index-DXCwmJ8K.js`, same hash as the local build) **and Cloud Functions updated**
+  (`api` + `processStitchJob`), which this feature needed: the **whole-file `paths` mode** of
+  `/api/repo-digest` is new, so Code Edit's file reads would have failed in production without it.
+  Verified live: `POST /api/repo-digest` with `paths` returned one file **in full** (3955 chars,
+  `clipped: false`) in 1.8s, reported `nope/missing.ts` in `missing`, and refused `../etc/passwd`
+  (not echoed, not fetched); the served bundle contains the worker (`codeedit`, `Code Edit`,
+  `code-changes.patch`, `Change set`) and the triage prompt (`You plan code changes`), so both the
+  pinned/plan path and the triage path shipped.
+- **In flight:** —.
+- **Next steps:** — (optional future work: push branch + PR if a write token is ever wanted; or
+  wiring Code Edit → Review in an SDLC board, which needs no code changes).
+
+## 2026-02-08 — Code Edit worker (apply a change request to an existing repo)
+
+- **Done:** New **Code Edit** worker (✍️ `codeedit`, Workers section, `roles: ["developer",
+  "sdlc"]`) — the Code box's sibling: point it at an existing GitHub repository, describe a change,
+  and it reads the files that matter and proposes a **reviewable change set** plus a
+  `git apply`-able **`.patch`**. **It never writes to the repository** (no token, no branch, no PR —
+  a deliberate scope choice), so there is no new secret and no write surface. Flow: target files
+  (its own file list → else the file list in an upstream **SDLC Plan** artifact → else one triage
+  call) → read those files **in full** through a new **whole-file mode of `/api/repo-digest`**
+  (`paths` request field; `contents`/`missing`/`clipped` in the response) → ask for a change set of
+  **whole files** → the APP validates it and computes the diff and the patch. New pure module
+  `client/src/lib/codeedit.ts` (path safety, plan/triage parsing, change-set validation, LCS line
+  diff, unified patch), UI in `components/CodeEditPanel.tsx` + a new shared `components/RepoField.tsx`
+  (also used by Code Map), run path `runCodeEdit` in `boardStore.ts`, `setChangeSetFile` for hand
+  edits, `.patch` download, Canvas + minimap + agent whitelist, and the duplicated
+  `server/src/repo.ts` → `functions/src/repo.ts` kept in sync. Three real bugs caught by the tests:
+  the diff treated a missing final newline as unchanged content (git considers it part of the line,
+  so `git apply` rejected the hunks), the no-newline marker was placed after a diff *header* line,
+  and the marker was omitted when nothing was removed on the original side.
+- **Tests:** **225 client tests** (30 new pure + 3 that apply generated patches with real
+  `git apply` in throwaway repos, which is what forced those three fixes) and **43 server tests**
+  (whole-file mode, `missing`, `clipped`, path safety). **Live:** the `paths` mode against the real
+  repo (2 files in full; missing and unsafe paths reported), and a **real end-to-end run** (live
+  GitHub + live model, 27.6s) whose change set (+5 −0 on `client/src/lib/download.ts`) produced a
+  patch that **`git apply --check` accepted against a fresh clone**, applied with
+  `git diff --numstat` = 5/0 and **zero original lines lost**. `client/ui-smoke.mjs` now passes
+  **66/66** (13 new Code Edit checks incl. Plan-driven targeting and the triage path).
+- **In flight:** —.
+- **Next steps:** —.
+
 ## 2026-02-08 — Code Map worker (repo understanding) + `/api/repo-digest`
 
 - **Done:** New **Code Map** worker (🔭 `codemap`, Workers section, `roles: ["developer", "sdlc"]`)
