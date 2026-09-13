@@ -90,6 +90,21 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: box deploys (here.now) live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `dbe3474` — Hosting released (new
+  entry `assets/index-DG1Ejgbo.js`) **and Cloud Functions updated** (`api` + `processStitchJob`),
+  which this needed: `/api/herenow-deploy` did not exist in production before. This deploy also
+  shipped the parallel session's Checklist box, since both features are in that commit.
+- **Verified live:** `/api/health` → `herenowKey: "anonymous"`; the served bundle contains the
+  deploy UI (`herenow-deploy`, `🚀 Deploy` ×2, `Live site`, `Show claim link`); and a **real publish
+  through the production Cloud Function** succeeded — a one-file Site went live at
+  https://astral-tassel-fc35.here.now/ (HTTP 200, content served), which also proves the function's egress reaches both
+  here.now and the storage upload host. `GITHUB_TOKEN`/`HERENOW_API_KEY` remain unset (public repos +
+  anonymous 24h Sites).
+- **In flight:** —.
+- **Next steps:** — (optional: add `HERENOW_API_KEY` for permanent Sites).
+
 ## 2026-02-08 — here.now deploy: boxes that contain code can publish to a live URL
 
 - **Done (collision-free half):** new **`POST /api/herenow-deploy`** in both backends, backed by a
