@@ -234,6 +234,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `window.__dsh` undefined). Run it in a quiet window (no src writes for ~2 min). (3) Deps used
   only by the suite must be in `client/package.json` — an ad-hoc `npm install` without `--save`
   gets pruned by the next install (that silently removed `playwright-core` once).
+- **T7 can fail spuriously under model latency:** Part 1's "research generated via real
+  /api/generate" check polls at most 90s (45 × 2s) for a REAL model call to land, so a slow
+  generation shows up as three failures (`output 0 chars`, `token usage recorded`, `markdown output
+  rendered`) while the rest of the suite passes — **re-run before hunting a regression** (observed
+  once, passed 80/80 on the next run). Its sibling check `token badge visible` is a weak assertion
+  (it searches the whole page text for `tok`), so it can pass while those three fail.
 - **UI text markers the E2E clicks by** (keep these EXACT strings when restyling — the suite
   finds buttons by `textContent`, not selectors): header `Boards (` and `New Board` (capital B)
   and `🧑‍🏫 Facilitator`; palette rows keep the box label as the button's trailing text
@@ -384,6 +390,22 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   an error, never a guessed edit; a failed run keeps the previous change set but labels it stale.
   Note `computeLineDiff` treats a missing final newline as part of the last line (a sentinel) —
   without that, `git apply` rejects hunks that git itself considers different.
+- **AI change requests in the Code / UI boxes:** once `boxData.code` exists, the box shows a
+  **"Request a change…"** field + **✏️ Apply change** (`CodeChangePanel.tsx`), backed by the
+  `applyChangeRequest` store action. The model rewrites the WHOLE component (the only reliable way to
+  ask for a code edit) under the non-editable `CODE_CHANGE_PROMPT` rules (return the complete file,
+  keep everything the request does not mention byte-identical, no reformatting/renaming, no dropped
+  features) — that template is deliberately fixed because its rules are the safeguard. Guards:
+  `isCompletePrototype` (must still define App **and** mount it) and "no change" detection, so an
+  incomplete or identical reply never replaces working code (`setBoxStatus(id, "error", …)` keeps the
+  old code). Versions: **every** build and change appends to `boxData.codeVersions` via the shared
+  `appendVersion` (the `ArtifactVersion` record, same shape the SDLC stages use — `SdlcVersion` is now
+  a type alias of it), with `codeVersion` pointing at the current one; `revertCodeVersion` restores an
+  old version **as a new version**, so history stays append-only. The panel shows `vN · +added
+  −removed vs vN-1`, a 🔀 diff (reusing `computeLineDiff`/`lineDiff` from `lib/codeedit.ts`) and a 🕘
+  history with 👁 view + ↩ Revert. Upstream boxes may supply the request (a Review box's findings, a
+  Code Edit change set) — with `skipSelf: true` so the box's own build description is not mistaken for
+  a change request. Stitch boxes are excluded: their `code` is HTML from another provider.
 - **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
   `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
   text-output box (research, summarize, prd, devplan, codemap, codeedit, custom, agent, slides, all

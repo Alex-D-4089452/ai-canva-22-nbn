@@ -1,6 +1,7 @@
 /**
  * Live UI smoke test for the SDLC pipeline group, the Code Map worker, the
- * Code Edit worker and the per-box outcome downloads.
+ * Code Edit worker, AI change requests in the Code box and the per-box outcome
+ * downloads.
  * Drives the REAL dev app (localhost:5173) with /api/generate mocked at the
  * page level so the artifacts are deterministic.
  *
@@ -722,6 +723,159 @@ check("CE13 a non-JSON reply is surfaced as an error instead of a guessed edit",
   return d.status === "error" && /JSON change set/.test(d.error || "")
     && /previous successful run/i.test([...document.querySelectorAll(".box-node")].map((n) => n.innerText).join("\n"));
 }, ceTriage));
+
+// ---------- Code box: AI change requests (diff + version history) ----------
+
+// The Code box talks to /api/generate directly; this mock serves a first build
+// and then an AI change, so the whole flow is deterministic.
+await page.evaluate(() => {
+  window.__cc = { calls: 0, prompts: [] };
+  window.__ccReply = { mode: "ok" };
+  const original = window.fetch;
+  window.installCodeChangeMocks = () => {
+    window.fetch = async (url, opts) => {
+      const u = typeof url === "string" ? url : url.url;
+      if (!u.includes("/api/generate")) return original(url, opts);
+      const body = JSON.parse(opts?.body || "{}");
+      const prompt = body.userPrompt || "";
+      window.__cc.calls++;
+      window.__cc.prompts.push(prompt);
+      if (window.__ccReply.mode === "incomplete") {
+        return new Response(JSON.stringify({
+          content: "function App() { return <div>truncated", model: "mock",
+          usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (window.__ccReply.mode === "same") {
+        return new Response(JSON.stringify({
+          content: window.__ccFixture.built, model: "mock",
+          usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      const isChange = prompt.includes("Apply ONLY that change");
+      const content = isChange ? window.__ccFixture.changed : window.__ccFixture.built;
+      return new Response(JSON.stringify({
+        content, model: "mock", usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+  };
+  window.__ccFixture = {
+    built: "function App() {\n  return (\n    <div>\n      <h1>Hi</h1>\n      <button>Count</button>\n    </div>\n  );\n}\nReactDOM.createRoot(document.getElementById('root')).render(<App />);",
+    changed: "function App() {\n  return (\n    <div>\n      <h1>Hi</h1>\n      <button>Count</button>\n      <input placeholder=\"search\" />\n    </div>\n  );\n}\nReactDOM.createRoot(document.getElementById('root')).render(<App />);",
+  };
+});
+await page.evaluate(() => window.installCodeChangeMocks());
+
+const codeBox = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const box = s().addBox("code", { x: 80, y: 3000 });
+  s().updateBoxData(box, { prompt: "Build it:\n{{inputs}}", content: "a page with a heading and a count button" });
+  return box;
+});
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), codeBox);
+await page.waitForTimeout(900);
+
+let ccState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { status: d.status, error: d.error || "", code: d.code || "", versions: (d.codeVersions || []).length, current: d.codeVersion };
+}, codeBox);
+check("CC1 the build is versioned (v1) and the code is complete",
+  ccState.status === "done" && ccState.versions === 1 && ccState.current === 1 && ccState.code.includes("<h1>Hi</h1>"),
+  JSON.stringify({ status: ccState.status, versions: ccState.versions, error: ccState.error }));
+
+const ccNode = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Box"));
+  return node ? node.innerText : "";
+});
+const ccPlaceholder = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Box"));
+  return [...node.querySelectorAll("input")].map((el) => el.getAttribute("placeholder") || "").join(" | ");
+});
+check("CC2 the box offers a change request field and an Apply change button",
+  /Request a change/i.test(ccPlaceholder) && /Apply change/i.test(ccNode) && /1 version/.test(ccNode),
+  ccPlaceholder.slice(0, 90));
+
+// Apply an AI change.
+await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  s().updateBoxData(boxId, { changePrompt: "add a search field" });
+}, codeBox);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().applyChangeRequest(boxId), codeBox);
+await page.waitForTimeout(900);
+ccState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return {
+    status: d.status, error: d.error || "", code: d.code || "",
+    versions: (d.codeVersions || []).length, current: d.codeVersion,
+    notes: (d.codeVersions || []).map((v) => v.note), cleared: d.changePrompt === "",
+  };
+}, codeBox);
+check("CC3 the AI change updates the code and appends a version",
+  ccState.status === "done" && ccState.code.includes("search") && ccState.versions === 2 && ccState.current === 2
+  && ccState.notes[1] === "add a search field",
+  JSON.stringify({ status: ccState.status, versions: ccState.versions, error: ccState.error }));
+check("CC4 the change prompt sent the current code and the request with the keep-everything rules",
+  await page.evaluate(() => {
+    const p = (window.__cc.prompts || []).filter((x) => x.includes("Apply ONLY that change")).pop() || "";
+    return p.includes("<h1>Hi</h1>") && p.includes("add a search field") && p.includes("Return the COMPLETE file");
+  }));
+
+const ccAfter = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Box"));
+  return node ? node.innerText : "";
+});
+check("CC5 the box shows the version, the +/- counts and a revert path",
+  // The version chip is CSS-uppercased, so match case-insensitively.
+  /v2/i.test(ccAfter) && /\+1/.test(ccAfter) && /2 versions/.test(ccAfter)
+  && /Diff/.test(ccAfter) && /requested: add a search field/.test(ccAfter),
+  ccAfter.slice(0, 150).replace(/\n/g, " / "));
+
+// The history is append-only and a revert is itself a version.
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().revertCodeVersion(boxId, 1), codeBox);
+await page.waitForTimeout(500);
+ccState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { code: d.code || "", versions: (d.codeVersions || []).length, current: d.codeVersion, notes: (d.codeVersions || []).map((v) => v.note) };
+}, codeBox);
+check("CC6 reverting restores the old code as a NEW version (history never rewritten)",
+  ccState.versions === 3 && ccState.current === 3 && !ccState.code.includes("search")
+  && ccState.notes[2] === "reverted to v1",
+  JSON.stringify({ versions: ccState.versions, notes: ccState.notes }));
+
+// An incomplete reply must never replace working code.
+await page.evaluate(() => { window.__ccReply.mode = "incomplete"; });
+await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  s().updateBoxData(boxId, { changePrompt: "do something odd" });
+}, codeBox);
+const ccBeforeBad = await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().boxData[boxId].code, codeBox);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().applyChangeRequest(boxId), codeBox);
+await page.waitForTimeout(900);
+check("CC7 an incomplete change is refused and the working code is kept", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.status === "error" && /incomplete/i.test(d.error || "") && (d.codeVersions || []).length === 3;
+}, codeBox) && (await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().boxData[boxId].code, codeBox)) === ccBeforeBad);
+
+// A reply that changes nothing is reported instead of pretending.
+await page.evaluate(() => { window.__ccReply.mode = "same"; });
+await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  s().updateBoxData(boxId, { changePrompt: "change nothing" });
+}, codeBox);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().applyChangeRequest(boxId), codeBox);
+await page.waitForTimeout(900);
+check("CC8 an unchanged reply adds no version", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.status === "done" && (d.codeVersions || []).length === 3;
+}, codeBox));
+
+// A change with no request at all is refused with guidance.
+const ccEmpty = await page.evaluate(() => window.__dsh.useBoardStore.getState().addBox("code", { x: 620, y: 3000 }));
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().applyChangeRequest(boxId), ccEmpty);
+check("CC9 a change request with no code (or no request) is refused", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.status === "error" && /Generate the code first/i.test(d.error || "");
+}, ccEmpty));
 
 const realErrors = pageErrors.filter((e) => !/Missing or insufficient permissions/i.test(e));
 check("Z1 no unexpected page errors", realErrors.length === 0, realErrors.join(" | ").slice(0, 200));

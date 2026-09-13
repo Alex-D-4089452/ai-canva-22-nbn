@@ -68,6 +68,9 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 - **Cloud persistence** — boards auto-save to Firestore (with localStorage as an offline cache). Sign in with Google to use the app; your boards are stored per user.
 - **Editable prompt templates** — reference connected inputs by name (`{{Box Name}}`, `{{input_1}}`, `{{inputs}}`) right in the settings panel.
 - **Live code previews** — Code and UI boxes render generated React components in an iframe with copy/save.
+- **Ask the AI for changes** — once a Code or UI box has produced code, type a change request and press
+  ✏️ Apply change: you get the updated component, a diff of exactly what moved, and a version history
+  with one-click revert.
 
 ## 📦 Box Types
 

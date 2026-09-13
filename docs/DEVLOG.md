@@ -49,6 +49,29 @@ current state).
 
 ---
 
+## 2026-02-08 — AI change requests in the Code / UI boxes (with diff + revert)
+
+- **Done:** The Code and UI Design boxes now take **change requests**: a "Request a change…" field +
+  ✏️ **Apply change** button (shown once code exists) asks the AI to rewrite the component it already
+  produced. The prompt template (`CODE_CHANGE_PROMPT`, deliberately **not** per-box editable — its
+  rules are the safeguard) demands the COMPLETE file and forbids reformatting, renaming, or dropping
+  anything the request did not mention; the reply must still pass `isCompletePrototype` (App component
+  **and** a render call) or the existing code is kept and the run errors, and an identical reply adds
+  no version. **Every** build and change now appends to `boxData.codeVersions` (the shared
+  `ArtifactVersion`/`appendVersion` record — `SdlcVersion` became a type alias of it), and the new
+  `CodeChangePanel` shows `vN · +3 −3 vs vN-1`, a 🔀 diff, and a 🕘 history with 👁 view + ↩ **Revert**
+  (a revert is itself a new version, so history stays append-only). Upstream boxes can supply the
+  request (wire a Review box's findings or a Code Edit change set into a Code box). Stitch boxes are
+  excluded (their code is provider HTML).
+- **Tests:** **228 client tests** (12 in `code.test.ts` incl. the completeness check, the change-prompt
+  builder and the no-feature-loss rules) + **75/75** in `client/ui-smoke.mjs` (9 new CC checks: build
+  versioning, apply-a-change, prompt contents, the +/- display, revert-as-new-version, refused
+  incomplete reply, unchanged reply, no-code refusal). **Live:** a real build (5.4s, 112 lines) then a
+  real change request ("bigger heading, dark buttons") → **+3 −3**, exactly the three intended lines,
+  with count/increment/decrement still present and the component still complete.
+- **In flight:** —.
+- **Next steps:** —.
+
 ## 2026-02-08 — Deploy: Code Edit worker live on carbondocs
 
 - **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `ab5d417` — Hosting released (new

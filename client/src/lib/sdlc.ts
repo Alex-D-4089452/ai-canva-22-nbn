@@ -1,12 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
 import type {
+  ArtifactVersion,
   BoxData,
   BoxType,
   NamedInput,
   SdlcEvent,
   SdlcFinding,
   SdlcStage,
-  SdlcVersion,
 } from "../types.js";
 import { fillPromptTemplate } from "./prompts.js";
 
@@ -125,9 +125,9 @@ export function buildStagePrompt(
  * inside a nested object).
  */
 export function appendVersion(
-  versions: SdlcVersion[] | undefined,
+  versions: ArtifactVersion[] | undefined,
   entry: { content: string; createdBy: string; source: "generated" | "edited"; note?: string; at?: number }
-): SdlcVersion[] {
+): ArtifactVersion[] {
   const existing = versions || [];
   const nextNumber = existing.reduce((max, v) => Math.max(max, v.version || 0), 0) + 1;
   return [
@@ -159,7 +159,7 @@ export function appendEvent(
   ];
 }
 
-export function latestVersion(versions: SdlcVersion[] | undefined): SdlcVersion | null {
+export function latestVersion(versions: ArtifactVersion[] | undefined): ArtifactVersion | null {
   if (!versions || versions.length === 0) return null;
   return versions.reduce((a, b) => (b.version > a.version ? b : a));
 }

@@ -11,6 +11,7 @@ import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, out
 import { buildAuditExport, forcedGateReason, isSdlcBox, sdlcStageMeta } from "../lib/sdlc.js";
 import SdlcGatePanel, { SdlcGateBadge } from "./SdlcGatePanel.js";
 import CodeEditPanel from "./CodeEditPanel.js";
+import CodeChangePanel from "./CodeChangePanel.js";
 import RepoField from "./RepoField.js";
 import {
   DEFAULT_TIMER_MS,
@@ -1266,6 +1267,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 )}
               </div>
             )}
+            {/* AI change requests for the generated code (diff + versions below).
+                Not for Stitch boxes: their `code` is HTML from another provider, so
+                a React change request would be nonsense. */}
+            {isCode && !isStitch && boxData.code && !isRunning && (
+              <CodeChangePanel id={id} boxType={boxType} />
+            )}
+
             {!boxData.code && !isRunning && !hasError && (
               <div className="flex flex-col gap-2">
                 <textarea

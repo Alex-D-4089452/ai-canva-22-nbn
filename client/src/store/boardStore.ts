@@ -10,7 +10,7 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, FileChange, EditMeta, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
@@ -59,7 +59,7 @@ import {
   clip,
 } from "../lib/agent.js";
 import { buildDocumentsOutput } from "../lib/documents.js";
-import { extractCode } from "../lib/code.js";
+import { buildCodeChangePrompt, extractCode, isCompletePrototype } from "../lib/code.js";
 import { parseSlidesResponse } from "../lib/slides.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import { DEFAULT_TIMER_MS } from "../lib/timer.js";
@@ -188,6 +188,11 @@ function collectInputs(
   return { namedInputs, inputImage };
 }
 
+/** Box types whose output is code a change request can be applied to. */
+function isCodeBoxType(type: BoxType | string): boolean {
+  return type === "code" || type === "ui";
+}
+
 function defaultBoxData(type: BoxType): BoxData {
   const meta = BOX_TYPES[type];
   return {
@@ -271,6 +276,14 @@ interface BoardState {
   editArtifact: (id: string, content: string, note?: string) => void;
   /** Dismiss one review finding (unlocks the review gate when none block). */
   dismissFinding: (id: string, findingId: string) => void;
+  /**
+   * Code / UI boxes: apply an AI change request to the code already in the box.
+   * The reply replaces `code` but is appended as a new version first, so the
+   * previous code is always recoverable.
+   */
+  applyChangeRequest: (id: string) => Promise<void>;
+  /** Code / UI boxes: restore a previous code version (appended, never deleted). */
+  revertCodeVersion: (id: string, version: number) => void;
   /** Code Edit: replace one file's proposed content (recomputes the diff). */
   setChangeSetFile: (id: string, path: string, content: string) => void;
   /**
@@ -623,6 +636,107 @@ export const useBoardStore = create<BoardState>()(
             action: `dismissed a ${target.severity} finding`,
             note: target.description,
           }),
+        });
+      },
+
+      applyChangeRequest: async (id) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        if (data.status === "running") return;
+        const boxType = (node.data.boxType || node.type) as BoxType;
+        if (!isCodeBoxType(boxType)) return;
+
+        const current = data.code || "";
+        if (!current.trim()) {
+          get().setBoxStatus(id, "error", "Generate the code first — then you can request changes to it.");
+          return;
+        }
+
+        // Upstream boxes may carry the request (e.g. a Review box's findings).
+        const { namedInputs } = collectInputs(get().nodes, get().edges, get().boxData, id, { skipSelf: true });
+        const typed = (data.changePrompt || "").trim();
+        const upstream = namedInputs.map((i) => (i.output || "").trim()).filter(Boolean).join("\n\n");
+        const request = typed || upstream;
+        if (!request) {
+          get().setBoxStatus(
+            id,
+            "error",
+            "Say what to change (the “Request a change” field), or connect a box that says it."
+          );
+          return;
+        }
+
+        get().setBoxStatus(id, "running");
+        try {
+          const userPrompt = buildCodeChangePrompt({
+            code: current,
+            request,
+            context: typed ? namedInputs : [],
+          });
+          const result = await generateTextForBox(id, {
+            systemPrompt: data.systemPrompt,
+            userPrompt,
+            boxType,
+          });
+
+          const next = extractCode(result.content || "");
+          if (!isCompletePrototype(next)) {
+            get().setBoxStatus(
+              id,
+              "error",
+              "The change returned incomplete code (no App component / render call), so the existing code was kept. Try rephrasing the change."
+            );
+            return;
+          }
+          if (next === current) {
+            get().updateBoxData(id, {
+              status: "done",
+              error: undefined,
+              // Keep the request in the field so it can be tweaked and retried.
+              codeVersions: data.codeVersions || [],
+            });
+            return;
+          }
+
+          const versions = appendVersion(data.codeVersions, {
+            content: next,
+            createdBy: actorName(),
+            source: "generated",
+            note: request.length > 200 ? request.slice(0, 200) + "…" : request,
+          });
+          get().updateBoxData(id, {
+            code: next,
+            output: result.content,
+            status: "done",
+            error: undefined,
+            codeVersions: versions,
+            codeVersion: versions[versions.length - 1].version,
+            changePrompt: "",
+          });
+        } catch (err: any) {
+          get().setBoxStatus(id, "error", err.message || "Could not apply the change");
+        }
+      },
+
+      revertCodeVersion: (id, version) => {
+        const data = get().boxData[id];
+        if (!data) return;
+        const target = (data.codeVersions || []).find((v) => v.version === version);
+        if (!target) return;
+        // History is append-only: a revert is itself a new version.
+        const versions = appendVersion(data.codeVersions, {
+          content: target.content,
+          createdBy: actorName(),
+          source: "edited",
+          note: `reverted to v${version}`,
+        });
+        get().updateBoxData(id, {
+          code: target.content,
+          status: "done",
+          error: undefined,
+          codeVersions: versions,
+          codeVersion: versions[versions.length - 1].version,
         });
       },
 
@@ -1202,17 +1316,27 @@ export const useBoardStore = create<BoardState>()(
             } else if (boxType === "code" || boxType === "ui") {
               // Extract component code from the LLM's response
               const code = extractCode(result.content);
-              // Validate: the code must contain a render call to actually work
-              if (!code.includes("ReactDOM.createRoot") && !code.includes("ReactDOM.render")) {
+              // Validate: the code must be a complete, mountable component
+              if (!isCompletePrototype(code)) {
                 throw new Error(
-                  "Generated code is incomplete (missing ReactDOM render call). Try simplifying the requirements or re-run."
+                  "Generated code is incomplete (missing the App component or the ReactDOM render call). Try simplifying the requirements or re-run."
                 );
               }
+              // Every build is versioned, so an AI change (or a revert) always has
+              // something to fall back to.
+              const versions = appendVersion(data.codeVersions, {
+                content: code,
+                createdBy: actorName(),
+                source: "generated",
+                note: "initial build",
+              });
               get().updateBoxData(id, {
                 output: result.content,
                 code,
                 status: "done",
                 error: undefined,
+                codeVersions: versions,
+                codeVersion: versions[versions.length - 1].version,
               });
             } else {
               // Store text output (research, summarize)

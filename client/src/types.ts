@@ -269,6 +269,29 @@ Connected inputs:
 {{inputs}}`;
 
 /**
+ * The user-prompt template for applying a change request to code a Code (or UI
+ * Design) box already generated. Deliberately NOT editable per box: the rules in
+ * it are what stop an AI change from quietly dropping features the request never
+ * mentioned. The box's own system prompt and build prompt stay editable.
+ */
+export const CODE_CHANGE_PROMPT = `Here is the current code of a working prototype, followed by a change request. Apply ONLY that change and return the complete updated file.
+
+Rules:
+- Return the COMPLETE file — never a fragment, never a diff, never an explanation.
+- Keep every part the request does not mention exactly as it is: no reformatting, no renaming, no "improvements", no dropping features.
+- Change as little as the request allows. If the request is ambiguous, choose the smallest sensible interpretation and keep the rest working.
+- Keep the existing structure and style of the file.
+
+The current code:
+
+\`\`\`jsx
+{{code}}
+\`\`\`
+
+Change request:
+{{request}}`;
+
+/**
  * Code Map worker — reads a GitHub repository (via the backend's
  * /api/repo-digest endpoint, which fetches the tree and the files that matter
  * most) and writes an orientation brief: what the code does, how it is
@@ -339,22 +362,27 @@ export type SdlcStage = "intent" | "spec" | "plan" | "implementation" | "review"
 export type SdlcGateState = "pending" | "approved" | "changes_requested" | "rejected" | "stale";
 
 /**
- * One immutable artifact version of an SDLC stage. Regeneration appends a new
- * version — an existing version is never rewritten or removed (the whole point
- * of the pipeline is traceability).
+ * One immutable version of an append-only artifact history. Regeneration (or an
+ * AI-applied change, or a revert) appends a new version — an existing version is
+ * never rewritten or removed. The SDLC stages and the Code box's code share this
+ * shape.
  */
-export interface SdlcVersion {
+export interface ArtifactVersion {
   version: number;
+  /** The artifact itself (markdown for an SDLC stage, code for a Code box). */
   content: string;
   /** Epoch ms when the version was created. */
   createdAt: number;
   /** Display name of whoever produced it. */
   createdBy: string;
-  /** Whether the model generated it or a human edited the artifact. */
+  /** Whether the model generated it or a human changed it. */
   source: "generated" | "edited";
-  /** The change request this version was regenerated from ("" otherwise). */
+  /** What prompted this version (the change request, "" otherwise). */
   note: string;
 }
+
+/** An SDLC stage's artifact version (same record, stage-specific name). */
+export type SdlcVersion = ArtifactVersion;
 
 /** One append-only audit event of an SDLC stage box. */
 export interface SdlcEvent {
@@ -480,6 +508,12 @@ export interface BoxData {
   slides?: Slide[];
   /** For Code boxes: the generated React component code (JSX). */
   code?: string;
+  /** Code boxes: the change request to apply to the current code (AI edit). */
+  changePrompt?: string;
+  /** Code boxes: append-only history of every code version (never rewritten). */
+  codeVersions?: ArtifactVersion[];
+  /** Code boxes: the version the current `code` corresponds to (0 = none). */
+  codeVersion?: number;
   /** Token usage from the most recent LLM call for this box (text AI boxes). */
   tokens?: { promptTokens: number; completionTokens: number; totalTokens: number };
   /** For Agent boxes: the step log of the most recent (or current) run. */

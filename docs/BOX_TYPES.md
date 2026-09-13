@@ -225,6 +225,19 @@ Code/Preview tabs, Copy, and Save (download).
 - **Output:** `code` (the JSX) + `output` (the raw response).
 - **Constraints:** no imports; use the `React.*` API; define an `App` component; keep mock data
   small (3–5 items).
+- **Change requests (AI edits):** once there is code, the box shows a **"Request a change…"** field
+  and an **✏️ Apply change** button. The AI rewrites the whole component from your request, with the
+  prompt rules that stop feature loss ("return the COMPLETE file… no reformatting, no renaming, no
+  dropping features"), and the reply must still be a complete mountable component or the existing
+  code is kept. Upstream boxes can supply the request too — wire a **Review** box (its findings *are*
+  a change request) or a Code Edit box into a Code box and apply their suggestions without retyping
+  them.
+- **Versions (never rewritten):** every build *and* every applied change appends a version
+  (`codeVersions`), so the box shows `v4 · +3 −3 vs v3`, a 🔀 **Diff** of the last change, and a
+  🕘 history with **👁 view** and **↩ Revert** per version. A revert is itself a new version, so the
+  history stays append-only — a mangled rewrite costs one click, not the box.
+- **Honest limit:** nothing is verified for you — the preview renders, it does not test. The diff and
+  the version history are the check.
 
 ### ✨ UI Design — `ui`
 
@@ -235,6 +248,9 @@ Generates polished, production-quality React UIs using **Tailwind CSS classes** 
 - **Inputs:** `{{inputs}}`.
 - **Output:** `code` (Tailwind-based JSX) + preview.
 - **Settings:** same as Code box; system prompt emphasizes visual polish.
+- **Change requests + versions:** identical to the Code box — the same "Request a change…" field,
+  ✏️ Apply change, 🔀 diff and 🕘 version history with ↩ Revert (`client/src/components/
+  CodeChangePanel.tsx`, shared by both boxes).
 
 ### 🧵 Stitch UI — `stitch`
 
