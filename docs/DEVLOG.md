@@ -29,6 +29,16 @@ current state).
 
 ---
 
+## 2026-02-08 — Default text model → deepseek-v4.1-flash
+
+- **Done:** Changed the hardcoded default in BOTH `server/src/ollama.ts` and `functions/src/ollama.ts`
+  (`deepseek-v4-flash` → `deepseek-v4.1-flash`), plus doc comments, `server/.env.example`,
+  `functions/.env.example`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT.md`, and the
+  `docs/MODELS.md` map (change log entry added). No `OLLAMA_MODEL` override is set in either env
+  file, so both environments use the new default; **production takes effect on next deploy**.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-02-08 — docs/MODELS.md: model registry (single source of truth)
 
 - **Done:** Added `docs/MODELS.md` — one page mapping every model to its concern (text =

@@ -9,7 +9,7 @@ has changed." If you change a model, **update the table and append to the change
 
 | Concern | Used by | Provider | Model | Override | Defined in |
 |---------|---------|----------|-------|----------|------------|
-| **All text generation** | Research, Summarize, PRD, Dev Plan, Slides, Code, UI Design, Agent, Chatbot, custom boxes, agent run-box calls | Ollama (Cloud **or** local daemon) | `deepseek-v4-flash` *(default — no override set)* | `OLLAMA_MODEL` | `server/src/ollama.ts` + `functions/src/ollama.ts` |
+| **All text generation** | Research, Summarize, PRD, Dev Plan, Slides, Code, UI Design, Agent, Chatbot, custom boxes, agent run-box calls | Ollama (Cloud **or** local daemon) | `deepseek-v4.1-flash` *(default — no override set)* | `OLLAMA_MODEL` | `server/src/ollama.ts` + `functions/src/ollama.ts` |
 | **UI screens** | Stitch UI box | Google Stitch (Gemini under the hood) | `GEMINI_3_FLASH` *(default)* | `STITCH_MODEL` — enum: `GEMINI_3_PRO` \| `GEMINI_3_FLASH` | `server/src/stitch.ts` + `functions/src/stitch.ts` |
 | **Image, image→image** | Cartoon Profile box (when an Image box is connected) | fal.ai | `fal-ai/qwen-image-edit` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |
 | **Image, text→image** | Cartoon Profile box (no Image box connected) | fal.ai | `fal-ai/flux/schnell` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |
@@ -28,7 +28,7 @@ has changed." If you change a model, **update the table and append to the change
 - **Tokens:** read from the response's `prompt_eval_count` / `eval_count` and reported back as
   `usage` on `/api/generate`.
 - **Env vars:** `OLLAMA_API_KEY`, `OLLAMA_HOST` (default `https://ollama.com`), `OLLAMA_MODEL`
-  (default `deepseek-v4-flash`).
+  (default `deepseek-v4.1-flash`).
 
 ### Google Stitch (UI screens)
 - **Auth:** `STITCH_API_KEY`.
@@ -73,6 +73,9 @@ has changed." If you change a model, **update the table and append to the change
 
 ## Change log
 
+- **2026-02-08** — Default text model changed `deepseek-v4-flash` → **`deepseek-v4.1-flash`**
+  (hardcoded default in both `server/src/ollama.ts` and `functions/src/ollama.ts`; env templates
+  and docs updated to match). Production picks it up on the next `npm run deploy`.
 - **2026-02-08** — Documented the initial state: text = Ollama `deepseek-v4-flash` (default),
   Stitch = `GEMINI_3_FLASH`, fal.ai = `fal-ai/qwen-image-edit` / `fal-ai/flux/schnell`. No env
   overrides active. Removed the unused `ANTHROPIC_API_KEY` from `server/.env` / `functions/.env`.

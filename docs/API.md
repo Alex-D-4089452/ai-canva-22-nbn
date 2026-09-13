@@ -44,7 +44,7 @@ PRD, Dev Plan, Slides, Code, UI Design).
 ```json
 {
   "content": "string",
-  "model": "deepseek-v4-flash",
+  "model": "deepseek-v4.1-flash",
   "usage": { "promptTokens": 120, "completionTokens": 450, "totalTokens": 570 }
 }
 ```
@@ -60,7 +60,7 @@ persists it to Firestore (see "Token usage" below).
 | `400` | `userPrompt` missing or not a string |
 | `500` | Ollama call failed (e.g. missing `OLLAMA_API_KEY`) |
 
-The model defaults to `deepseek-v4-flash` and can be overridden with `OLLAMA_MODEL`. Requests go to
+The model defaults to `deepseek-v4.1-flash` and can be overridden with `OLLAMA_MODEL`. Requests go to
 `{OLLAMA_HOST}/api/chat` (default `https://ollama.com` for Ollama Cloud) authenticated with
 `OLLAMA_API_KEY`.
 
@@ -274,7 +274,7 @@ via `auth.updateUser`. An admin cannot block their own account.
 | Variable            | Required for      | Description                                    |
 | ------------------- | ----------------- | ---------------------------------------------- |
 | `OLLAMA_API_KEY`    | Text boxes        | Ollama Cloud API key (https://ollama.com/settings/keys) |
-| `OLLAMA_MODEL`      | Optional          | Model name (default `deepseek-v4-flash`)      |
+| `OLLAMA_MODEL`      | Optional          | Model name (default `deepseek-v4.1-flash`)      |
 | `OLLAMA_HOST`       | Optional          | Ollama host (default `https://ollama.com`)     |
 | `FAL_KEY`           | Cartoon box       | fal.ai API key                                 |
 | `STITCH_API_KEY`    | Stitch UI box     | Google Stitch API key                          |
