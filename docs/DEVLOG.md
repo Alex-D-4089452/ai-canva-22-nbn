@@ -29,6 +29,43 @@ current state).
 
 ---
 
+## 2026-02-08 — Tablet / iPad (coarse-pointer) support across the canvas
+
+- **Done:** Made the app usable on a large tablet for the booth demo. All touch behavior is
+  scoped to `@media (pointer: coarse)` in `client/src/index.css` (desktop unchanged). Page level:
+  `index.html` viewport now `viewport-fit=cover, maximum-scale=1, user-scalable=no` + apple/web
+  app metas (Add-to-Home-Screen → chrome-less kiosk), `.app-bar` safe-area insets, `100dvh`
+  root height, `overscroll-behavior: none`, global `touch-action: manipulation` on buttons,
+  `user-select: none` on body for coarse pointers (reading surfaces re-enabled). Touch targets:
+  React Flow handles 18px (`!important` over inline), resize handles 20px, controls 34px,
+  deletes 30px, footer buttons/slide-nav/timer/palette/header bumps via new marker classes.
+  Hover-gated ✕ buttons (Documents file rows, Sidebar custom templates) get `.touch-visible`;
+  note/label/chatbot deletes always visible on touch. Box bodies (`box-body nodrag`) scroll with
+  a finger instead of dragging the node. Canvas: Area tool now works from touch (native
+  touchstart/move/end on `.react-flow__pane`), presence cursors update via `onTouchMove`,
+  `zoomOnDoubleClick={false}`. Help card yields the corner to zoom controls on touch.
+  Verified: 126 client unit tests + full E2E **80/80** (desktop viewport).
+- **In flight:** —
+- **Next steps:** real-device pass on an iPad (keyboard-overlap when typing in low boxes,
+  CodeMirror on-screen editing feel); optionally hide the minimap on small screens.
+
+## 2026-08-30 — Chatbot companion: a chatting stick figure on the board
+
+- **Done:** Added the 🧍 **Chatbot** (17th box type, new `companion` category + "Companions"
+  palette section): a stick-figure AI you can hold a continuous conversation with. Auto-placed at
+  the viewport bottom-center on add (`data.autoPlace` → Canvas effect → `placeChatbot`), rendered
+  as a custom annotation branch in `BoxNode.tsx` (SVG `StickFigure.tsx`, speech bubble, thinking
+  bob). Click opens `ChatbotPanel.tsx` (portaled) — shared transcript with attribution, editable
+  name (default "Chat Pal"), 🧠 personality editor (`boxData.personality`), clear-chat, Retry on
+  error. Each reply = store `sendChatMessage` → persona + board snapshot (via `buildBoardInventory`,
+  chatbots/agents/areas filtered) + last 16 messages → `/api/generate`; no backend changes. New
+  `lib/chatbot.ts` (pure; 11 tests; 60-message cap) + tests. `runBox` early-returns for chatbot;
+  agent inventory now also hides chatbots. E2E-verified live: board-aware reply ("I see an Idea
+  Box… and a Research Box…"), persona + rename round-trips, auto-place, bubble.
+- **In flight:** —
+- **Next steps:** per-user private companions or "typing" presence are possible follow-ups; the
+  reply loop is non-streaming (typing dots only) — a streaming endpoint would improve feel.
+
 ## 2026-08-30 — Agent box: a real task-driven agent on the board
 
 - **Done:** Added the 🤖 **Agent** box (16th box type, first in Workers): the user types a task and

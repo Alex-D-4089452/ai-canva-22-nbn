@@ -74,15 +74,17 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   starting the server.
 - **Client pure logic lives in `client/src/lib/`** and is unit-tested: prompt templating
   (`prompts.ts`), code/HTML wrapping (`code.ts`), slides JSON parsing (`slides.ts`), Firestore
-  save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), and the
-  Agent box action protocol (`agent.ts`). `boardStore.ts` imports these rather than inlining them.
+  save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), the
+  Agent box action protocol (`agent.ts`), and the Chatbot companion prompt building (`chatbot.ts`).
+  `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **16 built-in box types** plus user-created custom boxes: Agent, Idea, Image, Documents,
-  Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code, UI Design, Stitch UI, three
-  collaboration boxes (Note, Label, Timer), and the `custom` runtime type (see "Custom boxes"
-  below). Categories: `input`, `worker`, `collab` (standalone annotation tools: no AI, no Run, no
-  handles), and `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
+- **17 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
+  Documents, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code, UI Design,
+  Stitch UI, three collaboration boxes (Note, Label, Timer), and the `custom` runtime type (see
+  "Custom boxes" below). Categories: `input`, `worker`, `companion` (the Chatbot), `collab`
+  (standalone annotation tools: no AI, no Run, no handles), and `custom` (the user's saved
+  templates). See `docs/BOX_TYPES.md`.
 
 ## UI design system
 
@@ -230,6 +232,25 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
+- **Chatbot companion (🧍, Companions palette section):** a stick figure that LIVES on the board
+  and holds a continuous, shared conversation — unlike the Agent box it never "finishes" and never
+  touches boxes; it only talks. Category `"companion"`; renders via a custom early-return branch
+  in `BoxNode.tsx` (annotation pattern like note/label: no card/handles/Run; hover ✕ delete;
+  SVG figure in `components/StickFigure.tsx`, idle-bob/thinking animations in `index.css`).
+  Clicking the figure opens `ChatbotPanel.tsx` — **portaled to document.body** (CodeModal
+  pattern) — with the transcript, an editable name (`data.title`, default "Chat Pal"), the
+  🧠 **personality** editor (`boxData.personality`, free text; default in
+  `lib/chatbot.ts DEFAULT_PERSONALITY`), clear-chat, and Retry (strips the failed trailing
+  exchange, re-sends). Sending = store `sendChatMessage(id, text)`: appends the user message
+  (with `by` attribution — the conversation is SHARED, last-write-wins between simultaneous
+  users), builds context client-side each turn (compiled persona + `buildChatSystemPrompt` +
+  last 16 messages via `buildConversationTurn` + a board snapshot reusing `buildBoardInventory`
+  with chatbot/agent/area nodes filtered out) and calls `/api/generate`; no backend changes.
+  `runBox` early-returns for `chatbot` (talking is never a Run); tokens accrue cumulatively with
+  `boxType: "chatbot"`. History is capped (`MAX_CHAT_MESSAGES` 60 stored / 16 replayed). The node
+  seeds a greeting in `addBox` and carries `data.autoPlace`, which `Canvas.tsx`'s effect resolves
+  to the **bottom-center of the current viewport** (offset per extra chatbot) — it's then a
+  normal draggable node. E2E-verified live: board-aware answers, persona + rename round-trips.
 - **Agent box (🤖, first worker in the palette):** users type a task and Run — the LLM acts as an
   autonomous controller that manipulates the BOARD: each controller turn returns exactly ONE JSON
   action (`add_box` / `connect` / `run_box` / `finish`), executed with the regular store actions,
@@ -369,6 +390,28 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
+- **Touch / tablet (iPad) support:** everything touch-related is scoped to `@media (pointer: coarse)`
+  in `client/src/index.css` — desktop is byte-for-byte unchanged. When adding UI, keep it that way:
+  - **Hover-gated controls need `.touch-visible`** (opacity forced to 1 on coarse pointers) — used by
+    the Documents-file ✕ (BoxNode) and the Sidebar custom-template ✕. Note/label/chatbot/box delete
+    ✕s are always visible + 30px on touch via their own classes.
+  - **Touch-target classes:** `.box-footer button`, `.slide-nav`, `.timer-controls button`,
+    `.area-color-dot`/`.label-color-dot`, `.palette-row`, `.sidebar-tab`, `.help-anchor`,
+    `.app-bar button/input`. React Flow connection handles are forced to 18px with `!important`
+    (BoxNode sets 10px inline), resize handles 20px, controls 34px.
+  - **Box bodies scroll on touch:** the standard box-card body wrapper is `box-body nodrag` +
+    `touch-action: pan-y` (coarse only) so a finger scrolls long output instead of dragging the
+    node. Side effect on desktop too: boxes are dragged by their header strip (consistent with the
+    idea-textarea `nodrag` convention).
+  - **Canvas:** `zoomOnDoubleClick={false}`; the Area tool has a native `touchstart`/`touchmove`/
+    `touchend` mirror on `.react-flow__pane` (iPads never fire the synthesized mousedown — React
+    Flow's touch handlers suppress it); presence cursors update via ReactFlow `onTouchMove`.
+  - **Page level:** `index.html` viewport is `viewport-fit=cover, maximum-scale=1, user-scalable=no`
+    plus apple/web-app metas (Add-to-Home-Screen = chrome-less kiosk); `.app-bar` pads with
+    `env(safe-area-inset-*)`; root uses `100dvh`; `overscroll-behavior: none`; global
+    `touch-action: manipulation` on buttons kills double-tap zoom; `body` is `user-select: none` on
+    coarse pointers with `input`/`textarea`/`.markdown-output`/CodeMirror re-enabled.
+  - Verified with the full E2E (80/80, desktop viewport) — keep the suite green when extending.
 - **Custom boxes (user-created templates):** users create reusable AI box templates ("✨ New
   Custom Box" in the sidebar) — name, emoji, color, prompt template, system prompt. Definitions
   are saved per-user at `users/{uid}/boxes/{boxId}` (owner-only rules; `userBoxesStore.ts` loads
