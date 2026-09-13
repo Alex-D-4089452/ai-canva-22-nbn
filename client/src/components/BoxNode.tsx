@@ -7,6 +7,9 @@ import { BOX_TYPES, LABEL_COLORS } from "../types.js";
 import { chatbotName } from "../lib/chatbot.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
+import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeText } from "../lib/download.js";
+import { buildAuditExport, forcedGateReason, isSdlcBox, sdlcStageMeta } from "../lib/sdlc.js";
+import SdlcGatePanel, { SdlcGateBadge } from "./SdlcGatePanel.js";
 import {
   DEFAULT_TIMER_MS,
   computeRemainingMs,
@@ -108,6 +111,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const edges = useBoardStore((s) => s.edges);
   const allNodes = useBoardStore((s) => s.nodes);
   const setBoxName = useBoardStore((s) => s.setBoxName);
+  const setSdlcGateRequired = useBoardStore((s) => s.setSdlcGateRequired);
 
   const [showSettings, setShowSettings] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -213,6 +217,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isLabel = boxType === "label";
   const isTimer = boxType === "timer";
   const isUtility = isNote || isLabel || isTimer;
+  // SDLC pipeline stage boxes (gated; see components/SdlcGatePanel.tsx).
+  const isSdlc = isSdlcBox(boxType);
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -484,6 +490,37 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     sdk.openProject(toStackBlitzProject(boxData.code));
   };
 
+  // Download this box's ACTUAL outcome as Markdown (see lib/download.ts for the
+  // per-type file names — the SDLC stages use the blueprint's artifact names).
+  const outcome = outcomeText(boxType, boxData);
+  const handleDownloadOutcome = () => {
+    if (!outcome) return;
+    downloadText(outcome, outcomeFilename(boxType, (data.title as string) || meta.label));
+  };
+
+  // Audit export: the whole connected stage chain as one document.
+  const handleDownloadAudit = () => {
+    const state = useBoardStore.getState();
+    const doc = buildAuditExport({
+      nodes: state.nodes,
+      edges: state.edges,
+      boxData: state.boxData,
+      boardTitle: state.boardTitle,
+      startId: id,
+    });
+    downloadText(doc, "sdlc-audit-" + outcomeFilename(boxType, "chain").replace(/\.md$/, "") + ".md");
+  };
+
+  /** Copies an SDLC stage's artifact (same feedback pattern as the code box). */
+  const handleCopyOutcome = async () => {
+    if (!outcome) return;
+    const ok = await copyToClipboard(outcome);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <>
       <NodeResizer
@@ -543,6 +580,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </span>
           )}
           <span className="text-xs text-slate-400 flex-shrink-0">{meta.label}</span>
+          {/* SDLC stage: gate state at a glance (approved / awaiting / stale) */}
+          {isSdlc && <SdlcGateBadge data={boxData} />}
         </div>
         <button
           onClick={() => deleteBox(id)}
@@ -1010,9 +1049,20 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
             {!hasTextOutput && !isRunning && !hasError && (
               <div className="text-slate-400 text-sm py-4 text-center">
-                No output yet. Click <strong>Run</strong> to generate.
+                {isSdlc ? (
+                  <>
+                    No artifact yet. Connect the previous stage (or an Idea box with the change
+                    request) and click <strong>Run</strong>.
+                  </>
+                ) : (
+                  <>
+                    No output yet. Click <strong>Run</strong> to generate.
+                  </>
+                )}
               </div>
             )}
+            {/* SDLC stage gate — approvals, cross-checks, versions, audit trail */}
+            {isSdlc && <SdlcGatePanel id={id} boxType={boxType} />}
           </div>
         )}
 
@@ -1250,6 +1300,38 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           >
             ⚙
           </button>
+          {/* Download this box's actual outcome (Markdown) — every text-output
+              box, including the SDLC stages. */}
+          {!isRunning && hasDownloadableOutcome(boxType) && outcome && (
+            <button
+              onClick={handleDownloadOutcome}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+              title={`Download this box's output as ${outcomeFilename(boxType, (data.title as string) || meta.label)}`}
+            >
+              💾 Save
+            </button>
+          )}
+          {/* SDLC stage: copy the artifact, or export the whole gated chain as
+              one audit document (artifacts + versions + approvals + history). */}
+          {isSdlc && !isRunning && (
+            <>
+              <button
+                onClick={handleCopyOutcome}
+                disabled={!outcome}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap disabled:opacity-40"
+                title="Copy the artifact to the clipboard"
+              >
+                {copied ? "✅ Copied" : "📋 Copy"}
+              </button>
+              <button
+                onClick={handleDownloadAudit}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
+                title="Download the whole stage chain as one audit document (artifacts, versions, approvals, findings, history)"
+              >
+                🗂 Audit
+              </button>
+            </>
+          )}
           {isCode && boxData.code && !isRunning && (
             <>
               <button
@@ -1281,6 +1363,51 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       {/* Settings panel — collapsible (AI boxes only) */}
       {!isInputBox && !isUtility && showSettings && (
         <div className="px-3 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
+          {/* SDLC stage: org rule sets (the pipeline's "skills") — injected into
+              the spec/review prompts, and into the audit record. */}
+          {isSdlc && (sdlcStageMeta(boxType)?.stage === "spec" || sdlcStageMeta(boxType)?.stage === "review") && (
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1">
+                Skills / org rule sets (security, brand, compliance)
+              </label>
+              <textarea
+                className="nodrag nowheel w-full text-xs rounded-lg border border-slate-200 p-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
+                placeholder={"Paste the rules this stage must obey.\ne.g. - Never log PII\n- All public endpoints must be rate limited"}
+                value={boxData.skills || ""}
+                onChange={(e) => updateBoxData(id, { skills: e.target.value })}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Applied to every run of this stage. You can also connect a Documents box with the
+                full policy text.
+              </p>
+            </div>
+          )}
+
+          {/* SDLC stage: the gate itself. Hard gates and forced conditions can
+              never be switched to auto-advance — the app refuses outright. */}
+          {isSdlc && (() => {
+            const forced = forcedGateReason(boxType, boxData);
+            const required = forced !== null ? true : boxData.sdlcGateRequired !== false;
+            return (
+              <label className={"flex items-start gap-2 text-xs " + (forced ? "text-slate-400" : "text-slate-600 cursor-pointer")}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={required}
+                  disabled={!!forced}
+                  onChange={(e) => {
+                    const ok = setSdlcGateRequired(id, e.target.checked);
+                    if (!ok) return;
+                  }}
+                />
+                <span>
+                  Require approval before the next stage can run
+                  {forced && <span className="block text-[10px] text-slate-400">Locked — {forced}</span>}
+                </span>
+              </label>
+            );
+          })()}
+
           {/* System prompt — text AI boxes only (not cartoon) */}
           {!isCartoon && (
             <div>

@@ -10,8 +10,25 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, SdlcEvent, SdlcStage } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
+import {
+  appendEvent,
+  appendVersion,
+  buildStagePrompt,
+  crossCheckSpecDecisions,
+  downstreamIds,
+  forcedGateReason,
+  isSdlcBox,
+  latestVersion,
+  parseDeviation,
+  parseFindings,
+  parseOpenItems,
+  sdlcStageMeta,
+  truncateArtifact,
+  upstreamBlockReason,
+  upstreamStageContent,
+} from "../lib/sdlc.js";
 import { generate, generateImage, generateStitchUI } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
@@ -170,6 +187,21 @@ function defaultBoxData(type: BoxType): BoxData {
     ...(type === "timer"
       ? { timerDurationMs: DEFAULT_TIMER_MS, timerStatus: "idle" as const }
       : null),
+    // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
+    // rejects `undefined` anywhere inside a nested value, and these arrays are
+    // append-only for the whole life of the board.
+    ...(isSdlcBox(type)
+      ? {
+          sdlcVersions: [],
+          sdlcHistory: [],
+          sdlcFindings: [],
+          sdlcOpenItems: [],
+          sdlcGaps: [],
+          sdlcDeviation: false,
+          sdlcGateRequired: true,
+          skills: "",
+        }
+      : null),
   };
 }
 
@@ -212,6 +244,24 @@ interface BoardState {
   clearChat: (id: string) => void;
   /** Place a chatbot node (Canvas auto-places it at the viewport bottom). */
   placeChatbot: (id: string, position: { x: number; y: number }) => void;
+
+  // === SDLC pipeline gates (see client/src/lib/sdlc.ts) ===
+  /** Record a human approval of a stage's latest artifact version. */
+  approveArtifact: (id: string, note?: string) => void;
+  /** Send a stage back with feedback — injected into the next regeneration. */
+  requestChanges: (id: string, note: string) => void;
+  /** Reject a stage's artifact outright (versions are kept). */
+  rejectArtifact: (id: string, note: string) => void;
+  /** Save a human-edited artifact as a NEW version (never overwrites). */
+  editArtifact: (id: string, content: string, note?: string) => void;
+  /** Dismiss one review finding (unlocks the review gate when none block). */
+  dismissFinding: (id: string, findingId: string) => void;
+  /**
+   * Toggle whether downstream stages must wait for this stage's approval.
+   * Returns false when the app refuses the configuration (hard gates and
+   * forced-gate conditions can never auto-advance).
+   */
+  setSdlcGateRequired: (id: string, required: boolean) => boolean;
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
 
@@ -422,6 +472,163 @@ export const useBoardStore = create<BoardState>()(
 
       setBoxStatus: (id, status, error) => {
         get().updateBoxData(id, { status, error });
+      },
+
+      // === SDLC pipeline gates ===
+      // Every action appends to the box's audit trail; nothing is ever removed
+      // (an artifact version, a rejection and a re-approval all stay queryable).
+
+      approveArtifact: (id, note) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        const latest = latestVersion(data.sdlcVersions);
+        if (!latest) return;
+        const type = (node.data.boxType || node.type) as BoxType;
+        const actor = actorName();
+        get().updateBoxData(id, {
+          sdlcGate: "approved",
+          sdlcApprovedVersion: latest.version,
+          sdlcApprovedBy: actor,
+          sdlcApprovedAt: Date.now(),
+          sdlcHistory: appendEvent(data.sdlcHistory, {
+            actor,
+            action: `approved ${sdlcStageMeta(type)?.stage || "stage"} v${latest.version}`,
+            note,
+          }),
+        });
+      },
+
+      requestChanges: (id, note) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        const type = (node.data.boxType || node.type) as BoxType;
+        const latest = latestVersion(data.sdlcVersions);
+        const actor = actorName();
+        get().updateBoxData(id, {
+          sdlcGate: "changes_requested",
+          sdlcFeedback: note || "",
+          sdlcApprovedVersion: undefined,
+          sdlcApprovedBy: undefined,
+          sdlcApprovedAt: undefined,
+          sdlcHistory: appendEvent(data.sdlcHistory, {
+            actor,
+            action: `requested changes on ${sdlcStageMeta(type)?.stage || "stage"}${latest ? ` v${latest.version}` : ""}`,
+            note,
+          }),
+        });
+        // The approved artifact is no longer the accepted one: anything that was
+        // approved downstream of it must be re-approved.
+        invalidateSdlcDownstream(id, actor);
+      },
+
+      rejectArtifact: (id, note) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        const type = (node.data.boxType || node.type) as BoxType;
+        const latest = latestVersion(data.sdlcVersions);
+        const actor = actorName();
+        get().updateBoxData(id, {
+          sdlcGate: "rejected",
+          sdlcFeedback: note || "",
+          sdlcApprovedVersion: undefined,
+          sdlcApprovedBy: undefined,
+          sdlcApprovedAt: undefined,
+          sdlcHistory: appendEvent(data.sdlcHistory, {
+            actor,
+            action: `rejected ${sdlcStageMeta(type)?.stage || "stage"}${latest ? ` v${latest.version}` : ""}`,
+            note,
+          }),
+        });
+        invalidateSdlcDownstream(id, actor);
+      },
+
+      editArtifact: (id, content, note) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        const type = (node.data.boxType || node.type) as BoxType;
+        const meta = sdlcStageMeta(type);
+        const actor = actorName();
+        const versions = appendVersion(data.sdlcVersions, {
+          content,
+          createdBy: actor,
+          source: "edited",
+          note,
+        });
+        const newVersion = versions[versions.length - 1].version;
+        let history = appendEvent(data.sdlcHistory, {
+          actor,
+          action: `edited ${meta?.stage || "stage"} v${newVersion}`,
+          note,
+        });
+
+        // Re-derive the app-side cross-checks from the edited text: a human who
+        // resolves the spec's open questions by editing it must actually unblock
+        // the stage.
+        const derived = deriveStageCrossChecks(
+          meta?.stage,
+          content,
+          meta ? upstreamStageContent(get().nodes, get().edges, get().boxData, id, "spec") : "",
+          history
+        );
+
+        get().updateBoxData(id, {
+          output: content,
+          status: "done",
+          error: undefined,
+          sdlcVersions: versions,
+          sdlcGate: "pending",
+          sdlcApprovedVersion: undefined,
+          sdlcApprovedBy: undefined,
+          sdlcApprovedAt: undefined,
+          sdlcHistory: derived.history,
+          ...derived.patch,
+        });
+        invalidateSdlcDownstream(id, actor);
+      },
+
+      dismissFinding: (id, findingId) => {
+        const data = get().boxData[id];
+        if (!data) return;
+        const actor = actorName();
+        const findings = (data.sdlcFindings || []).map((f) =>
+          f.id === findingId ? { ...f, dismissed: true, dismissedBy: actor } : f
+        );
+        const target = findings.find((f) => f.id === findingId);
+        if (!target) return;
+        get().updateBoxData(id, {
+          sdlcFindings: findings,
+          sdlcHistory: appendEvent(data.sdlcHistory, {
+            actor,
+            action: `dismissed a ${target.severity} finding`,
+            note: target.description,
+          }),
+        });
+      },
+
+      setSdlcGateRequired: (id, required) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return false;
+        const type = (node.data.boxType || node.type) as BoxType;
+        const forced = forcedGateReason(type, data);
+        // Reject the configuration outright rather than silently allowing it:
+        // Intent/Merge and any stage with an unresolved condition stay gated.
+        if (!required && forced) return false;
+        get().updateBoxData(id, {
+          sdlcGateRequired: required,
+          sdlcHistory: appendEvent(data.sdlcHistory, {
+            actor: actorName(),
+            action: required
+              ? "re-enabled the approval gate for this stage"
+              : "set this stage to auto-advance (no approval required)",
+            note: "",
+          }),
+        });
+        return true;
       },
 
       connectBoxes: (sourceId, targetId) => {
@@ -866,6 +1073,14 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // SDLC stage boxes run through the gated pipeline: the gate is checked
+        // before the model call, the artifact is appended as a new immutable
+        // version, and dependent approvals are invalidated.
+        if (isSdlcBox(boxType)) {
+          await runSdlcStage(id);
+          return;
+        }
+
         // Gather upstream inputs
         const { namedInputs, inputImage } = collectInputs(
           state.nodes,
@@ -912,36 +1127,18 @@ export const useBoardStore = create<BoardState>()(
               error: undefined,
             });
           } else {
-            // Text generation via the Ollama backend (research, summarize, slides)
+            // Text generation via the Ollama backend (research, summarize,
+            // slides, custom boxes)
             const filledPrompt = fillPromptTemplate(
               data.prompt,
               namedInputs
             );
 
-            const result = await generate({
+            const result = await generateTextForBox(id, {
               systemPrompt: data.systemPrompt,
               userPrompt: filledPrompt,
+              boxType,
             });
-
-            if (result.error) throw new Error(result.error);
-
-            // Record token usage — update the box display, persist to Firestore,
-            // and bump the user's session cumulative total.
-            if (result.usage) {
-              get().updateBoxData(id, { tokens: result.usage });
-              const user = useAuthStore.getState().user;
-              if (user) {
-                recordTokenUsage(
-                  user.uid,
-                  get().currentBoardId || "",
-                  id,
-                  boxType,
-                  result.usage,
-                  result.model
-                );
-                useTokenStore.getState().addTokens(result.usage.totalTokens);
-              }
-            }
 
             if (boxType === "slides") {
               // Parse the LLM's JSON output into a slide deck
@@ -993,6 +1190,265 @@ export const useBoardStore = create<BoardState>()(
     }
   )
 );
+
+// ============================================================
+// SDLC pipeline — the gated stage engine.
+//
+// The stages, gate rules, parsers, cross-checks and audit export all live in
+// client/src/lib/sdlc.ts (pure, unit-tested). These functions are the thin
+// store-side orchestration: check the gate, call the model, append an immutable
+// version, run the app-side cross-checks, and invalidate dependent approvals.
+// ============================================================
+
+/** Audit-trail actor for events the APP itself records (not a person). */
+const APP_ACTOR = "AI Canva";
+
+/** Display name used for attributions (approvals, edits, rejections). */
+function actorName(): string {
+  const user = useAuthStore.getState().user;
+  return user?.displayName || user?.email || "Someone";
+}
+
+/**
+ * One text generation for a box: calls the model, records token usage (box
+ * display + Firestore ledger + session total) and throws on failure. Shared by
+ * the generic text branch and the SDLC stage branch so the accounting can never
+ * drift apart.
+ */
+async function generateTextForBox(
+  id: string,
+  opts: { systemPrompt: string; userPrompt: string; boxType: BoxType }
+) {
+  const result = await generate({
+    systemPrompt: opts.systemPrompt,
+    userPrompt: opts.userPrompt,
+  });
+
+  if (result.error) throw new Error(result.error);
+
+  const store = useBoardStore.getState();
+  if (result.usage) {
+    store.updateBoxData(id, { tokens: result.usage });
+    const user = useAuthStore.getState().user;
+    if (user) {
+      recordTokenUsage(
+        user.uid,
+        store.currentBoardId || "",
+        id,
+        opts.boxType,
+        result.usage,
+        result.model
+      );
+      useTokenStore.getState().addTokens(result.usage.totalTokens);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * The app-side cross-checks the pipeline requires (never left to the model to
+ * remember): unresolved spec items, plan tests missing for a spec decision, plan
+ * deviations reported by the implementation, and parsed review findings.
+ * Returned as a box patch plus the audit trail to store with it.
+ */
+function deriveStageCrossChecks(
+  stage: SdlcStage | undefined,
+  content: string,
+  specContent: string,
+  history: SdlcEvent[]
+): { patch: Partial<BoxData>; history: SdlcEvent[] } {
+  const patch: Partial<BoxData> = {};
+  let next = history;
+
+  if (stage === "spec") {
+    const openItems = parseOpenItems(content);
+    patch.sdlcOpenItems = openItems;
+    if (openItems.length > 0) {
+      next = appendEvent(next, {
+        actor: APP_ACTOR,
+        action: `${openItems.length} open question(s) are still unresolved — this stage stays gated`,
+        note: openItems.join(" · "),
+      });
+    }
+  }
+
+  if (stage === "plan") {
+    const { missing } = crossCheckSpecDecisions(specContent, content);
+    patch.sdlcGaps = missing;
+    if (missing.length > 0) {
+      next = appendEvent(next, {
+        actor: APP_ACTOR,
+        action: `${missing.length} spec decision(s) have no named test in the plan — this stage stays gated`,
+        note: missing.join(" · "),
+      });
+    }
+  }
+
+  if (stage === "implementation") {
+    const deviation = parseDeviation(content);
+    patch.sdlcDeviation = deviation;
+    if (deviation) {
+      next = appendEvent(next, {
+        actor: APP_ACTOR,
+        action: "the artifact reports a deviation from the approved plan — this stage stays gated",
+        note: "",
+      });
+    }
+  }
+
+  if (stage === "review") {
+    const findings = parseFindings(content);
+    patch.sdlcFindings = findings;
+    const blocking = findings.filter((f) => f.severity === "blocking").length;
+    if (findings.length === 0) {
+      next = appendEvent(next, {
+        actor: APP_ACTOR,
+        action: "no structured findings could be parsed — review the artifact manually before approving",
+        note: "",
+      });
+    } else if (blocking > 0) {
+      next = appendEvent(next, {
+        actor: APP_ACTOR,
+        action: `${blocking} blocking finding(s) — the merge stays blocked until they are dismissed`,
+        note: "",
+      });
+    }
+  }
+
+  return { patch, history: next };
+}
+
+/**
+ * Marks every downstream SDLC box that was approved as `stale`: its approval was
+ * tied to an upstream artifact version that has just changed, so it must be
+ * re-approved and nothing below it may run meanwhile.
+ */
+function invalidateSdlcDownstream(id: string, actor: string) {
+  const state = useBoardStore.getState();
+  const ids = downstreamIds(state.nodes, state.edges, id);
+  if (ids.length === 0) return;
+
+  const sourceTitle =
+    (state.nodes.find((n) => n.id === id)?.data?.title as string) || "an upstream stage";
+  const boxData = { ...state.boxData };
+  let changed = false;
+
+  for (const downId of ids) {
+    const data = boxData[downId];
+    if (!data || data.sdlcGate !== "approved") continue;
+    boxData[downId] = {
+      ...data,
+      sdlcGate: "stale",
+      sdlcHistory: appendEvent(data.sdlcHistory, {
+        actor,
+        action: `marked stale — ${sourceTitle} changed`,
+        note:
+          data.sdlcApprovedVersion !== undefined
+            ? `The approval applied to v${data.sdlcApprovedVersion} of this stage; the upstream artifact it was approved against has changed.`
+            : "",
+      }),
+    };
+    changed = true;
+  }
+
+  if (changed) {
+    useBoardStore.setState({ boxData });
+    scheduleSave();
+  }
+}
+
+/**
+ * Runs one stage of the gated SDLC pipeline.
+ *
+ * 1. The gate is checked BEFORE the model call — an unapproved upstream stage
+ *    means this stage never runs (the reason is surfaced on the box).
+ * 2. The artifact is appended as a new immutable version (never overwritten),
+ *    truncated only if it exceeds the artifact cap.
+ * 3. The app derives the stage's cross-checks itself.
+ * 4. Approvals that depended on the previous upstream artifact are invalidated.
+ *
+ * A failed run appends nothing and leaves the gate untouched: an error must
+ * never advance the pipeline.
+ */
+async function runSdlcStage(id: string) {
+  const get = () => useBoardStore.getState();
+
+  const node = get().nodes.find((n) => n.id === id);
+  const data = get().boxData[id];
+  if (!node || !data) return;
+  if (data.status === "running") return;
+
+  const boxType = (node.data.boxType || node.type) as BoxType;
+  const meta = sdlcStageMeta(boxType);
+  if (!meta) return;
+
+  const blocked = upstreamBlockReason(get().nodes, get().edges, get().boxData, id);
+  if (blocked) {
+    get().setBoxStatus(id, "error", blocked);
+    return;
+  }
+
+  const { namedInputs } = collectInputs(get().nodes, get().edges, get().boxData, id);
+  get().setBoxStatus(id, "running");
+
+  try {
+    const userPrompt = buildStagePrompt(
+      { prompt: data.prompt, skills: data.skills, feedback: data.sdlcFeedback },
+      namedInputs
+    );
+
+    const result = await generateTextForBox(id, {
+      systemPrompt: data.systemPrompt,
+      userPrompt,
+      boxType,
+    });
+
+    const actor = actorName();
+    const { content, truncated } = truncateArtifact(result.content || "");
+    const versions = appendVersion(data.sdlcVersions, {
+      content,
+      createdBy: actor,
+      source: "generated",
+      note: (data.sdlcFeedback || "").trim(),
+    });
+    const newVersion = versions[versions.length - 1].version;
+
+    let history = appendEvent(data.sdlcHistory, {
+      actor,
+      action: `generated ${meta.stage} v${newVersion}`,
+      note: truncated ? "Artifact truncated at 60000 characters." : "",
+    });
+
+    const derived = deriveStageCrossChecks(
+      meta.stage,
+      content,
+      upstreamStageContent(get().nodes, get().edges, get().boxData, id, "spec"),
+      history
+    );
+    history = derived.history;
+
+    get().updateBoxData(id, {
+      // `output` mirrors the latest artifact so downstream {{inputs}} and the
+      // per-box download always see the newest version.
+      output: content,
+      status: "done",
+      error: undefined,
+      sdlcVersions: versions,
+      sdlcGate: "pending",
+      sdlcApprovedVersion: undefined,
+      sdlcApprovedBy: undefined,
+      sdlcApprovedAt: undefined,
+      sdlcFeedback: "",
+      sdlcHistory: history,
+      ...derived.patch,
+    });
+
+    invalidateSdlcDownstream(id, actor);
+  } catch (err: any) {
+    get().setBoxStatus(id, "error", err.message || "Generation failed");
+  }
+}
 
 // ============================================================
 // Agent box — a multi-turn autonomous loop driven by the LLM.

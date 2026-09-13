@@ -29,6 +29,42 @@ current state).
 
 ---
 
+---
+
+## 2026-02-08 — SDLC pipeline group + per-box outcome downloads
+
+- **Done:** Added the **SDLC** palette group (`BoxCategory: "sdlc"`, section "SDLC" between Inputs
+  and Workers) with six gated stage boxes — `sdlc-intent` 🎯, `sdlc-spec` 📐, `sdlc-plan` 🧭,
+  `sdlc-implement` 🛠️, `sdlc-review` 🔎, `sdlc-merge` 🚀 (labels "1 · Intent" … "6 · Merge") — plus
+  a new **`🔁 SDLC` View profile** (`BoxRole: "sdlc"`; Sidebar's `ROLES` list + the localStorage
+  whitelist). Faithful gate mechanics: approve / request changes (feedback is injected into the next
+  regeneration) / reject / edit-as-new-version, append-only `sdlcVersions` + `sdlcHistory`, the gate
+  checked **before** any model call, app-side cross-checks (spec open items, spec decisions with no
+  named test in the plan, implementation deviation, parsed review findings), downstream approvals
+  marked `↻ stale` when an upstream stage changes, hard gates on Intent + Merge plus every forced
+  condition (the ⚙ toggle is refused, not silently ignored), a Skills field on spec/review, a
+  `🗂 Audit` export of the whole chain, and a `💾 Save` button that downloads any text-output box's
+  outcome as Markdown (`client/src/lib/download.ts`). New pure modules `client/src/lib/sdlc.ts` +
+  `client/src/lib/download.ts` (both unit-tested), UI in `components/SdlcGatePanel.tsx` +
+  `BoxNode.tsx`, run path `runSdlcStage` in `boardStore.ts`. Docs updated: `BOX_TYPES.md` (SDLC
+  section, download section, category/role lists), `AGENTS.md` (box count 17→23, category/role
+  lists, two new convention bullets), `README.md` (box table + feature bullets),
+  `LandingRoles.tsx` (4th "For SDLC teams" card).
+- **Tests:** 176 client tests pass (48 new: 38 in `sdlc.test.ts`, 10 in `download.test.ts`, plus
+  SDLC additions in `serialization.test.ts` and `agent.test.ts`); `tsc --noEmit` and `vite build`
+  clean. **Live verification:** the new `client/sdlc-smoke.mjs` (playwright-core against the real
+  dev app on 5173, `/api/generate` mocked per stage) passes **40/40** — palette section + SDLC View
+  profile, the gate refusing to run before approval with **zero** model calls, approve/edit-as-new-
+  version, all four app-side cross-checks, `stale` invalidation of downstream approvals, dismissing
+  a blocking finding, `💾 Save` (`intent.md`) and `🗂 Audit` (asserted by reading the downloaded
+  files), 6 stages + versions + gates surviving a reload. The existing E2E suite still passes
+  **80/80** (no regression). No server/functions changes — the gates are entirely client-side and
+  add no new persisted state beyond `boxData`.
+- **In flight:** —.
+- **Next steps:** — (optional future work: move per-box version history into
+  `boards/{id}/sdlc/...` if a heavily regenerated board ever approaches Firestore's 1 MB document
+  limit).
+
 ## 2026-02-08 — Deploy: new default model live on carbondocs
 
 - **Done:** `bash scripts/deploy.sh` to `carbondocs` (Hosting 200; `/api/health` all keys

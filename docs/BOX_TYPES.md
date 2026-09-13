@@ -4,16 +4,18 @@ This document describes every box type. Metadata lives in `client/src/types.ts`
 (`BOX_TYPES`), rendering in `client/src/components/BoxNode.tsx`, and the "run" behavior in
 `client/src/store/boardStore.ts` (`runBox`).
 
-Boxes fall into four categories:
+Boxes fall into five categories:
 
 - **Input boxes** (`category: "input"`) — no AI. They seed data into a pipeline.
+- **SDLC boxes** (`category: "sdlc"`) — the six gated stages of the SDLC pipeline
+  (intent → spec → plan → implementation → review → merge). AI, plus an approval gate and an
+  append-only artifact history. See "SDLC pipeline boxes" below.
 - **Worker boxes** (`category: "worker"`) — run an AI step (Ollama, fal.ai, or Google Stitch).
 - **Companion boxes** (`category: "companion"`) — persistent AI characters you converse with.
 - **Collaboration boxes** (`category: "collab"`) — standalone annotation tools with no AI, no
   Run button, no settings panel, and no connection handles.
 
-> A fourth `custom` category is reserved in the sidebar but has no boxes yet ("Add Custom" is
-> disabled).
+> A sixth `custom` category holds the user's own saved box templates (see "Custom boxes").
 
 ---
 
@@ -262,6 +264,84 @@ Firestore) and appear in the palette on every board.
 
 ---
 
+## SDLC pipeline boxes
+
+Six boxes that walk **one change request** through a fixed, gated pipeline — the whiteboard version
+of the app's SDLC blueprint: `intent → spec → plan → implementation → review → merge`. Each box
+produces exactly one artifact, and the box **is** the gate: nothing advances to the next stage
+until a human approves the artifact at that stage.
+
+| # | Box | Type | Artifact | Gate |
+|---|-----|------|----------|------|
+| 1 | 🎯 **Intent** | `sdlc-intent` | `intent.md` — problem, outcome, affected users/systems, constraints, **open questions** | **hard gate, always** |
+| 2 | 📐 **Spec** | `sdlc-spec` | `spec.md` — one `### Decision N` per open question, skill constraints applied, unresolved flags | gated; forced while anything is unresolved |
+| 3 | 🧭 **Plan** | `sdlc-plan` | `plan.md` — files, implementation order, a named test per spec decision, risks, rollback | gated; forced while a decision has no test |
+| 4 | 🛠️ **Implementation** | `sdlc-implement` | the diff + per-test evidence (marked `NOT RUN` when it could not run) | gated; forced when the artifact reports a plan deviation |
+| 5 | 🔎 **Review** | `sdlc-review` | findings report + a parsed findings list (`blocking` / `important` / `nit`) | gated; forced while a blocking finding is undismissed |
+| 6 | 🚀 **Merge** | `sdlc-merge` | the merge record: pre-merge checklist, commit message, PR body | **hard gate, always** |
+
+- **Chaining:** connect stage N → stage N+1 (an Idea or Documents box upstream of Intent is the
+  usual starting point). A stage's own `content` field is extra context and is included in the
+  prompt; a connected Documents box is how you attach the full policy/security text.
+- **Running a gated stage:** Run is refused **before any model call** while a connected upstream
+  stage box is not approved at its latest version — the box shows the reason
+  (`🔒 1 · Intent is not approved (awaiting approval (v1)) — approve it before running this stage`).
+  Stages whose upstream is set to auto-advance are not blocked, and **non-SDLC boxes never block
+  anything**.
+- **Gate actions on the box:** ✅ Approve (records who/when/which version) · ✏️ Request changes (the
+  note is injected into the next regeneration) · ⛔ Reject · ✏️ Edit (saves a **new version** —
+  nothing is ever overwritten). 🕘 History lists every version and the full audit trail, and old
+  versions stay viewable.
+- **App-side cross-checks (never delegated to the model):** the app counts the spec's unresolved
+  items, cross-checks every `### Decision N` against the plan's test list, detects a reported plan
+  deviation, and parses the review findings — each one forces the stage to stay gated
+  (`lib/sdlc.ts`, all unit-tested). A review artifact with no parseable findings says so instead of
+  implying a clean review.
+- **Invalidation:** regenerating, editing, rejecting or sending back a stage marks every downstream
+  **approved** stage `↻ stale` (its approval referred to an artifact version that no longer holds),
+  so approvals can never silently carry over a change nobody reviewed.
+- **Hard gates:** Intent and Merge can never be switched to auto-advance, and neither can any stage
+  with one of the forced conditions above — the ⚙ checkbox is disabled with the reason, and the
+  store refuses the configuration outright instead of allowing it silently.
+- **Skills:** the Spec and Review boxes have a "Skills / org rule sets" field in ⚙ settings
+  (security, brand, compliance, coding standards). It is appended to the prompt on every run — the
+  app's stand-in for the blueprint's skills registry.
+- **Audit export:** 🗂 Audit downloads the whole connected chain as one Markdown document —
+  artifacts, versions, approvals (who/when), findings and the audit trail, plus a JSON appendix.
+- **Download an artifact:** 💾 Save downloads the box's own outcome as Markdown (see below);
+  📋 Copy puts the latest artifact on the clipboard.
+- **Agent boxes may not create these:** the pipeline is human-gated by design, so `sdlc-*` types are
+  deliberately absent from `AGENT_CREATABLE_TYPES` (locked by a unit test).
+- **Code:** stage metadata + prompts in `client/src/types.ts`; rules, parsers, gate evaluation,
+  invalidation and the audit export in `client/src/lib/sdlc.ts` (unit-tested); the run path
+  (`runSdlcStage`) and the gate actions in `client/src/store/boardStore.ts`; UI in
+  `client/src/components/SdlcGatePanel.tsx` + `BoxNode.tsx`.
+
+> **Not in scope (the whiteboard cannot merge):** the Implementation box does not apply a diff or
+> run the repo's tests, and the Merge box does not merge — it produces the record a human merges.
+> Approving the Merge stage is the recorded ship decision.
+
+---
+
+## Downloading a box's outcome
+
+Every text-producing box can hand its **actual outcome** to the clipboard of your file system:
+
+- **Which boxes:** the SDLC stages (`intent.md`, `spec.md`, `plan.md`, `implementation.md`,
+  `review.md`, `merge.md`), Research, Summarize (`summary.md`), PRD, Dev Plan (`dev-plan.md`),
+  Agent (`agent-answer.md`), Slides (rendered as a Markdown deck) and custom boxes (slugified label).
+- **Where:** the `💾 Save` button in the box footer, next to ⚙ — it appears once the box has an
+  outcome.
+- **What's in the file:** the artifact text and nothing else, so it can be pasted straight into a
+  repo or a PR. Versions, approvals and findings live in the 🗂 Audit export instead.
+- **Not covered:** Code / UI Design / Stitch keep their own 💾 Save (the runnable prototype as
+  HTML), Cartoon keeps its image download, and Idea / Image / Documents / Note / Label / Timer have
+  no text outcome to download.
+- **Code:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`, `slugifyFilename`,
+  `downloadText` — the pure parts are unit-tested).
+
+---
+
 ## Prompt template variables
 
 All AI boxes support these in their prompt templates (see `lib/prompts.ts`):
@@ -275,14 +355,16 @@ All AI boxes support these in their prompt templates (see `lib/prompts.ts`):
 
 ## Role tags & the palette filter
 
-Every box type carries `roles: BoxRole[]` (`"everyone" | "designer" | "developer" | "product"`)
-used by the sidebar role chips in `client/src/components/Sidebar.tsx`. This is a **discovery-only
-label**, not a permission:
+Every box type carries `roles: BoxRole[]` (`"everyone" | "designer" | "developer" | "product" |
+"sdlc"`) used by the View dropdown in `client/src/components/Sidebar.tsx`. This is a
+**discovery-only label**, not a permission:
 
 - Boxes tagged `"everyone"` (Idea, Research, Summarize) are shared pipeline scaffolding and appear
   in every role view.
-- Selecting the **Designer**, **Developer**, or **Product** chip filters the palette to boxes
-  tagged with that role — plus all `"everyone"` boxes.
+- Selecting the **Designer**, **Developer**, **Product** or **SDLC** profile filters the palette to
+  boxes tagged with that role — plus all `"everyone"` boxes.
+- The six SDLC stage boxes are tagged `["sdlc"]` only, so the other profiles stay unchanged; the
+  SDLC profile is the pipeline plus the shared scaffolding (Idea, Documents, Research, Note, …).
 - The selection is persisted per user in `localStorage` (`ai-canva:sidebar-role`) so it acts like a
   lightweight profile. Filtering never hides boxes already on the canvas — it only declutters which
   ones you can add.
@@ -293,9 +375,10 @@ Tagging a box does not affect collaboration, the canvas, or `runBox` — it is p
 ## Adding a new box type
 
 1. Add a `BoxType` union member and a `BOX_TYPES` entry in `client/src/types.ts` (including its
-   `roles` tags — see above).
+   `roles` tags and `category` — see above).
 2. Register it in `Canvas.tsx` (`nodeTypes`) and the MiniMap color map.
 3. Add a render/output branch in `BoxNode.tsx`.
-4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch).
+4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch — a plain text
+   box needs no branch at all).
 5. Add any new backend endpoint in `server/src/index.ts` **and** `functions/src/index.ts`.
 6. Update the box-type tables in the README and this document.

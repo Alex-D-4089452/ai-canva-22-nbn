@@ -40,6 +40,12 @@ const nodeTypes = {
   note: BoxNode,
   label: BoxNode,
   timer: BoxNode,
+  "sdlc-intent": BoxNode,
+  "sdlc-spec": BoxNode,
+  "sdlc-plan": BoxNode,
+  "sdlc-implement": BoxNode,
+  "sdlc-review": BoxNode,
+  "sdlc-merge": BoxNode,
   area: AreaNode,
   custom: BoxNode,
 };
@@ -297,6 +303,12 @@ export default function Canvas() {
             note: "#fbbf24",
             label: "#64748b",
             timer: "#06b6d4",
+            "sdlc-intent": "#7c3aed",
+            "sdlc-spec": "#4338ca",
+            "sdlc-plan": "#0e7490",
+            "sdlc-implement": "#15803d",
+            "sdlc-review": "#b45309",
+            "sdlc-merge": "#be123c",
           };
           if (node.type === "area") {
             // Areas are near-white on the minimap — use their border shade.

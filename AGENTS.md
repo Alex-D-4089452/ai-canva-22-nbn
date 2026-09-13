@@ -79,12 +79,13 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **17 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
+- **23 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
   Documents, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code, UI Design,
-  Stitch UI, three collaboration boxes (Note, Label, Timer), and the `custom` runtime type (see
-  "Custom boxes" below). Categories: `input`, `worker`, `companion` (the Chatbot), `collab`
-  (standalone annotation tools: no AI, no Run, no handles), and `custom` (the user's saved
-  templates). See `docs/BOX_TYPES.md`.
+  Stitch UI, three collaboration boxes (Note, Label, Timer), the six **SDLC pipeline stages**
+  (Intent, Spec, Plan, Implementation, Review, Merge), and the `custom` runtime type (see
+  "Custom boxes" below). Categories: `input`, `sdlc` (the six gated stages), `worker`,
+  `companion` (the Chatbot), `collab` (standalone annotation tools: no AI, no Run, no handles),
+  and `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
 
 ## UI design system
 
@@ -209,6 +210,17 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   a guest in a fresh context (code → profile modal → team board → own board → team board visible
   in the list), and cleans everything up. Result at time of writing: **80/80 passed** (75 base
   + 5 "TD" Documents-box tests).
+- **SDLC smoke test:** `client/sdlc-smoke.mjs` (playwright-core + system Chrome, same pattern as
+  `e2e.mjs`) drives the **real dev app** on `localhost:5173` through the whole gated pipeline with
+  `/api/generate` mocked at the page level (deterministic artifacts per stage, so it needs no
+  Ollama and no Firebase): palette section/filter, the gate refusing to run before approval
+  (and making NO model call), approve/request-changes/edit-as-new-version, the app-side
+  cross-checks (spec open items, plan test gaps, implementation deviation, review findings),
+  downstream `stale` invalidation, dismissing a blocking finding, the `💾 Save` + `🗂 Audit`
+  downloads (asserted by reading the downloaded files), persistence across a reload, and the SDLC
+  View profile. Run `node sdlc-smoke.mjs` from `client/` while `npm run dev` is up (the fake-user
+  Firestore "Missing or insufficient permissions" console error is expected noise and filtered).
+  Keep its assertion strings in sync when renaming gate labels/buttons.
 - **E2E environment gotchas:** (1) The firebase-tools access token
   (`~/.config/configstore/firebase-tools.json`) **expires ~hourly**; a stale token makes the
   facilitator PATCH silently 401 → the "TF facilitator button appears after grant" check FAILS.
@@ -287,10 +299,49 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
-  (`everyone`/`designer`/`developer`/`product`) in `client/src/types.ts`; the role chips in
-  `Sidebar.tsx` filter which boxes appear in the "Add Box" palette. This is a discovery-only label —
-  a pure UI filter, never a permission. Add sensible `roles` tags when adding a box; see
-  `docs/BOX_TYPES.md`.
+  (`everyone`/`designer`/`developer`/`product`/`sdlc`) in `client/src/types.ts`; the View dropdown in
+  `Sidebar.tsx` filters which boxes appear in the "Add Box" palette (the selectable profiles live in
+  the `ROLES` list there — extend it AND the `localStorage` whitelist check when adding one, or the
+  saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
+  a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
+- **SDLC pipeline boxes (🎯📐🧭🛠️🔎🚀, palette section "SDLC", `roles: ["sdlc"]`):** the app's
+  translation of its SDLC blueprint — six gated stages (Intent → Spec → Plan → Implementation →
+  Review → Merge, box types `sdlc-intent`…`sdlc-merge`, category `sdlc`), each producing exactly one
+  artifact with a human gate before the next stage may run. **All pure logic lives in
+  `client/src/lib/sdlc.ts`** (stage metadata, `buildStagePrompt`, append-only
+  `appendVersion`/`appendEvent`, the parsers `parseOpenItems`/`parseDecisions`/`parseDeviation`/
+  `parseFindings`, `gateState`/`forcedGateReason`, `upstreamBlockReason`, `downstreamIds`, and
+  `buildAuditExport`) — unit-tested, so the store only orchestrates. The run path is
+  `runSdlcStage(id)` in `boardStore.ts` (reached from the `isSdlcBox` branch of `runBox`), and its
+  invariants are load-bearing: **the gate is checked BEFORE any model call** (a blocked stage sets
+  `status: "error"` with the reason and never touches the model); the artifact is **appended as a new
+  immutable version** (never overwritten — `output` merely mirrors the latest one so `{{inputs}}` and
+  the download keep working); the **app itself derives the cross-checks** (spec open items, spec
+  decisions with no named test in the plan, implementation deviations, parsed review findings) rather
+  than trusting the model; a **failed run appends nothing and leaves the gate untouched**; and
+  regenerating/editing/rejecting/sending back a stage marks every downstream **approved** stage
+  `stale` (`invalidateSdlcDownstream`). Gate state lives in `boxData` (`sdlcGate`, plus
+  `sdlcVersions`/`sdlcHistory`/`sdlcFindings`/`sdlcOpenItems`/`sdlcGaps`/`sdlcDeviation`/
+  `sdlcGateRequired`/`sdlcApproved*`/`sdlcFeedback`/`skills`) and every object stored in those nested
+  arrays has ALL keys defined (`""`/`0`/`false`) — Firestore rejects nested `undefined`. Gate actions
+  are store actions (`approveArtifact`/`requestChanges`/`rejectArtifact`/`editArtifact`/
+  `dismissFinding`/`setSdlcGateRequired`); `setSdlcGateRequired` **refuses** (returns false) for the
+  hard gates (Intent, Merge) and for any stage with a forced condition instead of silently allowing
+  it. UI: `components/SdlcGatePanel.tsx` (gate bar, findings, version history + audit trail, header
+  `SdlcGateBadge`) rendered from BoxNode's generic text branch; the ⚙ panel carries the Skills field
+  (spec/review) and the gate toggle. `sdlc-*` types are **deliberately absent from
+  `AGENT_CREATABLE_TYPES`** (an agent must not create/approve its own stages — locked by a unit
+  test). The whiteboard cannot run tests or merge: Implementation produces the diff + evidence and
+  Merge produces the record a human merges (approving Merge IS the ship decision).
+- **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
+  `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
+  text-output box (research, summarize, prd, devplan, custom, agent, slides, all six `sdlc-*`).
+  Filenames: the blueprint's artifact names for the SDLC stages (`intent.md`, `spec.md`, `plan.md`,
+  `implementation.md`, `review.md`, `merge.md`), the type otherwise, and the slugified label for
+  custom boxes. Slides download as a Markdown deck built from `slides[]`. The file is the artifact
+  text only — versions/approvals live in the SDLC `🗂 Audit` export. Code/UI/Stitch keep their own
+  💾 Save (HTML) and Cartoon its image download; Idea/Image/Documents/Note/Label/Timer have no text
+  outcome.
 - **Documents box (📎, input category):** multi-file upload (click or drag & drop) whose extracted
   text becomes the box's output for downstream prompts. All logic lives in
   `client/src/lib/documents.ts` (unit-tested): txt/md/csv/json are read as text directly; **PDF**
