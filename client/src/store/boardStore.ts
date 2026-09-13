@@ -10,8 +10,9 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, SdlcEvent, SdlcStage } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
+import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
   appendEvent,
   appendVersion,
@@ -29,7 +30,7 @@ import {
   upstreamBlockReason,
   upstreamStageContent,
 } from "../lib/sdlc.js";
-import { generate, generateImage, generateStitchUI } from "../lib/api.js";
+import { generate, generateImage, generateStitchUI, fetchRepoDigest } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
@@ -1081,6 +1082,13 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // The Code Map box reads a repository (through the backend) before it
+        // calls the model — it manages its own inputs and prompt assembly.
+        if (boxType === "codemap") {
+          await runCodeMap(id);
+          return;
+        }
+
         // Gather upstream inputs
         const { namedInputs, inputImage } = collectInputs(
           state.nodes,
@@ -1190,6 +1198,124 @@ export const useBoardStore = create<BoardState>()(
     }
   )
 );
+
+// ============================================================
+// Code Map box — read a repository, then write an orientation brief.
+//
+// The repository is fetched through the backend (/api/repo-digest, see
+// server/src/repo.ts), never from the browser, so a server-side GITHUB_TOKEN can
+// unlock private repositories. The box works without a repository too: it then
+// maps whatever is connected to it (a Documents box, pasted code), and the
+// prompt says explicitly that the repository itself was not read.
+// ============================================================
+
+/** Why the repository could not be read, in the box's own words. */
+function repoFailure(reason: string): RepoMeta {
+  return {
+    repo: "",
+    branch: "",
+    files: 0,
+    treeEntries: 0,
+    chars: 0,
+    truncated: false,
+    fetchedAt: 0,
+    error: reason,
+    notes: [],
+  };
+}
+
+async function runCodeMap(id: string) {
+  const get = () => useBoardStore.getState();
+
+  const node = get().nodes.find((n) => n.id === id);
+  const data = get().boxData[id];
+  if (!node || !data) return;
+  if (data.status === "running") return;
+
+  const { namedInputs } = collectInputs(get().nodes, get().edges, get().boxData, id);
+
+  // The repository can be given in the URL field, in the box's note, in a
+  // customised prompt, or anywhere in a connected box — so pasting a repo link
+  // somewhere sensible always works (the Agent box does exactly that). The stock
+  // prompt is passed separately so its placeholder example is never mistaken for
+  // a repository.
+  const ref = resolveRepoRef({
+    repoUrl: data.repoUrl,
+    content: data.content,
+    prompt: data.prompt,
+    defaultPrompt: BOX_TYPES.codemap.defaultPrompt,
+    inputs: namedInputs,
+  });
+
+  // Something to map must exist: either a repository, or connected/pasted code.
+  const context = namedInputs.map((i) => i.output).join("\n").trim();
+  if (!ref && !context) {
+    get().setBoxStatus(
+      id,
+      "error",
+      "Give this box a GitHub repository (the field above, e.g. https://github.com/owner/repo or owner/repo#branch), or connect code/a Documents box to it."
+    );
+    return;
+  }
+
+  get().setBoxStatus(id, "running");
+
+  let digest = "";
+  let meta: RepoMeta | null = null;
+  let fetchError = "";
+
+  if (ref) {
+    try {
+      const result = await fetchRepoDigest(ref.url);
+      digest = result.digest || "";
+      meta = {
+        repo: result.repo || ref.slug,
+        branch: result.branch || ref.branch || "",
+        files: result.files || 0,
+        treeEntries: result.treeEntries || 0,
+        chars: result.chars || digest.length,
+        truncated: !!result.truncated,
+        fetchedAt: Date.now(),
+        error: "",
+        notes: Array.isArray(result.notes) ? result.notes : [],
+      };
+    } catch (err: any) {
+      fetchError = err?.message || "Could not read the repository.";
+      meta = repoFailure(fetchError);
+      // With connected context we still produce a brief — it just has to be
+      // honest about not having read the repository (buildCodeMapPrompt says so).
+      if (!context) {
+        get().updateBoxData(id, { status: "error", error: fetchError, repoMeta: meta });
+        return;
+      }
+    }
+  } else {
+    fetchError = "No GitHub repository was given — this run maps only the connected context.";
+    meta = repoFailure(fetchError);
+  }
+
+  try {
+    const userPrompt = buildCodeMapPrompt(
+      { prompt: data.prompt, digest, meta, fetchError },
+      namedInputs
+    );
+
+    const result = await generateTextForBox(id, {
+      systemPrompt: data.systemPrompt,
+      userPrompt,
+      boxType: "codemap",
+    });
+
+    get().updateBoxData(id, {
+      output: result.content,
+      status: "done",
+      error: undefined,
+      repoMeta: meta || repoFailure(""),
+    });
+  } catch (err: any) {
+    get().setBoxStatus(id, "error", err.message || "Generation failed");
+  }
+}
 
 // ============================================================
 // SDLC pipeline — the gated stage engine.

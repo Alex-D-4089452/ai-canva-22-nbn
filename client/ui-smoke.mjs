@@ -1,9 +1,10 @@
 /**
- * Ad-hoc live smoke test for the SDLC pipeline group + outcome downloads.
+ * Live UI smoke test for the SDLC pipeline group, the Code Map worker and the
+ * per-box outcome downloads.
  * Drives the REAL dev app (localhost:5173) with /api/generate mocked at the
  * page level so the artifacts are deterministic.
  *
- * Run: node /tmp/sdlc-smoke.mjs
+ * Run: node ui-smoke.mjs
  */
 import { chromium } from "playwright-core";
 
@@ -34,12 +35,35 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(1500);
 
-// ---- mock /api/generate with stage-specific artifacts ----
-await page.evaluate(() => {
+// ---- mock /api/generate + /api/repo-digest with deterministic artifacts ----
+// (A function because the reload check below wipes injected mocks.)
+const installMocks = () => page.evaluate(() => {
   const original = window.fetch;
   window.__smoke = { prompts: [], calls: 0 };
   window.fetch = async (url, opts) => {
     const u = typeof url === "string" ? url : url.url;
+    if (u.includes("/api/repo-digest")) {
+      const config = window.__smokeRepo || { mode: "ok" };
+      if (config.mode === "fail") {
+        return new Response(JSON.stringify({ error: "Repository or branch not found. If it is private, set GITHUB_TOKEN on the server." }), {
+          status: 502, headers: { "Content-Type": "application/json" },
+        });
+      }
+      const body = JSON.parse(opts?.body || "{}");
+      window.__smoke.repoRequests = window.__smoke.repoRequests || [];
+      window.__smoke.repoRequests.push(body.repoUrl || "");
+      return new Response(JSON.stringify({
+        ok: true,
+        repo: config.repo || "alexbonti/ai-canva",
+        branch: config.branch || "main",
+        digest: "Repository: " + (config.repo || "alexbonti/ai-canva") + "@" + (config.branch || "main") + "\n\n## File tree\n\nsrc/\n  index.ts\n\n## File contents\n\n### src/index.ts (0.1 KB)\n\n```ts\nexport const start = () => {};\n```",
+        files: 3,
+        treeEntries: 120,
+        chars: 4200,
+        truncated: true,
+        notes: ["Ignored 9 generated/binary/lock file(s).", "Clipped 1 large file(s) to the first 20 KB: boardStore.ts."],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (u.includes("/api/generate")) {
       const body = JSON.parse(opts?.body || "{}");
       const prompt = body.userPrompt || "";
@@ -58,6 +82,8 @@ await page.evaluate(() => {
         content = "# Implementation: Add SSO\n\n## Diff\n```diff\n+ const session = await saml.exchange(assertion);\n```\nApplied to `api/auth.ts`.\n\n## Tests\n- \"Session length cap\" → NOT RUN (no repo access)\n\n## Plan deviations\nStep 1 also needed a new dependency (@node-saml/passport-saml).\n\n## Follow-ups\nTrack the dep.\n";
       } else if (prompt.includes("spec document")) {
         content = "# Spec: Add SSO\n\n## Scope\nAdmin console sign-in.\n\n## Decisions\n### Decision 1 — Session length\nCap sessions at 8 hours.\n\n### Decision 2 — Audit log retention\nKeep audit logs for 400 days.\n\n## Skill constraints applied\n- No PII in logs: constrained the audit record fields.\n\n## Interfaces and data model\nSAML assertion → session.\n\n## Non-functional requirements\np95 login < 2s.\n\n## Acceptance criteria\nStaff can sign in.\n\n## Unresolved\n⚠ Rollout order for the three regions is unknown\n";
+      } else if (prompt.includes("code map")) {
+        content = "# Code Map: alexbonti/ai-canva\n\n## What this codebase is\nA whiteboard that turns a repo into an orientation brief.\n\n## Tech stack\nReact + Vite + Firebase (from client/package.json).\n\n## Structure\n- `client/ — the React app`\n- `server/ — the local API`\n\n## Entry points\n- client/src/main.tsx\n- server/src/index.ts\n\n## Where to start reading\n1. client/src/types.ts\n";
       } else if (prompt.includes("intent document")) {
         content = "# Add SSO to the admin console\n\n## Problem statement\n\"Add SSO.\"\n\n## Proposed outcome\nStaff log in with the company IdP.\n\n## Affected users / systems\nAdmin console, identity provider.\n\n## Constraints\nMust ship this quarter.\n\n## Open questions\n- Which identity provider is authoritative?\n- What happens to existing sessions on rollout?\n";
       }
@@ -71,6 +97,7 @@ await page.evaluate(() => {
   // Keep a way to restore.
   window.__restoreFetch = () => { window.fetch = original; };
 });
+await installMocks();
 
 // ---- palette: SDLC section with the six stages in order ----
 const sidebarText = await page.evaluate(() => document.querySelector(".absolute.right-0")?.innerText || document.body.innerText);
@@ -278,6 +305,7 @@ await page.evaluate(() => window.__dsh.useAuthStore.setState({
   user: { uid: "smoke-uid", email: "smoke@test.local", displayName: "Smoke Tester", photoURL: "" }, loading: false,
 }));
 await page.waitForTimeout(1200);
+await installMocks();
 const afterReload = await page.evaluate(() => {
   const d = window.__dsh.useBoardStore.getState().boxData;
   const intent = Object.values(d).find((b) => (b.sdlcVersions || []).length > 1 && b.sdlcHistory);
@@ -304,6 +332,136 @@ check("F1 SDLC view profile filters the palette to the stages (+ shared scaffold
   filtered.rows.filter((r) => /^\d+ · /.test(r)).length === 6 && !filtered.rows.some((r) => /Cartoon|Stitch UI/.test(r)),
   filtered.rows.join(" | ").slice(0, 120));
 check("F2 the profile persists", filtered.stored === "sdlc");
+
+// ---------- Code Map worker: reads a repository, writes an orientation brief ----------
+
+check("C1 palette offers the Code Map worker", await page.evaluate(() =>
+  [...document.querySelectorAll("button.palette-row")].some((b) => (b.querySelector("span:last-child")?.textContent || "").trim() === "Code Map")));
+
+const cmId = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  return s().addBox("codemap", { x: 80, y: 620 });
+});
+await page.waitForTimeout(400);
+
+const cmBoxText = await page.evaluate((boxId) => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map"));
+  return node ? node.innerText : "";
+}, cmId);
+const cmPlaceholder = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map"));
+  return node?.querySelector("input[type=text]")?.getAttribute("placeholder") || "";
+});
+check("C2 the box renders a repository field with guidance", /REPOSITORY/i.test(cmBoxText) && /github\.com\/owner\/repo/i.test(cmPlaceholder), cmPlaceholder);
+
+// A repository URL typed into the field is remembered on the box.
+await page.evaluate((boxId) => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map"));
+  const input = node.querySelector("input[type=text]");
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+  setter.call(input, "https://github.com/alexbonti/ai-canva/tree/main");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}, cmId);
+await page.waitForTimeout(400);
+check("C3 typing a repo URL is stored on the box", await page.evaluate((boxId) =>
+  window.__dsh.useBoardStore.getState().boxData[boxId].repoUrl === "https://github.com/alexbonti/ai-canva/tree/main", cmId));
+
+// No repository and nothing connected → a clear error, not a silent empty run.
+const emptyId = await page.evaluate(() => window.__dsh.useBoardStore.getState().addBox("codemap", { x: 80, y: 1080 }));
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), emptyId);
+check("C4 an input-less Code Map run asks for a repository instead of faking a brief", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.status === "error" && /GitHub repository/i.test(d.error || "");
+}, emptyId));
+
+// Real run (mocked endpoints): digest → prompt → artifact + provenance on the box.
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), cmId);
+await page.waitForTimeout(900);
+const cmState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { status: d.status, error: d.error || "", output: d.output || "", meta: d.repoMeta || null };
+}, cmId);
+check("C5 the Code Map run produces a brief", cmState.status === "done" && cmState.output.startsWith("# Code Map"), cmState.error || cmState.output.slice(0, 60));
+check("C6 the box records what it actually read (repo, branch, files, cap)", cmState.meta
+  && cmState.meta.repo === "alexbonti/ai-canva" && cmState.meta.branch === "main" && cmState.meta.files === 3
+  && cmState.meta.treeEntries === 120 && cmState.meta.truncated === true && cmState.meta.notes.length === 2,
+  JSON.stringify(cmState.meta && { repo: cmState.meta.repo, files: cmState.meta.files, truncated: cmState.meta.truncated }));
+
+check("C7 the branch in the field reaches the backend request", await page.evaluate(() =>
+  (window.__smoke.repoRequests || []).some((u) => /(#|\/tree\/)main/.test(u))),
+  await page.evaluate(() => JSON.stringify(window.__smoke.repoRequests || [])));
+
+const cmPrompts = await page.evaluate(() => window.__smoke.prompts);
+const digestPrompt = cmPrompts.find((p) => p.includes("code map"));
+check("C8 the digest and its provenance are handed to the model", !!digestPrompt
+  && digestPrompt.includes("Repository: alexbonti/ai-canva@main")
+  && digestPrompt.includes("export const start = () => {}")
+  && digestPrompt.includes("capped, so it is NOT the whole repository")
+  && digestPrompt.includes("Ignored 9 generated/binary/lock file(s)."),
+  digestPrompt ? digestPrompt.length + " chars" : "no prompt captured");
+
+const cmNodeText = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map") && n.innerText.includes("alexbonti"));
+  return node ? node.innerText : "";
+});
+check("C9 the box shows the read summary and the digest notes", /alexbonti\/ai-canva@main/.test(cmNodeText)
+  && /3 files of 120/.test(cmNodeText) && /capped/.test(cmNodeText) && /Digest notes \(2\)/.test(cmNodeText),
+  cmNodeText.slice(0, 120).replace(/\n/g, " / "));
+
+// Download the brief.
+const [cmDl] = await Promise.all([
+  page.waitForEvent("download"),
+  page.evaluate(() => {
+    const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map") && n.innerText.includes("alexbonti"));
+    const btn = [...node.querySelectorAll("button")].find((b) => b.textContent.trim() === "💾 Save");
+    if (!btn) throw new Error("no Save button on the Code Map box");
+    btn.click();
+  }),
+]);
+check("C10 💾 Save downloads the brief as code-map.md", cmDl.suggestedFilename() === "code-map.md", cmDl.suggestedFilename());
+
+// Failing repository fetch WITH connected code: still briefs, but says so honestly.
+await page.evaluate(() => { window.__smokeRepo = { mode: "fail" }; });
+const failId = await page.evaluate(async () => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const code = s().addBox("idea", { x: 480, y: 1080 });
+  s().updateBoxData(code, { content: "export function main() { return 42; }" });
+  const box = s().addBox("codemap", { x: 80, y: 1340 });
+  s().updateBoxData(box, { repoUrl: "owner/private-repo" });
+  s().connectBoxes(code, box);
+  return box;
+});
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), failId);
+await page.waitForTimeout(900);
+const failState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { status: d.status, error: d.error || "", meta: d.repoMeta || null };
+}, failId);
+check("C11 a failed fetch falls back to connected code and records why", failState.status === "done" && /GITHUB_TOKEN/.test(failState.meta?.error || ""), JSON.stringify({ status: failState.status, error: failState.meta?.error }));
+
+const fallbackPrompt = (await page.evaluate(() => window.__smoke.prompts)).filter((p) => p.includes("## Repository not read")).pop();
+check("C12 the fallback brief is told the repository was NOT read", !!fallbackPrompt
+  && fallbackPrompt.includes("Repository or branch not found")
+  && fallbackPrompt.includes("export function main()"),
+  fallbackPrompt ? `${fallbackPrompt.length} chars` : "no fallback prompt captured");
+
+// A repo link pasted in a CONNECTED box is picked up when the field is empty.
+await page.evaluate(() => { window.__smokeRepo = { mode: "ok" }; window.__smoke.repoRequests = []; });
+const linkedId = await page.evaluate(async () => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const note = s().addBox("idea", { x: 480, y: 1340 });
+  s().updateBoxData(note, { content: "Map https://github.com/alexbonti/ai-canva for me" });
+  const box = s().addBox("codemap", { x: 80, y: 1600 });
+  s().connectBoxes(note, box);
+  return box;
+});
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), linkedId);
+await page.waitForTimeout(900);
+check("C13 a repo link in a connected box is used when the field is empty", await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const d = s().boxData[boxId];
+  return d.status === "done" && (d.repoMeta?.repo || "") === "alexbonti/ai-canva";
+}, linkedId));
 
 const realErrors = pageErrors.filter((e) => !/Missing or insufficient permissions/i.test(e));
 check("Z1 no unexpected page errors", realErrors.length === 0, realErrors.join(" | ").slice(0, 200));

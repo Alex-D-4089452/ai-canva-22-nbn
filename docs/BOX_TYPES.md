@@ -125,6 +125,36 @@ key functions, and a build order. Best fed by a PRD box, then fed into a Code bo
 - **Inputs:** typically a PRD; defaults to `{{inputs}}`.
 - **Output:** Markdown list.
 
+### 🔭 Code Map — `codemap`
+
+Reads a **GitHub repository** and writes an orientation brief: what the code does, how it is
+structured, how the main flows move through the files, what is risky, and where a new engineer
+should start reading (the sections are `What this codebase is`, `Tech stack`, `Structure`,
+`Entry points`, `How the main flows work`, `Key abstractions`, `Tests and how to run things`,
+`Risks and hotspots`, `Where to start reading`, `Open questions`).
+
+- **Where the repository comes from:** the box's own **Repository** field (a GitHub URL,
+  `owner/repo`, or `owner/repo#branch`), a GitHub link in the box's note, a link in a *customised*
+  prompt, or a link in any connected box — so pasting a repo link anywhere sensible works, which is
+  also how the **Agent box** can create and run one (`codemap` is in `AGENT_CREATABLE_TYPES`).
+- **How it reads the repo:** the browser never talks to GitHub. `POST /api/repo-digest` (see
+  `docs/API.md`) fetches the tree and the files that matter most and returns a digest; the box shows
+  what was read (repo@branch · files of tree · chars · capped · when) and the digest's notes.
+  **Public repositories need no setup**; `GITHUB_TOKEN` on the server adds private repos and a much
+  higher rate limit.
+- **Inputs:** optional. A connected **Documents box** or pasted code is mapped too — and if the
+  repository could not be read, the model is told so explicitly and must not pretend otherwise
+  (the brief then says the repo itself was not read).
+- **Output:** the Markdown brief (downloadable as `code-map.md` via 💾 Save). The record of what was
+  read is stored on the box (`repoMeta`: repo, branch, file/tree counts, characters, truncated,
+  fetched time, error, notes) and syncs to collaborators.
+- **Limits (all reported, never silent):** 24 files, 20 KB per file (bigger files are clipped, not
+  skipped), 60k characters of file contents, 400 tree entries; generated output, dependencies,
+  binaries and lockfiles are excluded.
+- **Code:** `server/src/repo.ts` (+ its duplicate `functions/src/repo.ts`) for the fetch, ranking and
+  digest; `client/src/lib/repo.ts` for URL parsing/resolution and prompt assembly (both unit-tested);
+  the run path is `runCodeMap` in `boardStore.ts`.
+
 ### 🎨 Cartoon Profile — `cartoon`
 
 Generates a cartoon avatar via fal.ai.
@@ -329,7 +359,8 @@ Every text-producing box can hand its **actual outcome** to the clipboard of you
 
 - **Which boxes:** the SDLC stages (`intent.md`, `spec.md`, `plan.md`, `implementation.md`,
   `review.md`, `merge.md`), Research, Summarize (`summary.md`), PRD, Dev Plan (`dev-plan.md`),
-  Agent (`agent-answer.md`), Slides (rendered as a Markdown deck) and custom boxes (slugified label).
+  Code Map (`code-map.md`), Agent (`agent-answer.md`), Slides (rendered as a Markdown deck) and
+  custom boxes (slugified label).
 - **Where:** the `💾 Save` button in the box footer, next to ⚙ — it appears once the box has an
   outcome.
 - **What's in the file:** the artifact text and nothing else, so it can be pasted straight into a

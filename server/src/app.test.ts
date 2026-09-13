@@ -49,7 +49,19 @@ describe("GET /api/health", () => {
       ollamaKey: "missing",
       falKey: "missing",
       stitchKey: "missing",
+      // The GitHub token is optional — public repositories read without it.
+      githubToken: "optional",
     });
+  });
+
+  it("reports the GitHub token as configured when it is set", async () => {
+    process.env.GITHUB_TOKEN = "test-token";
+    try {
+      const res = await request(createApp()).get("/api/health");
+      expect(res.body.githubToken).toBe("configured");
+    } finally {
+      delete process.env.GITHUB_TOKEN;
+    }
   });
 });
 
@@ -129,5 +141,52 @@ describe("GET /api/admin/stats", () => {
   it("returns 501 locally (production-only feature)", async () => {
     const res = await request(createApp()).get("/api/admin/stats");
     expect(res.status).toBe(501);
+  });
+});
+
+describe("POST /api/repo-digest", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("rejects anything that is not a GitHub repository (no request proxy)", async () => {
+    for (const repoUrl of [undefined, "", "https://gitlab.com/o/r", "https://evil.example.com/o/r", "just words"]) {
+      const res = await request(createApp()).post("/api/repo-digest").send({ repoUrl });
+      expect(res.status, String(repoUrl)).toBe(400);
+      expect(res.body.error).toMatch(/github\.com\/owner\/repo/);
+    }
+  });
+
+  it("returns a digest built from the tree plus raw file contents", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      urls.push(url);
+      if (url.endsWith("/repos/alexbonti/ai-canva")) {
+        return { ok: true, status: 200, json: async () => ({ default_branch: "main" }) } as unknown as Response;
+      }
+      if (url.includes("/git/trees/")) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({ tree: [{ path: "src/index.ts", type: "blob", size: 20 }, { path: "README.md", type: "blob", size: 10 }] }),
+        } as unknown as Response;
+      }
+      return {
+        ok: true, status: 200,
+        text: async () => (url.includes("README") ? "# Hi" : "export const a = 1;"),
+      } as unknown as Response;
+    });
+
+    const res = await request(createApp()).post("/api/repo-digest").send({ repoUrl: "https://github.com/alexbonti/ai-canva" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, repo: "alexbonti/ai-canva", branch: "main", truncated: false });
+    expect(res.body.files).toBe(2);
+    expect(res.body.digest).toContain("Repository: alexbonti/ai-canva@main");
+    expect(res.body.digest).toContain("export const a = 1;");
+    expect(urls.some((u) => u.startsWith("https://raw.githubusercontent.com/"))).toBe(true);
+  });
+
+  it("maps a GitHub failure onto a 502 with an actionable message", async () => {
+    vi.stubGlobal("fetch", async () => ({ ok: false, status: 404, json: async () => ({}), text: async () => "" }) as unknown as Response);
+    const res = await request(createApp()).post("/api/repo-digest").send({ repoUrl: "owner/missing" });
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/GITHUB_TOKEN/);
   });
 });

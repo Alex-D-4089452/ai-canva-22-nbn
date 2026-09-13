@@ -19,6 +19,7 @@ export const AGENT_CREATABLE_TYPES = [
   "summarize",
   "prd",
   "devplan",
+  "codemap",
   "slides",
   "code",
   "ui",

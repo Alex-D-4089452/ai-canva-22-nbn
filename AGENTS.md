@@ -27,7 +27,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 | Path | Purpose |
 |------|---------|
 | `client/` | React + Vite frontend. Entry `client/src/`, store at `client/src/store/boardStore.ts`. |
-| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/health`). |
+| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/repo-digest`, `/api/health`). |
 | `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
@@ -79,8 +79,8 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **23 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
-  Documents, Research, Summarize, PRD, Dev Plan, Cartoon Profile, Slides, Code, UI Design,
+- **24 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
+  Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, Cartoon Profile, Slides, Code, UI Design,
   Stitch UI, three collaboration boxes (Note, Label, Timer), the six **SDLC pipeline stages**
   (Intent, Spec, Plan, Implementation, Review, Merge), and the `custom` runtime type (see
   "Custom boxes" below). Categories: `input`, `sdlc` (the six gated stages), `worker`,
@@ -210,17 +210,20 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   a guest in a fresh context (code → profile modal → team board → own board → team board visible
   in the list), and cleans everything up. Result at time of writing: **80/80 passed** (75 base
   + 5 "TD" Documents-box tests).
-- **SDLC smoke test:** `client/sdlc-smoke.mjs` (playwright-core + system Chrome, same pattern as
-  `e2e.mjs`) drives the **real dev app** on `localhost:5173` through the whole gated pipeline with
-  `/api/generate` mocked at the page level (deterministic artifacts per stage, so it needs no
-  Ollama and no Firebase): palette section/filter, the gate refusing to run before approval
-  (and making NO model call), approve/request-changes/edit-as-new-version, the app-side
-  cross-checks (spec open items, plan test gaps, implementation deviation, review findings),
-  downstream `stale` invalidation, dismissing a blocking finding, the `💾 Save` + `🗂 Audit`
-  downloads (asserted by reading the downloaded files), persistence across a reload, and the SDLC
-  View profile. Run `node sdlc-smoke.mjs` from `client/` while `npm run dev` is up (the fake-user
-  Firestore "Missing or insufficient permissions" console error is expected noise and filtered).
-  Keep its assertion strings in sync when renaming gate labels/buttons.
+- **UI smoke test:** `client/ui-smoke.mjs` (playwright-core + system Chrome, same pattern as
+  `e2e.mjs`) drives the **real dev app** on `localhost:5173` with `/api/generate` **and**
+  `/api/repo-digest` mocked at the page level (deterministic artifacts, so it needs no Ollama, no
+  GitHub and no Firebase). It covers the SDLC pipeline (palette section/View profile, the gate
+  refusing to run before approval **and making no model call**, approve/request-changes/
+  edit-as-new-version, all four app-side cross-checks, downstream `stale` invalidation, dismissing
+  a blocking finding, `💾 Save` + `🗂 Audit` asserted by reading the downloaded files, persistence
+  across a reload) **and** the Code Map worker (repository field, the digest and its provenance
+  reaching the prompt, what-was-read shown on the box, `code-map.md` download, the honest
+  "repository not read" fallback, a repo link in a connected box). Run `node ui-smoke.mjs` from
+  `client/` while `npm run dev` is up (the fake-user Firestore "Missing or insufficient
+  permissions" console error is expected noise and filtered; mocks must be re-installed after the
+  reload check, which is why they live in `installMocks()`). Keep its assertion strings in sync when
+  renaming gate labels/buttons.
 - **E2E environment gotchas:** (1) The firebase-tools access token
   (`~/.config/configstore/firebase-tools.json`) **expires ~hourly**; a stale token makes the
   facilitator PATCH silently 401 → the "TF facilitator button appears after grant" check FAILS.
@@ -270,7 +273,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `boardStore.ts` (`runAgentLoop`, invoked from the `boxType === "agent"` branch of `runBox` — it
   manages its own status/inputs and bypasses the shared gathering); protocol/inventory/layout in
   `client/src/lib/agent.ts` (pure, unit-tested; `AGENT_CREATABLE_TYPES` whitelist = idea research
-  summarize prd devplan slides code ui — never image/documents/cartoon/stitch/agent); UI (task
+  summarize prd devplan codemap slides code ui — never image/documents/cartoon/stitch/agent, and
+  never the `sdlc-*` stages); UI (task
   textarea + live `agentSteps` timeline + ⏹ Stop so the loop halts between turns) in `BoxNode.tsx`.
   Running a box from the agent is a plain `await runBox(boxId)` — the target box's status/output is
   read back after. Budget: `MAX_AGENT_TURNS` (12) with a forced wrap-up on the last turn; 2
@@ -333,9 +337,31 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `AGENT_CREATABLE_TYPES`** (an agent must not create/approve its own stages — locked by a unit
   test). The whiteboard cannot run tests or merge: Implementation produces the diff + evidence and
   Merge produces the record a human merges (approving Merge IS the ship decision).
+- **Code Map worker (🔭, Workers section, `roles: ["developer", "sdlc"]`):** reads a **GitHub
+  repository** and writes an orientation brief (what the code is, stack, structure, entry points,
+  main flows, key abstractions, tests, risks, where to start reading, open questions). Two halves,
+  both unit-tested: **`server/src/repo.ts`** (+ duplicate `functions/src/repo.ts`) does the GitHub
+  access and digest building, and **`client/src/lib/repo.ts`** does URL parsing/resolution and
+  prompt assembly. The run path is `runCodeMap(id)` in `boardStore.ts` (reached from the
+  `boxType === "codemap"` branch of `runBox`); it fetches the digest through
+  `POST /api/repo-digest` (the browser NEVER calls GitHub, which is what makes a server-side
+  `GITHUB_TOKEN` able to unlock private repos) and then calls the model. Rules that matter:
+  only **github.com owner/repo** references are accepted (the endpoint must not become a request
+  proxy); the tree is ONE API call and file contents come from `raw.githubusercontent.com` (not
+  rate-limited); the digest is built by `scorePath`/`selectFiles` — README + dependency manifests,
+  then entry points, then central modules, with per-directory and per-category caps, so a monorepo's
+  config cluster cannot crowd out the code that explains the system; the **file budget is spent in
+  value order** (not alphabetically) while the digest renders in path order; files over 400 KB are
+  never downloaded and larger files are **clipped, not skipped**; a failed fetch with connected
+  context still produces a brief, but the prompt is told the repository was NOT read. The box stores
+  `repoMeta` (repo/branch/files/treeEntries/chars/truncated/fetchedAt/error/notes — all fields
+  always defined) and shows it with the digest notes. `resolveRepoRef` deliberately ignores the
+  box's **stock** prompt (its placeholder `github.com/owner/repo` example is documentation), and the
+  resolved `#branch` is carried into the request URL so `owner/repo#release-2.0` doesn't silently
+  read the default branch.
 - **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
   `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
-  text-output box (research, summarize, prd, devplan, custom, agent, slides, all six `sdlc-*`).
+  text-output box (research, summarize, prd, devplan, codemap, custom, agent, slides, all six `sdlc-*`).
   Filenames: the blueprint's artifact names for the SDLC stages (`intent.md`, `spec.md`, `plan.md`,
   `implementation.md`, `review.md`, `merge.md`), the type otherwise, and the slugified label for
   custom boxes. Slides download as a Markdown deck built from `slides[]`. The file is the artifact

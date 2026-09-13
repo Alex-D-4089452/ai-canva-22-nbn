@@ -14,6 +14,7 @@ const OUTCOME_FILENAMES: Partial<Record<BoxType, string>> = {
   summarize: "summary.md",
   prd: "prd.md",
   devplan: "dev-plan.md",
+  codemap: "code-map.md",
   agent: "agent-answer.md",
   slides: "slides.md",
 };
@@ -61,7 +62,7 @@ function slidesToMarkdown(data: BoxData): string {
 /** True when this box type has an outcome that can be downloaded as text. */
 export function hasDownloadableOutcome(type: BoxType | string): boolean {
   if (SDLC_ARTIFACT_FILENAMES[type]) return true;
-  return ["research", "summarize", "prd", "devplan", "agent", "slides", "custom"].includes(type);
+  return ["research", "summarize", "prd", "devplan", "codemap", "agent", "slides", "custom"].includes(type);
 }
 
 /**

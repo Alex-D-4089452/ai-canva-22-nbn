@@ -159,6 +159,62 @@ Firestore (`stitchJobs/{jobId}`) and the generation runs on a Cloud Task worker
 | `404` | Unknown `jobId` |
 | `500` | Failed to read the job |
 
+### `POST /api/repo-digest` — `{ repoUrl }`
+
+Read-only GitHub access for the **Code Map** box: fetches a repository's file tree and the files
+that explain it best, and returns a token-budgeted digest that the box feeds to the model.
+
+**Request**
+
+```json
+{ "repoUrl": "https://github.com/owner/repo" }
+```
+
+Accepted forms: a GitHub URL (with optional `/tree/<branch>`, `#branch`, `.git` or a trailing
+slash), the `git@github.com:owner/repo.git` clone form, or the short `owner/repo`,
+`owner/repo#branch`, `owner/repo@branch`. **Only github.com is accepted** — the endpoint cannot be
+pointed at another host, so it is not a request proxy.
+
+**Response** — `200`
+
+```json
+{
+  "ok": true,
+  "repo": "owner/repo",
+  "branch": "main",
+  "digest": "Repository: owner/repo@main\n\n## File tree\n…\n\n## File contents\n…",
+  "files": 10,
+  "treeEntries": 158,
+  "chars": 71471,
+  "truncated": true,
+  "notes": ["Ignored 9 generated/binary/lock file(s)…", "Clipped 4 large file(s)…"]
+}
+```
+
+How the digest is built (see `server/src/repo.ts`, duplicated as `functions/src/repo.ts`):
+
+- **One** API call for the tree (`/git/trees/<branch>?recursive=1`), plus one for the default
+  branch when none was given; file contents come from `raw.githubusercontent.com`, which does not
+  count against the API rate limit.
+- Files are ranked: README and dependency manifests, then entry points, then central modules
+  (`types`/`store`/`api`/`config`…), with per-directory and per-category caps — a monorepo's config
+  cluster can't crowd out the code that explains the system.
+- Directories that never belong in an orientation brief are dropped (`node_modules`, `dist`,
+  `build`, `target`, `vendor`, `__pycache__`, …), as are binaries, lockfiles, source maps and
+  minified files.
+- Caps: 24 files, 20 KB per file (larger files are **clipped**, not skipped), 60k characters of
+  file contents, 400 tree entries. Files over 400 KB are assumed generated and never downloaded.
+  Every cap that bites is reported in `notes`, and the box tells the model the digest is partial so
+  the brief can't claim completeness.
+
+Text generation needs no key, so a **public repository works with no configuration**.
+
+**Errors**
+
+| `400` | `repoUrl` is missing or is not a GitHub repository reference |
+| `502` | GitHub refused the request (not found, private without a token, rate limited, …) — the message says what to do |
+| `500` | Unexpected failure while reading the repository |
+
 ### `GET /api/admin/stats`
 
 Admin-only. Returns system-wide usage stats (users, boards, storage). Requires the caller to be
@@ -278,7 +334,15 @@ via `auth.updateUser`. An admin cannot block their own account.
 | `OLLAMA_HOST`       | Optional          | Ollama host (default `https://ollama.com`)     |
 | `FAL_KEY`           | Cartoon box       | fal.ai API key                                 |
 | `STITCH_API_KEY`    | Stitch UI box     | Google Stitch API key                          |
+| `GITHUB_TOKEN`      | Optional          | Code Map box — see below                       |
 | `PORT`              | Optional (server) | Preferred server port (default `3001`)         |
+
+**`GITHUB_TOKEN` is optional.** The Code Map box reads public repositories with no configuration
+(60 requests/hour per IP, and file contents come from `raw.githubusercontent.com`, which is not
+rate-limited). Setting a token unlocks **private repositories** and raises the API limit to 5,000
+requests/hour; a personal access token with read-only access to the repositories you want to map is
+enough (`public_repo`, or `repo` for private ones). It is read server-side only and is never sent to
+the client — `/api/health` merely reports `githubToken: "configured" | "optional"`.
 
 Copy the templates from `server/.env.example` / `functions/.env.example` into `.env` and fill in
 real values.

@@ -31,6 +31,41 @@ current state).
 
 ---
 
+## 2026-02-08 — Code Map worker (repo understanding) + `/api/repo-digest`
+
+- **Done:** New **Code Map** worker (🔭 `codemap`, Workers section, `roles: ["developer", "sdlc"]`)
+  that reads a **GitHub repository** and writes an orientation brief (what the code is, stack,
+  structure, entry points, main flows, key abstractions, tests/costs, risks, where to start
+  reading, open questions). New backend endpoint **`POST /api/repo-digest`** in both
+  `server/src/app.ts` and `functions/src/index.ts`, backed by a new duplicated module
+  `server/src/repo.ts` + `functions/src/repo.ts`: 1 API call for the tree (plus one for the default
+  branch), file contents from `raw.githubusercontent.com` (not rate-limited), only **github.com
+  owner/repo** accepted (never a request proxy), optional `GITHUB_TOKEN` for private repos +
+  5,000 req/hr (documented in `docs/API.md`, added to both `.env.example`s, reported as
+  `githubToken` by `/api/health`). Digest builder ranks files (`scorePath`/`selectFiles`: README +
+  dependency manifests → entry points → central modules, with per-directory and per-category caps),
+  spends the 60k-char budget in **value order**, **clips** big files rather than skipping them,
+  never downloads >400 KB files, and reports every dropped/capped file in `notes`. Client side:
+  new pure module `client/src/lib/repo.ts` (`parseRepoRef`/`resolveRepoRef`/`buildCodeMapPrompt`)
+  + `fetchRepoDigest` in `lib/api.ts`, run path `runCodeMap` in `boardStore.ts`, a Repository field
+  + "what was read" summary (repo@branch · files · chars · capped · when · notes) in `BoxNode`,
+  `code-map.md` downloads, `codemap` added to the Agent's creatable whitelist, Canvas nodeTypes +
+  minimap colour. Three real bugs found and fixed by the tests: the branch was dropped from the
+  request URL, the box's **stock prompt** placeholder (`github.com/owner/repo`) was being resolved
+  as a repository, and the digest budget was being spent alphabetically instead of by value.
+- **Tests:** 35 server tests (18 new in `server/src/repo.test.ts` incl. a stubbed-fetch digest flow,
+  + 4 new route/health tests in `app.test.ts`) and 205 client tests (14 new in `repo.test.ts`)
+  pass; `tsc --noEmit` + `vite build` clean. **Live:** real endpoint against a real public repo
+  (`alexbonti/ai-canva`: 10 files of 158, 71k chars, capped, notes listed) and a **real end-to-end
+  box run** (live GitHub + live model, 42s) producing a 21k-char brief that cites real paths
+  (`client/src/store/boardStore.ts`, `server/src/app.ts`, `client/src/types.ts`,
+  `functions/src/index.ts`). `client/ui-smoke.mjs` (renamed from `sdlc-smoke.mjs`, now covering both
+  features) passes **53/53**.
+- **In flight:** —.
+- **Next steps:** deploy (Functions must ship for `/api/repo-digest` to exist in production; set
+  `GITHUB_TOKEN` there if private repositories should be readable); then run the E2E suite in a quiet
+  window to confirm the 80/80 baseline still holds.
+
 ## 2026-02-08 — Deploy: SDLC pipeline live on carbondocs
 
 - **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `ef184d2` — Hosting released

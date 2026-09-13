@@ -164,3 +164,37 @@ export async function checkHealth(): Promise<{
   const res = await fetch(`${API_BASE}/health`);
   return res.json();
 }
+
+/** What the backend read from a repository (see server/src/repo.ts). */
+export interface RepoDigestResponse {
+  ok?: boolean;
+  repo: string;
+  branch: string;
+  /** The rendered digest (file tree + selected file contents) for the prompt. */
+  digest: string;
+  files: number;
+  treeEntries: number;
+  chars: number;
+  truncated: boolean;
+  notes: string[];
+}
+
+/**
+ * Asks the backend for a repository digest (the Code Map box).
+ *
+ * The server does the GitHub access — the browser never calls GitHub directly,
+ * so a server-side `GITHUB_TOKEN` (when configured) can unlock private
+ * repositories without the token ever reaching the client.
+ */
+export async function fetchRepoDigest(repoUrl: string): Promise<RepoDigestResponse> {
+  const res = await fetch(`${API_BASE}/repo-digest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repoUrl }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}

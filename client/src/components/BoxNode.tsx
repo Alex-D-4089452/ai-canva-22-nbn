@@ -219,6 +219,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isUtility = isNote || isLabel || isTimer;
   // SDLC pipeline stage boxes (gated; see components/SdlcGatePanel.tsx).
   const isSdlc = isSdlcBox(boxType);
+  // Code Map worker: reads a GitHub repository through the backend.
+  const isCodeMap = boxType === "codemap";
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1042,6 +1044,69 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 ⚠️ {boxData.error}
               </div>
             )}
+            {/* Code Map: which repository this box read, and what came back */}
+            {isCodeMap && (
+              <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50/70 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    🔭 Repository
+                  </span>
+                  {(boxData.repoUrl || "").trim() === "" && (
+                    <span className="text-[10px] text-slate-400">
+                      (a GitHub link in a connected box works too)
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={boxData.repoUrl || ""}
+                  onChange={(e) => updateBoxData(id, { repoUrl: e.target.value })}
+                  placeholder="https://github.com/owner/repo  ·  owner/repo#branch"
+                  className="nodrag mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  title="The public repository this box reads. Private repos need GITHUB_TOKEN on the server."
+                />
+                {boxData.repoMeta && (
+                  <div className="mt-1 space-y-0.5">
+                    {boxData.repoMeta.repo ? (
+                      <p className="text-[10px] text-slate-500">
+                        {boxData.repoMeta.repo}
+                        {boxData.repoMeta.branch ? `@${boxData.repoMeta.branch}` : ""}
+                        {" · "}
+                        {boxData.repoMeta.files} file{boxData.repoMeta.files === 1 ? "" : "s"} of{" "}
+                        {boxData.repoMeta.treeEntries}
+                        {" · "}
+                        {(boxData.repoMeta.chars / 1000).toFixed(1)}k chars
+                        {boxData.repoMeta.truncated && (
+                          <span className="font-semibold text-amber-700"> · capped</span>
+                        )}
+                        {boxData.repoMeta.fetchedAt > 0 && (
+                          <span className="text-slate-400">
+                            {" · read "}
+                            {new Date(boxData.repoMeta.fetchedAt).toLocaleString()}
+                          </span>
+                        )}
+                      </p>
+                    ) : null}
+                    {boxData.repoMeta.error && (
+                      <p className="text-[10px] text-amber-800">⚠ {boxData.repoMeta.error}</p>
+                    )}
+                    {boxData.repoMeta.notes.length > 0 && (
+                      <details className="text-[10px] text-slate-500">
+                        <summary className="cursor-pointer select-none">
+                          Digest notes ({boxData.repoMeta.notes.length})
+                        </summary>
+                        <ul className="mt-0.5 space-y-0.5 pl-3">
+                          {boxData.repoMeta.notes.map((note, i) => (
+                            <li key={i} className="list-disc">{note}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {hasTextOutput && !isRunning && (
               <div className="markdown-output text-slate-700 text-sm">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
@@ -1053,6 +1118,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <>
                     No artifact yet. Connect the previous stage (or an Idea box with the change
                     request) and click <strong>Run</strong>.
+                  </>
+                ) : isCodeMap ? (
+                  <>
+                    No brief yet. Give the box a GitHub repository above (or connect code /
+                    a Documents box) and click <strong>Run</strong>.
                   </>
                 ) : (
                   <>

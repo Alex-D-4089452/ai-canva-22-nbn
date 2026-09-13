@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { generateStitchUI } from "./stitch.js";
+import { RepoError, fetchRepoDigest, parseRepoRef } from "./repo.js";
 
 /**
  * In-memory Stitch job store (local dev only).
@@ -159,6 +160,35 @@ export function createApp(): express.Express {
   });
 
   /**
+   * POST /api/repo-digest
+   * Body: { repoUrl: string }   e.g. "https://github.com/owner/repo" or "owner/repo#branch"
+   * Returns: { repo, branch, digest, files, treeEntries, chars, truncated, notes }
+   *
+   * Read-only GitHub access for the Code Map box (see ./repo.ts). Only
+   * github.com owner/repo references are accepted, so this cannot be used as a
+   * general request proxy. `GITHUB_TOKEN` is optional (public repos work
+   * without it; a token unlocks private repos and a higher rate limit).
+   */
+  app.post("/api/repo-digest", async (req, res) => {
+    const { repoUrl } = req.body as { repoUrl?: string };
+    const ref = parseRepoRef(repoUrl);
+    if (!ref) {
+      return res.status(400).json({
+        error:
+          "Provide a GitHub repository like https://github.com/owner/repo (or owner/repo, optionally owner/repo#branch).",
+      });
+    }
+    try {
+      const digest = await fetchRepoDigest(ref, { token: process.env.GITHUB_TOKEN });
+      res.json({ ok: true, ...digest });
+    } catch (err: any) {
+      const status = err instanceof RepoError ? 502 : 500;
+      console.error("[/api/repo-digest] Error:", err.message);
+      res.status(status).json({ error: err.message || "Failed to read the repository" });
+    }
+  });
+
+  /**
    * GET /api/health — simple health check
    */
   app.get("/api/health", (_req, res) => {
@@ -167,6 +197,8 @@ export function createApp(): express.Express {
       ollamaKey: process.env.OLLAMA_API_KEY ? "configured" : "missing",
       falKey: process.env.FAL_KEY ? "configured" : "missing",
       stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
+      // Optional: public repositories are read without it.
+      githubToken: process.env.GITHUB_TOKEN ? "configured" : "optional",
     });
   });
 

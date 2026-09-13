@@ -1,4 +1,4 @@
-export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "note" | "label" | "timer" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "note" | "label" | "timer" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -86,6 +86,7 @@ export const AGENT_CONTROLLER_SYSTEM_PROMPT = `You are an autonomous AI agent wo
 - "summarize" — combines its inputs into a concise summary
 - "prd" — turns research into a Product Requirements Document
 - "devplan" — turns a PRD into a short technical build plan
+- "codemap" — reads a GitHub repository and writes an orientation brief (what the code does, how it is structured, where to start); it needs the repo URL inside its prompt, e.g. https://github.com/owner/repo
 - "slides" — generates a pitch deck (JSON-driven slide deck)
 - "code" — generates a working React prototype (live preview on the board)
 - "ui" — generates a polished React UI prototype with Tailwind (live preview)
@@ -267,6 +268,47 @@ Connected inputs:
 {{inputs}}`;
 
 /**
+ * Code Map worker — reads a GitHub repository (via the backend's
+ * /api/repo-digest endpoint, which fetches the tree and the files that matter
+ * most) and writes an orientation brief: what the code does, how it is
+ * structured, and where to start reading. Falls back to connected inputs
+ * (a Documents box, pasted code) when no repository is given.
+ */
+export const CODE_MAP_SYSTEM_PROMPT = `You are a staff engineer writing a codebase orientation brief. You describe what the code actually does, based strictly on the evidence provided — you never invent files, modules, or behaviour the evidence does not show. When the evidence is incomplete you say so and list it under Open questions. Output Markdown only.`;
+
+export const CODE_MAP_PROMPT = `Turn the repository evidence below into a code map: an orientation brief a new engineer can read in ten minutes before making their first change.
+
+Sections:
+## What this codebase is
+One paragraph: the system it implements and who uses it — based only on the evidence.
+## Tech stack
+Languages, frameworks, runtime, storage, and how you know (cite the manifest/config files you saw).
+## Structure
+A map of the top-level directories: \`path — what lives here and why\`.
+## Entry points
+Where execution starts (server bootstrap, main, CLI, page entry, worker), with the file path for each.
+## How the main flows work
+Trace 2-4 of the most important end-to-end flows through the files you can see (e.g. request → handler → store → response), naming the files at each hop.
+## Key abstractions
+The handful of modules/types everything else depends on, each with its responsibility in one line.
+## Tests and how to run things
+Test framework, where tests live, the commands the manifests imply, and what is clearly NOT covered.
+## Risks and hotspots
+Large files, unclear boundaries, duplicated logic, thin test coverage, and anything that looks fragile.
+## Where to start reading
+An ordered reading list of 3-6 files for someone about to make a first change, one line each on why.
+## Open questions
+What the evidence does not answer. Each line prefixed \`⚠ \`. Never guess here.
+
+Rules:
+- Cite real paths from the evidence. Never invent a path, module, or command.
+- If the evidence is a partial digest (files were capped or skipped), say so under Open questions instead of implying you saw everything.
+- Be specific to THIS codebase — no generic best-practice filler.
+
+Repository evidence and any connected context:
+{{inputs}}`;
+
+/**
  * One message in a Chatbot box's ongoing conversation. Persisted in the
  * box's `chatMessages` and shared across the board — several people talk to
  * the same companion, so user messages carry `by` (displayName).
@@ -333,6 +375,32 @@ export interface SdlcFinding {
   location: string;
   dismissed: boolean;
   dismissedBy: string;
+}
+
+/**
+ * What a Code Map box actually read, recorded on the box after every run so the
+ * brief is auditable ("which revision, which files, what was skipped"). Every
+ * field is always defined — Firestore rejects nested `undefined`.
+ */
+export interface RepoMeta {
+  /** "owner/repo" ("" when no repository was resolved). */
+  repo: string;
+  /** Branch or tag that was read. */
+  branch: string;
+  /** Files whose contents made it into the digest. */
+  files: number;
+  /** Entries in the repository tree (before digest selection). */
+  treeEntries: number;
+  /** Characters of digest handed to the model. */
+  chars: number;
+  /** True when the digest hit the file/char cap (the brief is not complete). */
+  truncated: boolean;
+  /** Epoch ms of the fetch (0 when nothing was fetched). */
+  fetchedAt: number;
+  /** Why the fetch failed ("" on success); the run falls back to inputs. */
+  error: string;
+  /** Human-readable notes: skipped/ignored file counts, cap hits. */
+  notes: string[];
 }
 
 /** Data stored per-box, separate from React Flow's graph nodes. */
@@ -404,6 +472,10 @@ export interface BoxData {
   sdlcGateRequired?: boolean;
   /** Org rule sets (security, brand, compliance) injected into spec/review. */
   skills?: string;
+  /** Code Map boxes: the GitHub repository to read ("" = use inputs only). */
+  repoUrl?: string;
+  /** Code Map boxes: what the last run actually read. */
+  repoMeta?: RepoMeta;
 }
 
 /** Metadata for each box type. */
@@ -600,6 +672,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "You are a pragmatic developer. Create SHORT, simple development plans for React prototypes. Use React hooks and inline styles. Keep everything minimal — this is a prototype, not production. Be concise.",
     defaultWidth: 360,
     defaultHeight: 380,
+  },
+  codemap: {
+    label: "Code Map",
+    icon: "🔭",
+    color: "#0f766e",
+    description: "Read a GitHub repository (or connected code/documents) and write an orientation brief: what the code does, how it is structured, the main flows, the risks, and where to start reading.",
+    hasAI: true,
+    category: "worker",
+    roles: ["developer", "sdlc"],
+    defaultPrompt: CODE_MAP_PROMPT,
+    defaultSystemPrompt: CODE_MAP_SYSTEM_PROMPT,
+    defaultWidth: 420,
+    defaultHeight: 440,
   },
   ui: {
     label: "UI Design",
