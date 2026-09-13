@@ -49,6 +49,17 @@ current state).
 
 ---
 
+## 2026-02-08 — Deploy: Code box change requests live on carbondocs
+
+- **Done:** `bash scripts/deploy.sh` to `carbondocs` from commit `15f308f` — **Hosting only**
+  (new entry `assets/index-DF6pHO8-.js`, same hash as the local build); `functions/api` +
+  `processStitchJob` were correctly **skipped** ("No changes detected") because this feature is
+  pure client-side. Verified live: `/` 200, `/api/generate` still answering, and the served bundle
+  contains the change flow (`Request a change`, `Apply change`, the safeguard prompt
+  `Apply ONLY that change`, and the append-only revert note `reverted to v`).
+- **In flight:** —.
+- **Next steps:** —.
+
 ## 2026-02-08 — AI change requests in the Code / UI boxes (with diff + revert)
 
 - **Done:** The Code and UI Design boxes now take **change requests**: a "Request a change…" field +
