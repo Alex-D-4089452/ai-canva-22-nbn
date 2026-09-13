@@ -1,7 +1,7 @@
 /**
  * Live UI smoke test for the SDLC pipeline group, the Code Map worker, the
- * Code Edit worker, AI change requests in the Code box and the per-box outcome
- * downloads.
+ * Code Edit worker, AI change requests in the Code box, here.now box deploys and
+ * the per-box outcome downloads.
  * Drives the REAL dev app (localhost:5173) with /api/generate mocked at the
  * page level so the artifacts are deterministic.
  *
@@ -876,6 +876,157 @@ check("CC9 a change request with no code (or no request) is refused", await page
   const d = window.__dsh.useBoardStore.getState().boxData[boxId];
   return d.status === "error" && /Generate the code first/i.test(d.error || "");
 }, ccEmpty));
+
+// ---------- Deploy: a box's code published to a live here.now URL ----------
+
+await page.evaluate(() => {
+  window.__dep = { requests: [], mode: "ok" };
+  const original = window.fetch;
+  window.installDeployMocks = () => {
+    window.fetch = async (url, opts) => {
+      const u = typeof url === "string" ? url : url.url;
+      if (!u.includes("/api/herenow-deploy")) return original(url, opts);
+      const body = JSON.parse(opts?.body || "{}");
+      window.__dep.requests.push(body);
+      if (window.__dep.mode === "conflict") {
+        return new Response(JSON.stringify({
+          error: "The site update: This site has changed since it was deployed (live version ver_9, changed by editor). Redeploy to replace it, or review the live version first.",
+        }), { status: 400, headers: { "Content-Type": "application/json" } });
+      }
+      const n = window.__dep.requests.length;
+      return new Response(JSON.stringify({
+        ok: true,
+        slug: "cobalt-castle-y2d3",
+        siteUrl: "https://cobalt-castle-y2d3.here.now/",
+        versionId: "ver_" + n,
+        unchanged: false,
+        anonymous: true,
+        expiresAt: "2026-09-14T12:39:41.214Z",
+        claimToken: "y_Wu0ZyWf-pdH0sP",
+        claimUrl: "https://here.now/c/y_Wu0ZyWf-pdH0sP",
+        warnings: [],
+        fileCount: (body.files || []).length,
+        bytes: 3518,
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+  };
+});
+await page.evaluate(() => window.installDeployMocks());
+
+const depBox = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const box = s().addBox("code", { x: 80, y: 3600 });
+  const code = "function App() {\n  return <h1>Deployed</h1>;\n}\nReactDOM.createRoot(document.getElementById('root')).render(<App />);";
+  s().updateBoxData(box, {
+    code, output: code, status: "done",
+    codeVersions: [{ version: 1, content: code, createdAt: Date.now(), createdBy: "T", source: "generated", note: "initial build" }],
+    codeVersion: 1,
+  });
+  return box;
+});
+await page.waitForTimeout(500);
+
+const depNodeText = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Box"));
+  return node ? node.innerText : "";
+});
+check("DP1 a code box offers a Deploy button and a live-site strip",
+  /Deploy/.test(depNodeText) && /LIVE SITE/i.test(depNodeText) && /2 file\(s\) ready to publish/.test(depNodeText),
+  depNodeText.slice(0, 140).replace(/\n/g, " / "));
+
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().deployBox(boxId), depBox);
+await page.waitForTimeout(700);
+
+const depState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { status: d.status, error: d.error || "", deploy: d.deploy || null };
+}, depBox);
+check("DP2 deploying publishes the box's code and records the live site",
+  depState.status === "done" && depState.deploy?.url === "https://cobalt-castle-y2d3.here.now/"
+  && depState.deploy?.slug === "cobalt-castle-y2d3" && depState.deploy?.versionId === "ver_1"
+  && depState.deploy?.claimToken === "y_Wu0ZyWf-pdH0sP" && depState.deploy?.anonymous === true,
+  JSON.stringify({ url: depState.deploy?.url, slug: depState.deploy?.slug, error: depState.error }));
+check("DP3 the payload carried a self-contained page plus the source",
+  await page.evaluate(() => {
+    const req = window.__dep.requests[0];
+    const paths = req.files.map((f) => f.path);
+    const html = req.files.find((f) => f.path === "index.html")?.content || "";
+    return JSON.stringify(paths) === JSON.stringify(["index.html", "App.jsx"])
+      && html.includes("<!DOCTYPE html>") && html.includes("ReactDOM.createRoot")
+      && req.displayName === "Code Box";
+  }),
+  await page.evaluate(() => JSON.stringify(window.__dep.requests[0].files.map((f) => f.path))));
+
+const depLive = await page.evaluate(() => {
+  // Match the DEPLOYED box: several boxes are titled "Code Box", so identify it by
+  // its live-site link rather than by title.
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.querySelector("a[href*='here.now']"));
+  const link = node?.querySelector("a[href*='here.now']");
+  return { text: node ? node.innerText : "", href: link?.getAttribute("href") || "" };
+});
+check("DP4 the box shows the live URL, the 24-hour expiry and the claim link behind a toggle",
+  depLive.href === "https://cobalt-castle-y2d3.here.now/"
+  && /Anonymous site/.test(depLive.text) && /expires/.test(depLive.text)
+  && /Show claim link/.test(depLive.text),
+  depLive.text.slice(0, 150).replace(/\n/g, " / "));
+
+check("DP5 the claim link is revealed with its once-only warning",
+  await page.evaluate(async () => {
+    const node = [...document.querySelectorAll(".box-node")].find((n) => n.querySelector("a[href*='here.now']"));
+    const btn = [...node.querySelectorAll("button")].find((b) => b.textContent.includes("Show claim link"));
+    btn?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const after = node.innerText;
+    return after.includes("https://here.now/c/y_Wu0ZyWf-pdH0sP") && /returned once and cannot be recovered/i.test(after);
+  }));
+
+// A redeploy must update the SAME site, sending its version back.
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().deployBox(boxId), depBox);
+await page.waitForTimeout(700);
+check("DP6 redeploying updates the same site with its claim token and live version",
+  await page.evaluate(() => {
+    const req = window.__dep.requests[1];
+    return req.slug === "cobalt-castle-y2d3" && req.claimToken === "y_Wu0ZyWf-pdH0sP" && req.baseVersionId === "ver_1";
+  }),
+  await page.evaluate(() => JSON.stringify({ slug: window.__dep.requests[1]?.slug, base: window.__dep.requests[1]?.baseVersionId })));
+
+// A refused update must be surfaced, and the previous site kept.
+await page.evaluate(() => { window.__dep.mode = "conflict"; });
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().deployBox(boxId), depBox);
+await page.waitForTimeout(700);
+check("DP7 a refused update is surfaced and the previous site is kept", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.querySelector("a[href*='here.now']"));
+  return d.status === "error" && /changed since it was deployed/.test(d.error || "")
+    && d.deploy?.url === "https://cobalt-castle-y2d3.here.now/"
+    && /previous site is still live and unchanged/.test(node ? node.innerText : "");
+}, depBox));
+await page.evaluate(() => { window.__dep.mode = "ok"; });
+
+// Stitch publishes its HTML as-is; Code Edit publishes the changed files + diff.
+const stitchDeploy = await page.evaluate(async () => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const box = s().addBox("stitch", { x: 620, y: 3600 });
+  s().updateBoxData(box, { code: "<html><body><h1>Stitch screen</h1></body></html>", status: "done" });
+  window.__dep.requests.length = 0;
+  await s().deployBox(box);
+  return window.__dep.requests[0];
+});
+check("DP8 a Stitch box publishes its HTML as index.html only",
+  stitchDeploy.files.length === 1 && stitchDeploy.files[0].path === "index.html"
+  && stitchDeploy.files[0].content.includes("Stitch screen"),
+  JSON.stringify(stitchDeploy.files.map((f) => f.path)));
+
+const editDeploy = await page.evaluate(async () => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  window.__dep.requests.length = 0;
+  await s().deployBox(Object.keys(s().boxData).find((k) => (s().boxData[k].changeSet || []).length > 0));
+  return window.__dep.requests[0];
+});
+check("DP9 a Code Edit box publishes the changed files plus the diff document",
+  JSON.stringify(editDeploy.files.map((f) => f.path)) === JSON.stringify(["src/app.ts", "CHANGES.md"])
+  && editDeploy.files[1].content.includes("```diff"),
+  JSON.stringify(editDeploy.files.map((f) => f.path)));
 
 const realErrors = pageErrors.filter((e) => !/Missing or insufficient permissions/i.test(e));
 check("Z1 no unexpected page errors", realErrors.length === 0, realErrors.join(" | ").slice(0, 200));

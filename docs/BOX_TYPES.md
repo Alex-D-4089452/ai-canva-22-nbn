@@ -12,8 +12,8 @@ Boxes fall into five categories:
   append-only artifact history. See "SDLC pipeline boxes" below.
 - **Worker boxes** (`category: "worker"`) — run an AI step (Ollama, fal.ai, or Google Stitch).
 - **Companion boxes** (`category: "companion"`) — persistent AI characters you converse with.
-- **Collaboration boxes** (`category: "collab"`) — standalone annotation tools with no AI, no
-  Run button, no settings panel, and no connection handles.
+- **Collaboration boxes** (`category: "collab"`) — standalone team tools and annotations with no AI,
+  no Run button, no settings panel, and no connection handles.
 
 > A sixth `custom` category holds the user's own saved box templates (see "Custom boxes").
 
@@ -116,6 +116,25 @@ success metrics. Ideal input for the Code box.
 - **Inputs:** typically Research; defaults to `{{inputs}}`.
 - **Output:** Markdown document.
 
+### Deploying a box
+
+Any box that contains code can be published to a live URL — **Code**, **UI Design**, **Stitch UI**
+and **Code Edit**. Press **🚀 Deploy** in the box (or the button in the 🌐 Live site strip) and the
+backend publishes it to **here.now**:
+
+- what gets published: Code/UI → a self-contained `index.html` (the same CDN-wrapped page the box
+  previews) **plus `App.jsx`** with the source; Stitch UI → its HTML as-is; Code Edit → the changed
+  files at their repository paths **plus `CHANGES.md`** with the diff;
+- the first deploy **creates** the Site and later ones **update the same one**, sending its live
+  version back — so a Site that changed elsewhere (the here.now editor, another agent) is refused
+  with a message naming that version instead of being silently replaced;
+- the box records the slug, URL, version, file count and byte count, and shows the live link;
+- `HERENOW_API_KEY` (see `docs/API.md`) is optional. Without it the Site is **anonymous: it expires
+  in 24 hours** and can only be updated with the claim token — which here.now returns **exactly
+  once**, so the box keeps it and shows the claim link behind a 🔑 toggle (a modified claim link
+  will not work). With a key the Site is permanent and belongs to the account;
+- nothing is verified for you: deploying publishes the code, it does not run it.
+
 ### ✍️ Code Edit — `codeedit`
 
 Applies a **change request to an existing GitHub repository** and hands back a reviewable change
@@ -150,6 +169,7 @@ from real files instead of generating a prototype.
   diff, unified patch — unit-tested, including a suite that applies the generated patches with real
   `git apply`), run path `runCodeEdit` in `boardStore.ts`, UI in `components/CodeEditPanel.tsx` +
   `RepoField.tsx`.
+- **Deploy:** `deployFilesFor` publishes the changed files (deletions skipped) plus `CHANGES.md`.
 
 ### 🗺️ Dev Plan — `devplan`
 
@@ -225,6 +245,10 @@ Code/Preview tabs, Copy, and Save (download).
 - **Output:** `code` (the JSX) + `output` (the raw response).
 - **Constraints:** no imports; use the `React.*` API; define an `App` component; keep mock data
   small (3–5 items).
+- **Deploy:** the box's **🚀 Deploy** button publishes the prototype to a live URL
+  (`https://{slug}.here.now/`) via `POST /api/herenow-deploy`, together with its `App.jsx` source.
+  Anonymous Sites expire in 24 hours; the panel shows the live link, the expiry and the claim link
+  (returned once), and **Redeploy** updates the same Site. See "Deploying a box" below.
 - **Change requests (AI edits):** once there is code, the box shows a **"Request a change…"** field
   and an **✏️ Apply change** button. The AI rewrites the whole component from your request, with the
   prompt rules that stop feature loss ("return the COMPLETE file… no reformatting, no renaming, no
@@ -291,8 +315,8 @@ to open the chat panel (a portal, escaping React Flow's transform).
 
 ## Collaboration boxes
 
-Standalone annotation tools shown in the sidebar's "Collaboration" section. They have **no AI,
-no Run button, no ⚙ settings panel, and no connection handles** — they never join a pipeline.
+Standalone team tools shown in the sidebar's "Collaboration" section. They have **no AI, no Run
+button, no ⚙ settings panel, and no connection handles** — they never join a pipeline.
 `runBox` early-returns for them as a guard. Their content lives in the regular `boxData` and syncs
 to every viewer through the board document snapshot, like all boxes.
 
@@ -326,6 +350,37 @@ A shared countdown clock. Anyone can start/pause/stop/reset it; every viewer see
   `client/src/lib/timer.ts` (`parseDurationInput`, `formatTimer`, `computeRemainingMs`,
   `isTimerFinished`) and is unit-tested in `timer.test.ts`.
 - **At zero:** the digits turn red and pulse with a "⏰ Time's up" banner (visual only — no sound).
+
+### ✅ Checklist — `checklist`
+
+A **shared team to-do list**. Anyone on the board can add, assign, rename, reorder, tick off and
+delete tasks — everyone sees the same list, live (last-write-wins between simultaneous users,
+exactly like a Note). The box uses the standard card (title, delete ✕, resizable) and renders its
+own panel body: a progress bar (`3 of 7 done`), an add field, and the task rows.
+
+- **Fields:** `checklistItems` — an array of `ChecklistItem`, each with `id`, `text`, `done`,
+  `assignee` (email, `""` = unassigned), `createdBy` / `createdAt` and `doneBy` / `doneAt`.
+  Every field of every item is **always defined** (Firestore rejects `undefined` nested inside a
+  value) and the array is created empty-but-defined at box creation.
+- **Attribution:** the list is edited by the whole team, so each task records who added it and who
+  ticked it off (shown as `✓ alice` on a finished row).
+- **Adding tasks:** type one and press Enter. Pasting **multiple lines** appends them all at once —
+  Markdown task lists (`- [ ]` / `- [x]`, the done state is kept), bullets, numbered lists and bare
+  lines are all accepted, and the bullet/number markers are stripped. 📋 Copy exports the list as a
+  Markdown checklist; 🧹 Clear done removes only finished tasks.
+- **Assignment:** the row's picker lists the people on the board (owner, collaborators and whoever
+  is currently present), plus the current user.
+- **Budgets:** text is trimmed/single-lined and clamped to 500 chars, and a box holds at most 200
+  tasks (`MAX_CHECKLIST_ITEMS`) so one list can never push the board document past Firestore's 1MB
+  limit. The store skips the write entirely when a mutation changed nothing.
+- **Code:** all rules are pure functions in `client/src/lib/checklist.ts` (`appendChecklistItems`,
+  `parseChecklistLines`, `toggleChecklistItem`, `setChecklistItemAssignee`, `moveChecklistItem`,
+  `checklistStats`, `checklistToMarkdown`, `normalizeChecklist`, …), unit-tested in
+  `checklist.test.ts`. Rendering + store wiring is `components/ChecklistPanel.tsx`, and the store
+  exposes one action, `setChecklistItems(id, items)`. `normalizeChecklist` repairs anything loaded
+  from an older board document.
+- **Not an AI box:** the agent cannot create one (`AGENT_CREATABLE_TYPES` excludes every
+  collaboration box), and it produces no output for downstream boxes.
 
 ---
 
@@ -417,8 +472,8 @@ Every text-producing box can hand its **actual outcome** to the clipboard of you
 - **What's in the file:** the artifact text and nothing else, so it can be pasted straight into a
   repo or a PR. Versions, approvals and findings live in the 🗂 Audit export instead.
 - **Not covered:** Code / UI Design / Stitch keep their own 💾 Save (the runnable prototype as
-  HTML), Cartoon keeps its image download, and Idea / Image / Documents / Note / Label / Timer have
-  no text outcome to download.
+  HTML), Cartoon keeps its image download, and Idea / Image / Documents / Note / Label / Timer /
+  Checklist have no text outcome to download.
 - **Code:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`, `slugifyFilename`,
   `downloadText` — the pure parts are unit-tested).
 

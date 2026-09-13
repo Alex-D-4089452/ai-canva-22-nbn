@@ -51,6 +51,8 @@ describe("GET /api/health", () => {
       stitchKey: "missing",
       // The GitHub token is optional — public repositories read without it.
       githubToken: "optional",
+      // Without a here.now key, deploys are anonymous 24-hour Sites.
+      herenowKey: "anonymous",
     });
   });
 
@@ -141,6 +143,77 @@ describe("GET /api/admin/stats", () => {
   it("returns 501 locally (production-only feature)", async () => {
     const res = await request(createApp()).get("/api/admin/stats");
     expect(res.status).toBe(501);
+  });
+});
+
+describe("POST /api/herenow-deploy", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** Stubs the here.now three-step flow (create → upload → finalize). */
+  function stubHereNow() {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const method = (init?.method || "GET").toUpperCase();
+      calls.push(`${method} ${new URL(url).pathname}`);
+      if (url.includes("storage")) return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+      if (url.endsWith("/finalize")) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({ success: true, slug: "bright-canvas-a7k2", siteUrl: "https://bright-canvas-a7k2.here.now/", currentVersionId: "ver_1" }),
+        } as unknown as Response;
+      }
+      return {
+        ok: true, status: 200,
+        json: async () => ({
+          slug: "bright-canvas-a7k2",
+          siteUrl: "https://bright-canvas-a7k2.here.now/",
+          anonymous: true,
+          expiresAt: "2026-02-18T01:00:00.000Z",
+          claimToken: "4fQ9tK2mXb7cW1pZ",
+          claimUrl: "https://here.now/c/4fQ9tK2mXb7cW1pZ",
+          upload: {
+            versionId: "ver_1",
+            finalizeUrl: "https://here.now/api/v1/publish/bright-canvas-a7k2/finalize",
+            uploads: [{ path: "index.html", method: "PUT", url: "https://bucket.r2.cloudflarestorage.com/index.html", headers: {} }],
+          },
+        }),
+      } as unknown as Response;
+    });
+    return calls;
+  }
+
+  it("publishes a file set and reports the live URL with its claim URL", async () => {
+    const calls = stubHereNow();
+    const res = await request(createApp())
+      .post("/api/herenow-deploy")
+      .send({ files: [{ path: "index.html", content: "<h1>hi</h1>" }], displayName: "Code Box" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, siteUrl: "https://bright-canvas-a7k2.here.now/", anonymous: true });
+    expect(res.body.claimUrl).toBe("https://here.now/c/4fQ9tK2mXb7cW1pZ");
+    expect(calls).toEqual([
+      "POST /api/v1/publish",
+      "PUT /index.html",
+      "POST /api/v1/publish/bright-canvas-a7k2/finalize",
+    ]);
+  });
+
+  it("refuses an empty set and reserved .herenow/ paths", async () => {
+    stubHereNow();
+    const empty = await request(createApp()).post("/api/herenow-deploy").send({ files: [] });
+    expect(empty.status).toBe(400);
+    expect(empty.body.error).toMatch(/nothing to publish/i);
+
+    const reserved = await request(createApp())
+      .post("/api/herenow-deploy")
+      .send({ files: [{ path: ".herenow/proxy.json", content: "{}" }] });
+    expect(reserved.status).toBe(400);
+    expect(reserved.body.error).toMatch(/site-relative/);
+
+    const traversal = await request(createApp())
+      .post("/api/herenow-deploy")
+      .send({ files: [{ path: "../escape.html", content: "x" }] });
+    expect(traversal.status).toBe(400);
   });
 });
 

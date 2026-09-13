@@ -9,6 +9,7 @@ import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { enqueueStitchJob } from "./stitchJobs.js";
 import { RepoError, fetchRepoDigest, parseRepoRef } from "./repo.js";
+import { DeployError, deploySite, type DeployFile } from "./herenow.js";
 
 // Initialize the Admin SDK (uses the Cloud Function's default credentials).
 initializeApp();
@@ -183,6 +184,43 @@ app.post("/api/repo-digest", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/herenow-deploy
+ * Body: { files: [{ path, content }], slug?, claimToken?, baseVersionId?, displayName?, displayDescription? }
+ * Returns: { slug, siteUrl, versionId, unchanged, anonymous, expiresAt, claimToken, claimUrl, warnings, ... }
+ *
+ * Publishes a box's code to a live here.now URL (see ./herenow.ts — keep it in
+ * sync with server/src/herenow.ts). Without HERENOW_API_KEY the Site is
+ * anonymous: it expires in 24 hours, and the claimToken/claimUrl returned here
+ * are the ONLY way to update that Site later.
+ */
+app.post("/api/herenow-deploy", async (req, res) => {
+  const body = req.body as {
+    files?: DeployFile[];
+    slug?: string;
+    claimToken?: string;
+    baseVersionId?: string;
+    displayName?: string;
+    displayDescription?: string;
+  };
+  try {
+    const result = await deploySite({
+      files: Array.isArray(body?.files) ? body.files : [],
+      slug: typeof body?.slug === "string" ? body.slug : undefined,
+      claimToken: typeof body?.claimToken === "string" ? body.claimToken : undefined,
+      baseVersionId: typeof body?.baseVersionId === "string" ? body.baseVersionId : undefined,
+      displayName: typeof body?.displayName === "string" ? body.displayName : undefined,
+      displayDescription: typeof body?.displayDescription === "string" ? body.displayDescription : undefined,
+      apiKey: process.env.HERENOW_API_KEY,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    const status = err instanceof DeployError ? 400 : 500;
+    console.error("[/api/herenow-deploy] Error:", err.message);
+    res.status(status).json({ error: err.message || "Failed to publish the site" });
+  }
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
@@ -191,6 +229,8 @@ app.get("/api/health", (_req, res) => {
     stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
     // Optional: public repositories are read without it.
     githubToken: process.env.GITHUB_TOKEN ? "configured" : "optional",
+    // Optional: without it, here.now deploys are anonymous (24h) Sites.
+    herenowKey: process.env.HERENOW_API_KEY ? "configured" : "anonymous",
   });
 });
 

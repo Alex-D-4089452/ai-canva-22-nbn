@@ -48,10 +48,10 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 ## ✨ Features
 
 - **Visual pipelines** — drag boxes onto a canvas and connect them; content flows box to box.
-- **25 box types** — Idea, Image, Documents, the six gated **SDLC stages** (Intent, Spec, Plan,
+- **26 box types** — Idea, Image, Documents, the six gated **SDLC stages** (Intent, Spec, Plan,
   Implementation, Review, Merge), Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**,
-  Cartoon Profile, Slides, Code, UI Design, Stitch UI, plus Notes / Labels / Timers and your own
-  custom boxes.
+  Cartoon Profile, Slides, Code, UI Design, Stitch UI, plus Notes / Labels / Timers / the shared
+  team **Checklist** and your own custom boxes.
 - **Gated SDLC pipeline** — walk one change request through intent → spec → plan → implementation →
   review → merge, approving (or sending back, rejecting, editing) each artifact at its gate. Every
   version is append-only, an unapproved stage blocks the next one, and the whole chain exports as
@@ -68,6 +68,9 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 - **Cloud persistence** — boards auto-save to Firestore (with localStorage as an offline cache). Sign in with Google to use the app; your boards are stored per user.
 - **Editable prompt templates** — reference connected inputs by name (`{{Box Name}}`, `{{input_1}}`, `{{inputs}}`) right in the settings panel.
 - **Live code previews** — Code and UI boxes render generated React components in an iframe with copy/save.
+- **Deploy straight from a box** — any Code, UI Design, Stitch UI or Code Edit box publishes to a live
+  URL with 🚀 Deploy (here.now): the prototype plus its source, updatable in place, with the expiry
+  and claim link surfaced for anonymous sites.
 - **Ask the AI for changes** — once a Code or UI box has produced code, type a change request and press
   ✏️ Apply change: you get the updated component, a diff of exactly what moved, and a version history
   with one-click revert.
@@ -97,6 +100,7 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 | **UI Design** | ✨ | Worker | Generates production-quality React UIs with Tailwind CSS + Google Fonts. |
 | **Stitch UI** | 🧵 | Worker | Generates UI screens using Google Stitch; returns polished HTML directly. |
 | **Note / Label / Timer** | 🗒️ | Collab | Standalone annotation tools — no AI, no Run button, no connections. |
+| **Checklist** | ✅ | Collab | A shared team to-do list: anyone adds, assigns, reorders and ticks off tasks; everyone sees the same list live. |
 | **Chatbot** | 🧍 | Companion | A stick-figure companion that lives on the board and chats with the team. |
 | **Custom** | ✨ | Custom | Your own saved AI box templates, created in the sidebar. |
 

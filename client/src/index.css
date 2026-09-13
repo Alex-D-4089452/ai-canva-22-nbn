@@ -545,6 +545,26 @@ html {
     padding-left: 14px;
     padding-right: 14px;
   }
+  /* Checklist box: a 16px tick box and 20px row icons are ungrabbable with a
+     finger (the row actions are hover-revealed on desktop, always visible on
+     coarse pointers via .touch-visible). */
+  .checklist-check {
+    width: 22px;
+    height: 22px;
+  }
+  .checklist-row-actions button {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+  .checklist-assign {
+    min-height: 30px;
+    font-size: 12px;
+  }
+  .checklist-add-input,
+  .checklist-add-btn {
+    min-height: 38px;
+  }
   .area-color-dot,
   .label-color-dot {
     width: 28px;

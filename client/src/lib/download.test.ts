@@ -51,7 +51,7 @@ describe("hasDownloadableOutcome", () => {
     ]) {
       expect(hasDownloadableOutcome(type)).toBe(true);
     }
-    for (const type of ["idea", "image", "documents", "cartoon", "code", "ui", "stitch", "note", "label", "timer", "chatbot"]) {
+    for (const type of ["idea", "image", "documents", "cartoon", "code", "ui", "stitch", "note", "label", "timer", "checklist", "chatbot"]) {
       expect(hasDownloadableOutcome(type)).toBe(false);
     }
   });

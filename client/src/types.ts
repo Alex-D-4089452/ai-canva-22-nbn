@@ -1,4 +1,27 @@
-export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "note" | "label" | "timer" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "note" | "label" | "timer" | "checklist" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+
+/**
+ * One task in a Checklist box — the team's shared to-do list. Every field is
+ * always defined (no `undefined`) because these objects live inside a BoxData
+ * array and Firestore rejects `undefined` anywhere in a nested value.
+ *
+ * Attribution is deliberately stored per item: a checklist is edited by the
+ * whole team (last-write-wins between simultaneous users, like notes), so
+ * "who added it" and "who ticked it off" are part of the record.
+ */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+  /** Email of the teammate who owns the task ("" = unassigned). */
+  assignee: string;
+  /** Who added the task (email) and when (epoch ms). */
+  createdBy: string;
+  createdAt: number;
+  /** Who ticked it off and when ("" / 0 while the task is still open). */
+  doneBy: string;
+  doneAt: number;
+}
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -456,6 +479,41 @@ export interface EditMeta {
   notes: string[];
 }
 
+/**
+ * Where a box's code was last published (the 🚀 Deploy button, which ships the
+ * box's code to here.now — see `client/src/lib/deploy.ts`). Every field is always
+ * defined: Firestore rejects `undefined` inside a nested value.
+ */
+export interface DeployInfo {
+  /** here.now Site slug — sent back to update the same Site. */
+  slug: string;
+  /** The live URL, e.g. `https://cobalt-castle-y2d3.here.now/`. */
+  url: string;
+  /** The live version at deploy time — sent back as `baseVersionId`. */
+  versionId: string;
+  /**
+   * Anonymous Sites only, and returned by here.now EXACTLY ONCE: without it the
+   * Site can never be updated again. Kept on the box so redeploys work.
+   */
+  claimToken: string;
+  /** Anonymous-only claim link ("" for a permanent Site). */
+  claimUrl: string;
+  /** True when the Site is anonymous (expires) rather than permanent. */
+  anonymous: boolean;
+  /** ISO expiry for an anonymous Site ("" when permanent). */
+  expiresAt: string;
+  /** Epoch ms of the last successful deploy (0 = never). */
+  deployedAt: number;
+  /** Files published in the last deploy. */
+  fileCount: number;
+  /** Bytes published in the last deploy. */
+  bytes: number;
+  /** Non-fatal notes from here.now (e.g. a manifest warning). */
+  warnings: string[];
+  /** Why the last deploy attempt failed ("" on success). */
+  error: string;
+}
+
 /** One structured review finding parsed from the Review box's artifact. */
 export interface SdlcFinding {
   id: string;
@@ -537,6 +595,11 @@ export interface BoxData {
   /** Email of the user who last started the timer (shown as attribution). */
   timerStartedBy?: string;
   /**
+   * For Checklist boxes: the shared team to-do items (see
+   * `client/src/lib/checklist.ts` for every mutation and the paste parser).
+   */
+  checklistItems?: ChecklistItem[];
+  /**
    * SDLC stage boxes (see client/src/lib/sdlc.ts). Versions and history are
    * append-only, and every object stored in them has all of its keys defined —
    * Firestore rejects `undefined` anywhere inside a nested value.
@@ -578,6 +641,8 @@ export interface BoxData {
   changeSet?: FileChange[];
   /** Code Edit boxes: how the targets were chosen and what was read. */
   editMeta?: EditMeta;
+  /** Code / UI / Stitch / Code Edit boxes: where the code was last published. */
+  deploy?: DeployInfo;
 }
 
 /** Metadata for each box type. */
@@ -951,6 +1016,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultSystemPrompt: "",
     defaultWidth: 260,
     defaultHeight: 190,
+  },
+  checklist: {
+    label: "Checklist",
+    icon: "✅",
+    color: "#059669",
+    description: "A shared team to-do list. Anyone can add, assign and tick off tasks — everyone sees the same list.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 320,
+    defaultHeight: 340,
   },
   custom: {
     label: "Custom",

@@ -210,3 +210,54 @@ export async function fetchRepoDigest(repoUrl: string, paths?: string[]): Promis
   }
   return res.json();
 }
+/** One file published to a here.now Site. */
+export interface DeployFilePayload {
+  path: string;
+  content: string;
+}
+
+/** What a here.now deploy returns (see server/src/herenow.ts). */
+export interface DeployResponse {
+  ok?: boolean;
+  slug: string;
+  siteUrl: string;
+  /** Live version id — pass it back as `baseVersionId` to update safely. */
+  versionId: string;
+  unchanged: boolean;
+  anonymous: boolean;
+  /** ISO timestamp for an anonymous Site ("" when permanent). */
+  expiresAt: string;
+  /** Anonymous-only, returned ONCE — losing it means losing update access. */
+  claimToken: string;
+  claimUrl: string;
+  warnings: string[];
+  fileCount: number;
+  bytes: number;
+}
+
+/**
+ * Publishes files to a live here.now URL (the box deploy button).
+ *
+ * The backend does the publishing — the API key (when configured) stays
+ * server-side. Without a key the Site is anonymous: it expires in 24 hours and
+ * the returned claim token is the only way to update it afterwards.
+ */
+export async function publishSite(req: {
+  files: DeployFilePayload[];
+  slug?: string;
+  claimToken?: string;
+  baseVersionId?: string;
+  displayName?: string;
+  displayDescription?: string;
+}): Promise<DeployResponse> {
+  const res = await fetch(`${API_BASE}/herenow-deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}

@@ -10,7 +10,7 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
@@ -44,7 +44,7 @@ import {
   upstreamBlockReason,
   upstreamStageContent,
 } from "../lib/sdlc.js";
-import { generate, generateImage, generateStitchUI, fetchRepoDigest } from "../lib/api.js";
+import { generate, generateImage, generateStitchUI, fetchRepoDigest, publishSite } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
@@ -60,6 +60,12 @@ import {
 } from "../lib/agent.js";
 import { buildDocumentsOutput } from "../lib/documents.js";
 import { buildCodeChangePrompt, extractCode, isCompletePrototype } from "../lib/code.js";
+import {
+  deployBlockedReason,
+  deployFilesFor,
+  deploySiteTitle,
+  validateDeploySet,
+} from "../lib/deploy.js";
 import { parseSlidesResponse } from "../lib/slides.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import { DEFAULT_TIMER_MS } from "../lib/timer.js";
@@ -188,6 +194,24 @@ function collectInputs(
   return { namedInputs, inputImage };
 }
 
+/** A deploy record with every field defined (Firestore rejects `undefined`). */
+function emptyDeployInfo(): DeployInfo {
+  return {
+    slug: "",
+    url: "",
+    versionId: "",
+    claimToken: "",
+    claimUrl: "",
+    anonymous: true,
+    expiresAt: "",
+    deployedAt: 0,
+    fileCount: 0,
+    bytes: 0,
+    warnings: [],
+    error: "",
+  };
+}
+
 /** Box types whose output is code a change request can be applied to. */
 function isCodeBoxType(type: BoxType | string): boolean {
   return type === "code" || type === "ui";
@@ -207,6 +231,9 @@ function defaultBoxData(type: BoxType): BoxData {
     ...(type === "timer"
       ? { timerDurationMs: DEFAULT_TIMER_MS, timerStatus: "idle" as const }
       : null),
+    // Checklist boxes: the shared task array is created EMPTY but DEFINED
+    // (Firestore-safe, and the panel can rely on it existing).
+    ...(type === "checklist" ? { checklistItems: [] } : null),
     // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
     // rejects `undefined` anywhere inside a nested value, and these arrays are
     // append-only for the whole life of the board.
@@ -262,6 +289,13 @@ interface BoardState {
   sendChatMessage: (id: string, text: string) => Promise<void>;
   /** Reset a chatbot's conversation to the greeting. */
   clearChat: (id: string) => void;
+  /**
+   * Checklist box (collab): replace the shared task list. Every mutation is a
+   * pure function in `lib/checklist.ts` (add/parse, toggle with attribution,
+   * assign, rename, reorder, clear done) — the store only stores the result,
+   * so the whole list syncs to collaborators through the normal board save.
+   */
+  setChecklistItems: (id: string, items: ChecklistItem[]) => void;
   /** Place a chatbot node (Canvas auto-places it at the viewport bottom). */
   placeChatbot: (id: string, position: { x: number; y: number }) => void;
 
@@ -276,6 +310,14 @@ interface BoardState {
   editArtifact: (id: string, content: string, note?: string) => void;
   /** Dismiss one review finding (unlocks the review gate when none block). */
   dismissFinding: (id: string, findingId: string) => void;
+  /**
+   * Publish this box's code to a live here.now URL (Code, UI Design, Stitch UI
+   * and Code Edit boxes). The first call creates the Site; later calls update the
+   * same one, sending its version back so a Site someone else changed is refused
+   * rather than clobbered. The claim token (anonymous Sites) is kept on the box,
+   * because here.now returns it only once.
+   */
+  deployBox: (id: string) => Promise<void>;
   /**
    * Code / UI boxes: apply an AI change request to the code already in the box.
    * The reply replaces `code` but is appended as a new version first, so the
@@ -719,6 +761,83 @@ export const useBoardStore = create<BoardState>()(
         }
       },
 
+      deployBox: async (id) => {
+        const data = get().boxData[id];
+        const node = get().nodes.find((n) => n.id === id);
+        if (!data || !node) return;
+        if (data.status === "running") return;
+        const boxType = (node.data.boxType || node.type) as BoxType;
+
+        const blocked = deployBlockedReason(boxType, data);
+        if (blocked) {
+          get().setBoxStatus(id, "error", blocked);
+          return;
+        }
+        const files = deployFilesFor(boxType, data);
+        const invalid = validateDeploySet(files);
+        if (invalid) {
+          get().setBoxStatus(id, "error", invalid);
+          return;
+        }
+
+        const previous = data.deploy;
+        get().setBoxStatus(id, "running");
+        try {
+          const title = deploySiteTitle(
+            boxType,
+            data,
+            (node.data?.title as string) || "",
+            get().boardTitle || ""
+          );
+          const result = await publishSite({
+            files,
+            displayName: title.displayName,
+            displayDescription: title.displayDescription,
+            // Redeploy the SAME Site when we already made one. The version goes
+            // back so here.now refuses the update if the live Site moved on.
+            ...(previous?.slug
+              ? {
+                  slug: previous.slug,
+                  baseVersionId: previous.versionId || undefined,
+                  claimToken: previous.claimToken || undefined,
+                }
+              : null),
+          });
+
+          get().updateBoxData(id, {
+            status: "done",
+            error: undefined,
+            deploy: {
+              slug: result.slug || previous?.slug || "",
+              url: result.siteUrl || previous?.url || "",
+              versionId: result.versionId || "",
+              // here.now returns the claim token exactly once: keep the old one if
+              // an update response did not repeat it.
+              claimToken: result.claimToken || previous?.claimToken || "",
+              claimUrl: result.claimUrl || previous?.claimUrl || "",
+              anonymous: result.anonymous !== false,
+              expiresAt: result.expiresAt || previous?.expiresAt || "",
+              deployedAt: Date.now(),
+              fileCount: result.fileCount || files.length,
+              bytes: result.bytes || 0,
+              warnings: Array.isArray(result.warnings) ? result.warnings : [],
+              error: "",
+            },
+          });
+        } catch (err: any) {
+          const message = err?.message || "Could not publish the site";
+          get().updateBoxData(id, {
+            status: "error",
+            error: message,
+            deploy: {
+              ...(previous || emptyDeployInfo()),
+              deployedAt: previous?.deployedAt || 0,
+              error: message,
+            },
+          });
+        }
+      },
+
       revertCodeVersion: (id, version) => {
         const data = get().boxData[id];
         if (!data) return;
@@ -836,6 +955,20 @@ export const useBoardStore = create<BoardState>()(
           status: "idle",
           error: undefined,
         });
+      },
+
+      // Checklist box (collab): the store only persists the result of the pure
+      // mutations in lib/checklist.ts. A no-op edit returns the same array, so
+      // that write never happens.
+      setChecklistItems: (id, items) => {
+        const data = get().boxData[id];
+        if (!data) return;
+        // The pure mutators keep the reference of every task they did not
+        // touch, so an all-identical list means "nothing changed" — skip the
+        // write entirely rather than re-saving the same board.
+        const prev = data.checklistItems || [];
+        if (prev.length === items.length && prev.every((it, i) => it === items[i])) return;
+        get().updateBoxData(id, { checklistItems: items });
       },
 
       placeChatbot: (id, position) => {
@@ -1208,11 +1341,17 @@ export const useBoardStore = create<BoardState>()(
 
         const boxType = (node.data.boxType || node.type) as BoxType;
 
-        // Collaboration boxes (note / label / timer) have no AI to run — the
-        // Run button is hidden for them. Guard here too so no future caller
-        // falls into the text-AI branch.
+        // Collaboration boxes (note / label / timer / checklist) have no AI to
+        // run — the Run button is hidden for them. Guard here too so no future
+        // caller falls into the text-AI branch.
         // The chatbot talks via sendChatMessage, never via runBox.
-        if (boxType === "note" || boxType === "label" || boxType === "timer" || boxType === "chatbot") {
+        if (
+          boxType === "note" ||
+          boxType === "label" ||
+          boxType === "timer" ||
+          boxType === "checklist" ||
+          boxType === "chatbot"
+        ) {
           return;
         }
 

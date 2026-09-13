@@ -12,6 +12,8 @@ import { buildAuditExport, forcedGateReason, isSdlcBox, sdlcStageMeta } from "..
 import SdlcGatePanel, { SdlcGateBadge } from "./SdlcGatePanel.js";
 import CodeEditPanel from "./CodeEditPanel.js";
 import CodeChangePanel from "./CodeChangePanel.js";
+import DeployPanel from "./DeployPanel.js";
+import ChecklistPanel from "./ChecklistPanel.js";
 import RepoField from "./RepoField.js";
 import {
   DEFAULT_TIMER_MS,
@@ -115,6 +117,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const allNodes = useBoardStore((s) => s.nodes);
   const setBoxName = useBoardStore((s) => s.setBoxName);
   const setSdlcGateRequired = useBoardStore((s) => s.setSdlcGateRequired);
+  const deployBox = useBoardStore((s) => s.deployBox);
 
   const [showSettings, setShowSettings] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -214,12 +217,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isCode = boxType === "code" || boxType === "ui" || boxType === "stitch";
   const isStitch = boxType === "stitch";
   const isInputBox = isIdea || isImage || isDocuments;
-  // Collaboration boxes (note / label / timer) are standalone annotations:
-  // no AI, no Run button, no settings panel, and no connection handles.
+  // Collaboration boxes (note / label / timer / checklist) are standalone
+  // annotations: no AI, no Run button, no settings panel, no handles.
   const isNote = boxType === "note";
   const isLabel = boxType === "label";
   const isTimer = boxType === "timer";
-  const isUtility = isNote || isLabel || isTimer;
+  const isChecklist = boxType === "checklist";
+  const isUtility = isNote || isLabel || isTimer || isChecklist;
   // SDLC pipeline stage boxes (gated; see components/SdlcGatePanel.tsx).
   const isSdlc = isSdlcBox(boxType);
   // Code Map worker: reads a GitHub repository through the backend.
@@ -532,7 +536,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     <>
       <NodeResizer
         minWidth={220}
-        minHeight={isTimer ? 150 : 160}
+        minHeight={isTimer ? 150 : isChecklist ? 200 : 160}
         isVisible={!!selected}
       />
       <div
@@ -603,9 +607,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           touch devices (the box is dragged by its header instead) — paired
           with `touch-action: pan-y` on `.box-body` for coarse pointers. */}
       <div className="box-body nodrag px-3 py-2 flex-1 min-h-0 overflow-y-auto">
-        {/* Timer box (collab) — the only collaboration box rendered inside the
-            standard card; note/label early-return above as annotations. */}
-        {/* Timer box — shared countdown clock, synced via the board doc */}
+        {/* Timer box — shared countdown clock, synced via the board doc. Like
+            the checklist below, a collaboration box that still uses the
+            standard card (note/label early-return above as annotations). */}
         {isTimer && (() => {
           const duration = boxData.timerDurationMs ?? DEFAULT_TIMER_MS;
           const remaining = computeRemainingMs(boxData, now);
@@ -748,6 +752,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </div>
           );
         })()}
+
+        {/* Checklist box — the team's shared to-do list (collab). Every rule
+            lives in lib/checklist.ts; the panel is rendering + store wiring. */}
+        {isChecklist && <ChecklistPanel boxId={id} items={boxData.checklistItems} />}
 
         {/* ===== AI / input boxes ===== */}
 
@@ -1035,8 +1043,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           </div>
         )}
 
-        {/* AI box output — text (research, summarize) */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && (
+        {/* AI box output — text (research, summarize). Collaboration boxes
+            (timer/checklist) never produce an output, so they get neither the
+            block nor its "no output yet" placeholder. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1059,13 +1069,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
             {/* Code Edit: repository + change request + the proposed change set */}
             {isCodeEdit && <CodeEditPanel id={id} boxType={boxType} />}
+            {isCodeEdit && (boxData.changeSet || []).length > 0 && (
+              <DeployPanel id={id} boxType={boxType} />
+            )}
 
             {hasTextOutput && !isRunning && !isCodeEdit && (
               <div className="markdown-output text-slate-700 text-sm">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
-            {!hasTextOutput && !isRunning && !hasError && (
+            {!hasTextOutput && !isRunning && !hasError && !isUtility && (
               <div className="text-slate-400 text-sm py-4 text-center">
                 {isSdlc ? (
                   <>
@@ -1274,6 +1287,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               <CodeChangePanel id={id} boxType={boxType} />
             )}
 
+            {/* Publish this box's code to a live here.now URL */}
+            {isCode && boxData.code && (
+              <DeployPanel id={id} boxType={boxType} />
+            )}
+
             {!boxData.code && !isRunning && !hasError && (
               <div className="flex flex-col gap-2">
                 <textarea
@@ -1377,6 +1395,14 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 title="Download as HTML"
               >
                 💾 Save
+              </button>
+              <button
+                onClick={() => deployBox(id)}
+                disabled={isRunning}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-50 text-indigo-700 hover:bg-indigo-100 whitespace-nowrap disabled:opacity-40"
+                title="Publish this box's code to a live URL (here.now)"
+              >
+                🚀 Deploy
               </button>
               <button
                 onClick={handleOpenStackBlitz}

@@ -227,6 +227,67 @@ Text generation needs no key, so a **public repository works with no configurati
 | `502` | GitHub refused the request (not found, private without a token, rate limited, …) — the message says what to do |
 | `500` | Unexpected failure while reading the repository |
 
+### `POST /api/herenow-deploy` — `{ files, slug?, claimToken?, baseVersionId?, displayName?, displayDescription? }`
+
+Publishes a box's code to a live **here.now** Site (the 🚀 Deploy button on the Code, UI Design,
+Stitch UI and Code Edit boxes). here.now is a static host, so this is a real deployment: the box's
+code becomes a URL at `https://{slug}.here.now/`.
+
+**Request**
+
+```json
+{
+  "files": [{ "path": "index.html", "content": "<!DOCTYPE html>…" }],
+  "displayName": "Counter Box",
+  "displayDescription": "Published from AI Canva (Code box)"
+}
+```
+
+Send `slug` to update an existing Site. For an anonymous Site the update must also carry the
+`claimToken` from the original deploy, and `baseVersionId` (the `versionId` returned then) is
+strongly recommended: it makes the update an optimistic concurrency check, so a Site that changed
+since — someone edited it in the here.now dashboard, another agent redeployed — is **refused with a
+clear message instead of being silently replaced**.
+
+**Response** — `200`
+
+```json
+{
+  "ok": true,
+  "slug": "cobalt-castle-y2d3",
+  "siteUrl": "https://cobalt-castle-y2d3.here.now/",
+  "versionId": "01M2DCFKWYPT7V63FJPK6Y1D5Y",
+  "unchanged": false,
+  "anonymous": true,
+  "expiresAt": "2026-09-14T12:39:41.214Z",
+  "claimToken": "y_Wu0ZyWf-pdH0sP",
+  "claimUrl": "https://here.now/c/y_Wu0ZyWf-pdH0sP",
+  "warnings": [],
+  "fileCount": 2,
+  "bytes": 3518
+}
+```
+
+How it works (see `server/src/herenow.ts`, duplicated as `functions/src/herenow.ts`): here.now's
+publish flow is **create → upload → finalize**, and a Site is not live until finalize succeeds. The
+endpoint does all three server-side — the API key never reaches the browser — and it validates
+everything first:
+
+- files must be site-relative; **`.herenow/` paths are refused** (those are here.now configuration
+  manifests, so a generated box can never ship server-side config), as are traversal and absolute
+  paths;
+- caps: 400 files, 8 MB per file, 25 MB total (well inside here.now's own 2,500 files / 10 GB);
+- `warnings` from finalize are passed through rather than swallowed.
+
+**Anonymous vs permanent:** without `HERENOW_API_KEY` the Site is anonymous — live immediately,
+**expires after 24 hours**, and updatable only with the `claimToken`/`claimUrl`, which here.now
+returns **exactly once**. With a key configured the Site is permanent and belongs to the account.
+
+**Errors**
+
+| `400` | Nothing to publish, an unsafe path, a cap exceeded, or here.now refused the deploy (the message says which step: create, upload or finalize) |
+| `500` | Unexpected failure |
+
 ### `GET /api/admin/stats`
 
 Admin-only. Returns system-wide usage stats (users, boards, storage). Requires the caller to be
@@ -347,7 +408,13 @@ via `auth.updateUser`. An admin cannot block their own account.
 | `FAL_KEY`           | Cartoon box       | fal.ai API key                                 |
 | `STITCH_API_KEY`    | Stitch UI box     | Google Stitch API key                          |
 | `GITHUB_TOKEN`      | Optional          | Code Map box — see below                       |
+| `HERENOW_API_KEY`   | Optional          | Box deploys — anonymous 24h Sites without it    |
 | `PORT`              | Optional (server) | Preferred server port (default `3001`)         |
+
+**`HERENOW_API_KEY` is optional.** Without it, `POST /api/herenow-deploy` still works: it creates
+an **anonymous** here.now Site, live immediately but expiring after 24 hours and updatable only with
+the claim token returned once at deploy time. Adding a here.now API key makes deployed Sites
+permanent and owned by the account. `/api/health` reports `herenowKey: "configured" | "anonymous"`.
 
 **`GITHUB_TOKEN` is optional.** The Code Map box reads public repositories with no configuration
 (60 requests/hour per IP, and file contents come from `raw.githubusercontent.com`, which is not

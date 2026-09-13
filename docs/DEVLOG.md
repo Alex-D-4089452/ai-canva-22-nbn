@@ -29,6 +29,47 @@ current state).
 
 ---
 
+## 2026-02-08 — Checklist box: a shared team to-do list on the board
+
+- **Done:** New **Checklist** collaboration box (✅ `checklist`, palette "Collaboration", `roles:
+  ["everyone"]`, `hasAI: false`) — a **shared team to-do list**: anyone on the board adds, assigns,
+  renames, reorders, ticks off and deletes tasks, and everyone sees the same list live through the
+  normal board save (last-write-wins, like a Note). Rows record `createdBy`/`createdAt` and, on a
+  tick, `doneBy`/`doneAt` (shown as `✓ alice`); the panel header shows progress (`2 of 5 done` +
+  bar). Tasks can be **pasted in bulk** (a multi-line paste appends every line, keeping Markdown
+  `- [x]` state and stripping bullets/numbering), assigned via a picker built from the board's
+  people (owner + collaborators + present users), reordered with ▲▼, exported with 📋 Copy
+  (Markdown checklist) and pruned with 🧹 Clear done. All rules are pure functions in the new
+  **`client/src/lib/checklist.ts`** (`appendChecklistItems`, `parseChecklistLines`,
+  `toggleChecklistItem`, `setChecklistItemText`/`Assignee`, `moveChecklistItem`,
+  `removeChecklistItem`, `clearDoneChecklistItems`, `checklistStats`, `checklistToMarkdown`,
+  `normalizeChecklist`; caps 200 tasks × 500 chars so the board doc stays under Firestore's 1MB
+  limit); rendering + store wiring is the new **`components/ChecklistPanel.tsx`** (owns its own
+  store subscriptions — BoxNode must not subscribe to presence) over exactly ONE new store action
+  `setChecklistItems` (which skips the write when a mutation changed nothing). `ChecklistItem`
+  fields are **all always defined** (Firestore rejects nested `undefined`), the array is created
+  empty-but-defined, and `normalizeChecklist` repairs anything loaded from an older board.
+  Registered in `Canvas.tsx` (nodeTypes + minimap), gated as a utility box in `BoxNode.tsx`
+  (no Run/⚙/handles) with a `runBox` early-return, and **excluded from `AGENT_CREATABLE_TYPES`**
+  (locked by a new unit test, like the SDLC stages).
+- **Also fixed (found by a numeric layout probe, not by guessing):** collaboration boxes rendered
+  the generic output block and its **"No output yet. Click Run to generate."** placeholder under
+  their own body — the timer has been showing that since it was built. Both blocks are now gated on
+  `!isUtility`, so a collab box has exactly one child (its own panel) and no outer scroll.
+- **Tests:** **269 client tests** (37 new in `lib/checklist.test.ts`: paste parsing incl. bullets/
+  numbering/hyphenated text, caps, attribution on toggle, reorder edges, stats, Markdown export,
+  `normalizeChecklist` repair/idempotence) + **105/105** in `client/e2e.mjs` — 13 new "TC" checks
+  (palette → panel → typed tasks → multi-line paste with done state → attribution → progress line →
+  assignment → ▼ reorder → clear done → ✕ delete → the no-Run/no-handles contract → every field
+  defined) and 9 new "T15" checks driving **two real signed-in users on one real Firestore board**:
+  B adds the box and a task, A sees it, **A ticks it and B sees it ticked WITH A's attribution**,
+  B assigns a task to A (picker lists both members), A's pasted list reaches B, and the list
+  **survives a reload** with state, assignee and attribution intact (no Firestore `undefined`).
+  `npx tsc --noEmit` clean, `npm run build` clean.
+- **In flight:** —.
+- **Next steps:** — (possible follow-ups, none needed now: let a Checklist feed an AI box as a
+  `{{inputs}}` source, or per-person "my tasks" filtering in the footer).
+
 ---
 
 ## 2026-02-08 — Deploy: Code Map worker + `/api/repo-digest` live on carbondocs
@@ -48,6 +89,49 @@ current state).
   repos).
 
 ---
+
+## 2026-02-08 — here.now deploy: boxes that contain code can publish to a live URL
+
+- **Done (collision-free half):** new **`POST /api/herenow-deploy`** in both backends, backed by a
+  new duplicated module `server/src/herenow.ts` + `functions/src/herenow.ts`: here.now's three-step
+  publish flow (**create → upload to presigned targets → finalize** — a Site is not live until
+  finalize succeeds) run server-side, so the API key never reaches the browser. Validation before
+  any request: site-relative paths only, **`.herenow/` paths refused** (they are here.now
+  configuration manifests — a generated box must never ship server-side config), traversal/absolute
+  paths refused, caps of 400 files / 8 MB per file / 25 MB total, and finalize `warnings` passed
+  through instead of swallowed. Updates take `slug` + `claimToken` (anonymous Sites are updatable
+  only with it) and `baseVersionId`, which turns an update into an optimistic concurrency check:
+  a Site someone else changed is **refused with a message naming the live version**, never silently
+  replaced. New pure client module `client/src/lib/deploy.ts` (+ 10 tests) decides what each box
+  publishes: Code/UI → `index.html` (the same CDN-wrapped page the box previews) + `App.jsx`,
+  Stitch → its HTML as-is, Code Edit → the changed files at their repository paths + `CHANGES.md`.
+  Added `publishSite()` to `lib/api.ts`, `herenowKey` to `/api/health`, `HERENOW_API_KEY` to both
+  `.env.example`s, and the endpoint to `docs/API.md`. The here.now skill was installed globally
+  (`npx skills add heredotnow/skill`, → `~/.agents/skills/here-now`, which DSH reads).
+- **Done (box UI, added once the other session's files settled):** `BoxData.deploy` (`DeployInfo`,
+  every field always defined) + the **`deployBox`** store action + **`components/DeployPanel.tsx`**
+  (the 🌐 Live site strip: live link, anonymous expiry, 🔑 claim-link toggle with its once-only
+  warning, here.now warnings, and errors that keep the previous live site visible rather than hiding
+  it) + a **🚀 Deploy** footer button on Code, UI Design, Stitch UI and Code Edit boxes. Redeploys
+  update the same Site by sending `slug` + `baseVersionId` + the stored claim token; a refused update
+  is surfaced verbatim with the live Site untouched.
+- **In flight:** —.
+- **Verified:** 60 server tests (16 new: validation, error mapping, the stubbed create/upload/
+  finalize flow, stale-base conflict, step-labelled failures) and 10 new client tests (plus 9 new
+  deploy checks in `client/ui-smoke.mjs`, now **84/84**); `tsc` clean in client, server and
+  functions. **Real deploy from the app:** a live-model Code box built a 115-line prototype, the real
+  🚀 Deploy button published it → `https://radiant-lodge-g7cj.here.now/` (200, the prototype HTML and
+  its `App.jsx` both served). **Real deploys through the endpoint:** published a two-file Site
+  (`index.html` + `NOTES.md`) → `https://cobalt-castle-y2d3.here.now/` (200, content served);
+  updated it with the claim token + `baseVersionId` → new version, live content changed (the first
+  fetch looked stale — CDN caching, a cache-busted fetch confirmed the update); sent a **stale**
+  `baseVersionId` → `400` with "This site has changed since it was deployed (live version …)" and
+  the live Site untouched; `NOTES.md` is served through here.now's auto-viewer (HTML wrapper, as
+  documented) and an unknown path 404s.
+- **Next steps:** when the Checklist work is committed, add the Deploy button/panel (build the file
+  set with `deployFilesFor`, call `publishSite`, store the slug/versionId/claim token on the box) and
+  document the feature in `AGENTS.md`/`README.md`/`docs/BOX_TYPES.md` — those three are also in the
+  other session's modified set, hence untouched here.
 
 ## 2026-02-08 — Deploy: Code box change requests live on carbondocs
 
