@@ -1,4 +1,4 @@
-export type BoxType = "agent" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "note" | "label" | "timer" | "custom";
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "note" | "label" | "timer" | "custom";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -107,6 +107,35 @@ Each turn you take EXACTLY ONE action. Reply with ONLY one JSON object — no ma
 - Use existing boxes on the board when relevant (their titles are listed below) instead of recreating them.
 - You have a limited step budget — plan to finish comfortably. When everything has run and the task is satisfiable, call finish with a concise Markdown answer summarizing what you built and the key results.`;
 
+/**
+ * Static behavioral scaffold for Chatbot boxes (see client/src/lib/chatbot.ts,
+ * which compiles it with the user's personality + a live board snapshot into
+ * the system prompt for every reply).
+ */
+export const CHATBOT_BASE_PROMPT = `You are a small AI companion in the form of a stick figure standing at the bottom of a collaborative whiteboard app called "AI Canva". People chat with you in a side panel.
+
+## How to behave
+- Stay in character. Keep replies SHORT and conversational (1-3 sentences) unless the person explicitly asks for detail, a plan, or a written artifact.
+- You can SEE the board — a live snapshot of its boxes is provided with every message. Reference real boxes by name when it helps.
+- You cannot change the board, run tools, or generate images. If someone wants the board changed or a task executed, tell them to use the 🤖 Agent box (it builds and runs boxes) or add pipeline boxes themselves.
+- The conversation is shared: several people on the board may talk to you. Reply to the latest message in light of the whole history.
+- You are a companion, not a search engine: be warm, opinionated, and concrete.`;
+
+/**
+ * One message in a Chatbot box's ongoing conversation. Persisted in the
+ * box's `chatMessages` and shared across the board — several people talk to
+ * the same companion, so user messages carry `by` (displayName).
+ */
+export interface ChatMessage {
+  id: string;
+  role: "user" | "bot";
+  text: string;
+  /** Epoch ms. */
+  at: number;
+  /** Display name of who said it (user messages only; omitted = unknown). */
+  by?: string;
+}
+
 /** Data stored per-box, separate from React Flow's graph nodes. */
 export interface BoxData {
   content: string;
@@ -126,6 +155,10 @@ export interface BoxData {
   tokens?: { promptTokens: number; completionTokens: number; totalTokens: number };
   /** For Agent boxes: the step log of the most recent (or current) run. */
   agentSteps?: AgentStep[];
+  /** For Chatbot boxes: the ongoing conversation (shared per board). */
+  chatMessages?: ChatMessage[];
+  /** For Chatbot boxes: the user-provided persona description. */
+  personality?: string;
   /** For Note boxes: who created the note (set once at creation). */
   authorEmail?: string;
   authorName?: string;
@@ -143,7 +176,7 @@ export interface BoxData {
 }
 
 /** Metadata for each box type. */
-export type BoxCategory = "input" | "worker" | "collab" | "custom";
+export type BoxCategory = "input" | "worker" | "collab" | "companion" | "custom";
 
 /**
  * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
@@ -192,6 +225,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultSystemPrompt: AGENT_CONTROLLER_SYSTEM_PROMPT,
     defaultWidth: 400,
     defaultHeight: 480,
+  },
+  chatbot: {
+    label: "Chatbot",
+    icon: "🧍",
+    color: "#e11d48",
+    description: "A stick-figure companion that stands at the bottom of the board, chats with the team, and can see your boxes. Give it a personality!",
+    hasAI: true,
+    category: "companion",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: CHATBOT_BASE_PROMPT,
+    defaultWidth: 130,
+    defaultHeight: 180,
   },
   research: {
     label: "Research",

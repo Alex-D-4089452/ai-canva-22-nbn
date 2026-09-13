@@ -10,10 +10,11 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { generate, generateImage, generateStitchUI } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
+import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
   MAX_AGENT_TURNS,
   MAX_PARSE_RETRIES,
@@ -205,6 +206,12 @@ interface BoardState {
   connectBoxes: (sourceId: string, targetId: string) => boolean;
   /** Ask a running Agent box to stop after its current turn. */
   stopAgent: (id: string) => void;
+  /** Chatbot companion — send one chat message (the bot replies async). */
+  sendChatMessage: (id: string, text: string) => Promise<void>;
+  /** Reset a chatbot's conversation to the greeting. */
+  clearChat: (id: string) => void;
+  /** Place a chatbot node (Canvas auto-places it at the viewport bottom). */
+  placeChatbot: (id: string, position: { x: number; y: number }) => void;
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
 
@@ -269,7 +276,13 @@ export const useBoardStore = create<BoardState>()(
             x: 200 + Math.random() * 200,
             y: 150 + Math.random() * 100,
           },
-          data: { boxType: type, title: `${meta.label} Box` },
+          data: {
+            boxType: type,
+            // Chatbots get a friendly companion name instead of "… Box",
+            // and are auto-placed at the viewport bottom by Canvas.
+            title: type === "chatbot" ? "Chat Pal" : `${meta.label} Box`,
+            ...(type === "chatbot" ? { autoPlace: true } : null),
+          },
           style: { width: meta.defaultWidth, height: meta.defaultHeight },
         };
 
@@ -289,6 +302,10 @@ export const useBoardStore = create<BoardState>()(
                       useAuthStore.getState().user?.email ||
                       "Someone",
                   }
+                : null),
+              // Chatbots start with a greeting so the panel isn't empty.
+              ...(type === "chatbot"
+                ? { chatMessages: [greetingMessage("Chat Pal")] }
                 : null),
             },
           },
@@ -450,6 +467,115 @@ export const useBoardStore = create<BoardState>()(
             },
           ],
         });
+      },
+
+      // === Chatbot companion ===
+
+      clearChat: (id) => {
+        const node = get().nodes.find((n) => n.id === id);
+        const name = chatbotName(node?.data?.title as string);
+        get().updateBoxData(id, {
+          chatMessages: [greetingMessage(name)],
+          status: "idle",
+          error: undefined,
+        });
+      },
+
+      placeChatbot: (id, position) => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === id
+              ? { ...n, position, data: { ...n.data, autoPlace: false } }
+              : n
+          ),
+        });
+        scheduleSave();
+      },
+
+      sendChatMessage: async (id, text) => {
+        const trimmed = (text || "").trim();
+        if (!trimmed) return;
+        const node = get().nodes.find((n) => n.id === id);
+        const data = get().boxData[id];
+        if (!node || !data) return;
+        if (data.status === "running") return;
+
+        const name = chatbotName(node.data?.title as string);
+        const user = useAuthStore.getState().user;
+        const by = user?.displayName || user?.email || "Someone";
+        const userMsg: ChatMessage = {
+          id: makeId(),
+          role: "user",
+          text: trimmed,
+          at: Date.now(),
+          by,
+        };
+        const history = trimChatMessages([...(data.chatMessages || []), userMsg]);
+        get().updateBoxData(id, {
+          chatMessages: history,
+          status: "running",
+          error: undefined,
+        });
+
+        try {
+          // Live board snapshot for context — the companion sees every box,
+          // but not other chatbots or itself.
+          const cur = get();
+          const inventory = buildBoardInventory(
+            cur.nodes.filter((n) => n.type !== "chatbot"),
+            cur.edges,
+            cur.boxData
+          );
+          const systemPrompt = buildChatSystemPrompt(
+            name,
+            cur.boxData[id]?.personality,
+            inventory
+          );
+
+          const result = await generate({
+            systemPrompt,
+            userPrompt: buildConversationTurn(history, name),
+          });
+          if (result.error) throw new Error(result.error);
+
+          // Token accounting — same ledger as other boxes, cumulative here.
+          const prevTokens = get().boxData[id]?.tokens;
+          if (result.usage) {
+            get().updateBoxData(id, {
+              tokens: {
+                promptTokens:
+                  (prevTokens?.promptTokens || 0) + result.usage.promptTokens,
+                completionTokens:
+                  (prevTokens?.completionTokens || 0) +
+                  result.usage.completionTokens,
+                totalTokens:
+                  (prevTokens?.totalTokens || 0) + result.usage.totalTokens,
+              },
+            });
+            const u = useAuthStore.getState().user;
+            if (u) {
+              recordTokenUsage(u.uid, get().currentBoardId || "", id, "chatbot", result.usage);
+              useTokenStore.getState().addTokens(result.usage.totalTokens);
+            }
+          }
+
+          const botMsg: ChatMessage = {
+            id: makeId(),
+            role: "bot",
+            text: (result.content || "").trim() || "…",
+            at: Date.now(),
+          };
+          // Re-read: another collaborator may have chatted while we waited.
+          const live = get().boxData[id];
+          get().updateBoxData(id, {
+            chatMessages: trimChatMessages([...(live?.chatMessages || []), botMsg]),
+            status: "done",
+            error: undefined,
+          });
+        } catch (err: any) {
+          // The user's message is kept — the panel shows the error + Retry.
+          get().setBoxStatus(id, "error", err?.message || "Chat failed");
+        }
       },
 
       // --- Firestore board operations ---
@@ -728,7 +854,8 @@ export const useBoardStore = create<BoardState>()(
         // Collaboration boxes (note / label / timer) have no AI to run — the
         // Run button is hidden for them. Guard here too so no future caller
         // falls into the text-AI branch.
-        if (boxType === "note" || boxType === "label" || boxType === "timer") {
+        // The chatbot talks via sendChatMessage, never via runBox.
+        if (boxType === "note" || boxType === "label" || boxType === "timer" || boxType === "chatbot") {
           return;
         }
 

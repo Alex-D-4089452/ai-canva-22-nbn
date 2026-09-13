@@ -4,10 +4,11 @@ This document describes every box type. Metadata lives in `client/src/types.ts`
 (`BOX_TYPES`), rendering in `client/src/components/BoxNode.tsx`, and the "run" behavior in
 `client/src/store/boardStore.ts` (`runBox`).
 
-Boxes fall into three categories:
+Boxes fall into four categories:
 
 - **Input boxes** (`category: "input"`) — no AI. They seed data into a pipeline.
 - **Worker boxes** (`category: "worker"`) — run an AI step (Ollama, fal.ai, or Google Stitch).
+- **Companion boxes** (`category: "companion"`) — persistent AI characters you converse with.
 - **Collaboration boxes** (`category: "collab"`) — standalone annotation tools with no AI, no
   Run button, no settings panel, and no connection handles.
 
@@ -178,6 +179,32 @@ directly.
 - **Output:** `output` + `code` (the raw HTML), previewed directly in the iframe.
 
 ---
+
+## Companion boxes
+
+### 🧍 Chatbot — `chatbot`
+
+A AI companion in the form of a **stick figure standing at the bottom** of the board (auto-placed
+at the bottom-center of the view when added; draggable like any node). Unlike the Agent box, it
+never finishes and never touches boxes — it holds a **continuous conversation**. Click the figure
+to open the chat panel (a portal, escaping React Flow's transform).
+
+- **AI:** Ollama per reply — context rebuilt client-side each turn from: the compiled persona, a
+  live board snapshot (`buildBoardInventory`, chatbot/agent/area nodes filtered out — it "sees"
+  every box), and the last 16 messages of the shared transcript.
+- **Shared conversation:** one transcript per companion, visible and joinable by everyone on the
+  board (user messages carry display-name attribution). Capped at 60 stored messages / 16 replayed.
+- **Personality:** editable any time via the panel's 🧠 editor (`boxData.personality`); empty =
+  friendly default. Name is editable too (the node title, default "Chat Pal" — renames also
+  update the figure's name chip). Conversation + personality persist in `boxData.chatMessages`
+  and sync to collaborators.
+- **Panel extras:** clear conversation (🧹), error banner with **Retry** (strips the failed
+  trailing exchange and re-sends), cumulative ⚡ token footer.
+- **No handles, no Run:** talking is never `runBox` (guarded); sending goes through the store's
+  `sendChatMessage` → `/api/generate`. On-canvas speech bubble shows the latest bot line and
+  thinking dots while it thinks (idle bob / busy animations in `index.css`).
+- **Code:** `client/src/lib/chatbot.ts` (pure, unit-tested), `components/StickFigure.tsx`,
+  `components/ChatbotPanel.tsx`, `sendChatMessage`/`clearChat`/`placeChatbot` in `boardStore.ts`.
 
 ## Collaboration boxes
 
