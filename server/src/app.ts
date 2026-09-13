@@ -170,7 +170,7 @@ export function createApp(): express.Express {
    * without it; a token unlocks private repos and a higher rate limit).
    */
   app.post("/api/repo-digest", async (req, res) => {
-    const { repoUrl } = req.body as { repoUrl?: string };
+    const { repoUrl, paths } = req.body as { repoUrl?: string; paths?: unknown };
     const ref = parseRepoRef(repoUrl);
     if (!ref) {
       return res.status(400).json({
@@ -179,7 +179,12 @@ export function createApp(): express.Express {
       });
     }
     try {
-      const digest = await fetchRepoDigest(ref, { token: process.env.GITHUB_TOKEN });
+      // `paths` switches the endpoint into whole-file mode: the Code Edit box
+      // pins the files it needs in full instead of asking for a ranked digest.
+      const digest = await fetchRepoDigest(ref, {
+        token: process.env.GITHUB_TOKEN,
+        paths: Array.isArray(paths) ? (paths as string[]) : undefined,
+      });
       res.json({ ok: true, ...digest });
     } catch (err: any) {
       const status = err instanceof RepoError ? 502 : 500;

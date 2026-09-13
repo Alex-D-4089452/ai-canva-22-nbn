@@ -48,9 +48,10 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 ## ✨ Features
 
 - **Visual pipelines** — drag boxes onto a canvas and connect them; content flows box to box.
-- **24 box types** — Idea, Image, Documents, the six gated **SDLC stages** (Intent, Spec, Plan,
-  Implementation, Review, Merge), Research, Summarize, PRD, Dev Plan, **Code Map**, Cartoon
-  Profile, Slides, Code, UI Design, Stitch UI, plus Notes / Labels / Timers and your own custom boxes.
+- **25 box types** — Idea, Image, Documents, the six gated **SDLC stages** (Intent, Spec, Plan,
+  Implementation, Review, Merge), Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**,
+  Cartoon Profile, Slides, Code, UI Design, Stitch UI, plus Notes / Labels / Timers and your own
+  custom boxes.
 - **Gated SDLC pipeline** — walk one change request through intent → spec → plan → implementation →
   review → merge, approving (or sending back, rejecting, editing) each artifact at its gate. Every
   version is append-only, an unapproved stage blocks the next one, and the whole chain exports as
@@ -60,6 +61,8 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 - **Read any GitHub repo** — the **Code Map** worker fetches a repository (public ones need no setup)
   and writes an orientation brief: what the code does, how it is structured, the main flows, the
   risks, and where to start reading.
+- **Modify an existing repo** — the **Code Edit** worker reads the files a change touches, proposes the
+  edit as a reviewable diff, and hands you a `git apply`-able `.patch`. Nothing is pushed anywhere.
 - **AI-powered** — Ollama (LLM) for text, fal.ai for image generation, Google Stitch for production-quality UI screens.
 - **Real-time collaboration** — share boards by email, live cursors with names/colors, and live multi-user editing via Firestore.
 - **Cloud persistence** — boards auto-save to Firestore (with localStorage as an offline cache). Sign in with Google to use the app; your boards are stored per user.
@@ -84,6 +87,7 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 | **PRD** | 📄 | Worker | Generates a Product Requirements Document (features, user stories, specs) — ideal input for the Code box. |
 | **Dev Plan** | 🗺️ | Worker | Transforms a PRD into a short, practical development plan (components, state, functions, build order). |
 | **Code Map** | 🔭 | Worker | Reads a GitHub repository and writes an orientation brief — structure, entry points, main flows, risks, and where to start reading. |
+| **Code Edit** | ✍️ | Worker | Applies a change request to an existing repo: reads the files it needs, proposes the edit as a reviewable diff, and gives you a `.patch` to apply. |
 | **Cartoon Profile** | 🎨 | Worker | Generates a cartoon avatar via fal.ai — image-to-image from an Image box, or text-to-image from an Idea box. |
 | **Slides** | 📊 | Worker | Generates a visual pitch deck with prev/next navigation. |
 | **Code** | 💻 | Worker | Generates a React prototype with a live preview, copy, and download. |

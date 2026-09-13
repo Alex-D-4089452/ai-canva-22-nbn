@@ -79,8 +79,9 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
-- **24 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
-  Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, Cartoon Profile, Slides, Code, UI Design,
+- **25 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
+  Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**, Cartoon Profile,
+  Slides, Code, UI Design,
   Stitch UI, three collaboration boxes (Note, Label, Timer), the six **SDLC pipeline stages**
   (Intent, Spec, Plan, Implementation, Review, Merge), and the `custom` runtime type (see
   "Custom boxes" below). Categories: `input`, `sdlc` (the six gated stages), `worker`,
@@ -273,7 +274,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `boardStore.ts` (`runAgentLoop`, invoked from the `boxType === "agent"` branch of `runBox` — it
   manages its own status/inputs and bypasses the shared gathering); protocol/inventory/layout in
   `client/src/lib/agent.ts` (pure, unit-tested; `AGENT_CREATABLE_TYPES` whitelist = idea research
-  summarize prd devplan codemap slides code ui — never image/documents/cartoon/stitch/agent, and
+  summarize prd devplan codemap codeedit slides code ui — never image/documents/cartoon/stitch/agent, and
   never the `sdlc-*` stages); UI (task
   textarea + live `agentSteps` timeline + ⏹ Stop so the loop halts between turns) in `BoxNode.tsx`.
   Running a box from the agent is a plain `await runBox(boxId)` — the target box's status/output is
@@ -359,9 +360,34 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   box's **stock** prompt (its placeholder `github.com/owner/repo` example is documentation), and the
   resolved `#branch` is carried into the request URL so `owner/repo#release-2.0` doesn't silently
   read the default branch.
+- **Code Edit worker (✍️, Workers section, `roles: ["developer", "sdlc"]`):** applies a change
+  request to an existing repository and returns a **reviewable change set + a `git apply`-able
+  patch** — it never writes to the repository (no token, no branch, no PR). All logic is in
+  **`client/src/lib/codeedit.ts`** (path safety, target selection, change-set validation, LCS line
+  diff, unified patch) and the run path is `runCodeEdit` in `boardStore.ts`; UI in
+  `components/CodeEditPanel.tsx` + the shared `components/RepoField.tsx` (also used by Code Map).
+  The flow, and the invariants that matter:
+  1. **target files** = the box's `filesToEdit` list → else a file list parsed out of an upstream
+     **SDLC Plan** artifact (`parsePlanFiles` → `editMeta.source: "plan"`) → else ONE triage call
+     (`TRIAGE_SYSTEM_PROMPT`) that names paths from the repo tree;
+  2. read those paths **in full** via `/api/repo-digest`'s `paths` mode (whole-file caps, `clipped`
+     flag) — a file the model could not fully see is never editable;
+  3. ask for a change set of **WHOLE files** (`CODE_EDIT_PROMPT`); the APP validates it
+     (`validateChangeSet`: safe paths only, read files only, no clipped files, no no-op updates,
+     size + count caps) and computes the diff/`+added −removed`/patch itself;
+  4. store the Markdown diff document in `output` (so the SDLC **Review** stage, which consumes a
+     diff, gets it through `{{inputs}}`), the structured `changeSet` + `editMeta` on the box.
+  **Never let the model author the diff** — `src/lib/codeedit.patch.test.ts` applies generated
+  patches with real `git apply` (including a file with no trailing newline and a large-file
+  single-line change) so the patch format cannot drift; `setChangeSetFile` recomputes the diff on a
+  hand edit, so the `.patch` can never disagree with what the panel shows. A non-JSON model reply is
+  an error, never a guessed edit; a failed run keeps the previous change set but labels it stale.
+  Note `computeLineDiff` treats a missing final newline as part of the last line (a sentinel) —
+  without that, `git apply` rejects hunks that git itself considers different.
 - **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
   `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
-  text-output box (research, summarize, prd, devplan, codemap, custom, agent, slides, all six `sdlc-*`).
+  text-output box (research, summarize, prd, devplan, codemap, codeedit, custom, agent, slides, all
+  six `sdlc-*`).
   Filenames: the blueprint's artifact names for the SDLC stages (`intent.md`, `spec.md`, `plan.md`,
   `implementation.md`, `review.md`, `merge.md`), the type otherwise, and the slugified label for
   custom boxes. Slides download as a Markdown deck built from `slides[]`. The file is the artifact

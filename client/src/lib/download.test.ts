@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BoxData } from "../types.js";
-import { hasDownloadableOutcome, outcomeFilename, outcomeText, slugifyFilename } from "./download.js";
+import { hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText, slugifyFilename } from "./download.js";
 
 function data(patch: Partial<BoxData> = {}): BoxData {
   return { content: "", prompt: "", systemPrompt: "", output: "", status: "idle", ...patch } as BoxData;
@@ -39,13 +39,14 @@ describe("outcomeFilename", () => {
     expect(outcomeFilename("agent", "Agent Box")).toBe("agent-answer.md");
     expect(outcomeFilename("slides", "Slides Box")).toBe("slides.md");
     expect(outcomeFilename("custom", "Security Review Lite")).toBe("security-review-lite.md");
+    expect(outcomeFilename("codeedit", "Code Edit Box")).toBe("code-changes.patch");
   });
 });
 
 describe("hasDownloadableOutcome", () => {
   it("covers the text-output family and the SDLC stages only", () => {
     for (const type of [
-      "research", "summarize", "prd", "devplan", "agent", "slides", "custom",
+      "research", "summarize", "prd", "devplan", "agent", "slides", "custom", "codemap", "codeedit",
       "sdlc-intent", "sdlc-spec", "sdlc-plan", "sdlc-implement", "sdlc-review", "sdlc-merge",
     ]) {
       expect(hasDownloadableOutcome(type)).toBe(true);
@@ -89,5 +90,20 @@ describe("outcomeText", () => {
 
   it("falls back to the raw output when there are no parsed slides", () => {
     expect(outcomeText("slides", data({ output: "no slides parsed" }))).toBe("no slides parsed\n");
+  });
+
+  it("downloads a Code Edit box's change set as a git patch", () => {
+    const patch = outcomeText("codeedit", data({
+      changeSet: [
+        { path: "src/a.ts", operation: "update", content: "new\n", original: "old\n", added: 1, removed: 1, reason: "why" },
+      ],
+    }) as BoxData);
+    expect(patch).toContain("diff --git a/src/a.ts b/src/a.ts");
+    expect(patch).toContain("-old");
+    expect(patch).toContain("+new");
+    // Nothing proposed yet → nothing to download.
+    expect(outcomeText("codeedit", data())).toBe("");
+    expect(outcomeMime("codeedit")).toContain("x-patch");
+    expect(outcomeMime("research")).toContain("markdown");
   });
 });

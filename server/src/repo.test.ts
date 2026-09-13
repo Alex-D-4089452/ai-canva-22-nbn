@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_BYTES_PER_FILE,
+  MAX_EDIT_FILE_CHARS,
+  isSafeRepoPath,
   RepoError,
   describeHttpError,
   fetchRepoDigest,
@@ -243,6 +245,15 @@ describe("renderTree / renderDigest", () => {
   });
 });
 
+describe("isSafeRepoPath", () => {
+  it("accepts repository paths and refuses anything else", () => {
+    for (const path of ["src/app.ts", "client/src/lib/repo.ts", "Dockerfile"]) expect(isSafeRepoPath(path), path).toBe(true);
+    for (const path of ["", "/etc/passwd", "~/x", "../x.ts", "a/../../b", "node_modules/x.js", ".git/config", "C:\\x", "src\\win.ts", "a\u0000b", undefined, 42]) {
+      expect(isSafeRepoPath(path as unknown), String(path)).toBe(false);
+    }
+  });
+});
+
 describe("describeHttpError", () => {
   it("tells the user what to do, and mentions the token when one is missing", () => {
     expect(describeHttpError(404, undefined)).toContain("GITHUB_TOKEN");
@@ -404,6 +415,56 @@ describe("fetchRepoDigest", () => {
     expect(capped.truncated).toBe(true);
     expect(capped.notes.join(" ")).toContain("Could not read 1 file(s)");
     expect(capped.notes.join(" ")).toContain("capped");
+  });
+
+  it("reads exactly the requested paths in whole-file mode (Code Edit)", async () => {
+    const tree = [
+      { path: "src/app.ts", type: "blob", size: 100 },
+      { path: "src/big.ts", type: "blob", size: MAX_EDIT_FILE_CHARS + 500 },
+      { path: "README.md", type: "blob", size: 50 },
+    ];
+    stubFetch((url) => {
+      if (url.includes("/git/trees/")) return { body: { tree } };
+      if (url.includes("big.ts")) return { text: "z".repeat(MAX_EDIT_FILE_CHARS + 200) };
+      return { text: "export const x = 1;\n" };
+    });
+
+    const digest = await fetchRepoDigest({ owner: "o", repo: "r", branch: "main" }, { paths: ["src/app.ts", "src/big.ts", "src/gone.ts"] });
+    expect(digest.contents.map((c) => c.path)).toEqual(["src/app.ts", "src/big.ts"]);
+    expect(digest.contents.find((c) => c.path === "src/app.ts")).toMatchObject({ content: "export const x = 1;\n", clipped: false });
+    // A file too big to hold in full is still returned, but flagged as clipped so
+    // the caller refuses to rewrite it (a rewrite would lose the rest).
+    expect(digest.contents.find((c) => c.path === "src/big.ts")?.clipped).toBe(true);
+    expect(digest.missing).toEqual(["src/gone.ts"]);
+    expect(digest.notes.join(" ")).toContain("src/gone.ts");
+    // Whole-file mode ignores the digest ranking: README is not pulled in.
+    expect(digest.contents.some((c) => c.path === "README.md")).toBe(false);
+  });
+
+  it("refuses unsafe or out-of-scope requested paths", async () => {
+    const calls = stubFetch((url) => {
+      if (url.includes("/git/trees/")) {
+        return { body: { tree: [{ path: "src/app.ts", type: "blob", size: 10 }, { path: "node_modules/x.js", type: "blob", size: 10 }] } };
+      }
+      return { text: "content" };
+    });
+    const digest = await fetchRepoDigest(
+      { owner: "o", repo: "r", branch: "main" },
+      { paths: ["../etc/passwd", "/etc/passwd", "node_modules/x.js", "src/app.ts", "src/app.ts"] }
+    );
+    expect(digest.contents.map((c) => c.path)).toEqual(["src/app.ts"]);
+    expect(calls.some((c) => c.includes("passwd") || c.includes("node_modules"))).toBe(false);
+  });
+
+  it("still returns structured contents for a ranked digest", async () => {
+    stubFetch((url) => {
+      if (url.includes("/git/trees/")) return { body: { tree: [{ path: "README.md", type: "blob", size: 10 }, { path: "src/index.ts", type: "blob", size: 10 }] } };
+      return { text: "# hi" };
+    });
+    const digest = await fetchRepoDigest({ owner: "o", repo: "r", branch: "main" });
+    expect(digest.missing).toEqual([]);
+    expect(digest.contents.length).toBe(digest.files);
+    expect(digest.contents.every((c) => c.clipped === false)).toBe(true);
   });
 
   it("never sends the token to a non-GitHub host and always sends it to GitHub", async () => {

@@ -159,7 +159,7 @@ Firestore (`stitchJobs/{jobId}`) and the generation runs on a Cloud Task worker
 | `404` | Unknown `jobId` |
 | `500` | Failed to read the job |
 
-### `POST /api/repo-digest` — `{ repoUrl }`
+### `POST /api/repo-digest` — `{ repoUrl, paths? }`
 
 Read-only GitHub access for the **Code Map** box: fetches a repository's file tree and the files
 that explain it best, and returns a token-budgeted digest that the box feeds to the model.
@@ -167,8 +167,15 @@ that explain it best, and returns a token-budgeted digest that the box feeds to 
 **Request**
 
 ```json
-{ "repoUrl": "https://github.com/owner/repo" }
+{ "repoUrl": "https://github.com/owner/repo", "paths": ["src/app.ts"] }
 ```
+
+`paths` is optional and switches the endpoint into **whole-file mode**, used by the Code Edit box:
+exactly those paths are read, in full, instead of the ranked digest selection. Unsafe paths
+(traversal, absolute, `node_modules`/`.git`/build output) are refused, requested paths that are not
+in the tree come back in `missing`, and a file read beyond the per-file cap is returned with
+`clipped: true` so the caller knows a rewrite would lose the rest of it (the box refuses to edit
+those). Caps: 12 requested paths, 60k characters per file, 150k per response.
 
 Accepted forms: a GitHub URL (with optional `/tree/<branch>`, `#branch`, `.git` or a trailing
 slash), the `git@github.com:owner/repo.git` clone form, or the short `owner/repo`,
@@ -187,9 +194,14 @@ pointed at another host, so it is not a request proxy.
   "treeEntries": 158,
   "chars": 71471,
   "truncated": true,
-  "notes": ["Ignored 9 generated/binary/lock file(s)…", "Clipped 4 large file(s)…"]
+  "notes": ["Ignored 9 generated/binary/lock file(s)…", "Clipped 4 large file(s)…"],
+  "contents": [{ "path": "src/app.ts", "content": "…", "clipped": false }],
+  "missing": ["src/gone.ts"]
 }
 ```
+
+`contents` is the same set of files in structured form (the Code Edit box uses it); `missing` lists
+requested paths that could not be read.
 
 How the digest is built (see `server/src/repo.ts`, duplicated as `functions/src/repo.ts`):
 

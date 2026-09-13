@@ -10,9 +10,23 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, FileChange, EditMeta, SdlcEvent, SdlcStage, RepoMeta } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
+import {
+  buildEditPrompt,
+  buildPatch,
+  changeSetChars,
+  lineDiff,
+  MAX_CHANGE_SET_CHARS,
+  parseChangeSet,
+  parsePathList,
+  parsePlanFiles,
+  parseTriage,
+  renderChangeSet,
+  validateChangeSet,
+  type KnownFile,
+} from "../lib/codeedit.js";
 import {
   appendEvent,
   appendVersion,
@@ -257,6 +271,8 @@ interface BoardState {
   editArtifact: (id: string, content: string, note?: string) => void;
   /** Dismiss one review finding (unlocks the review gate when none block). */
   dismissFinding: (id: string, findingId: string) => void;
+  /** Code Edit: replace one file's proposed content (recomputes the diff). */
+  setChangeSetFile: (id: string, path: string, content: string) => void;
   /**
    * Toggle whether downstream stages must wait for this stage's approval.
    * Returns false when the app refuses the configuration (hard gates and
@@ -607,6 +623,25 @@ export const useBoardStore = create<BoardState>()(
             action: `dismissed a ${target.severity} finding`,
             note: target.description,
           }),
+        });
+      },
+
+      setChangeSetFile: (id, path, content) => {
+        const data = get().boxData[id];
+        if (!data || !data.changeSet) return;
+        const index = data.changeSet.findIndex((c) => c.path === path);
+        if (index === -1) return;
+        const current = data.changeSet[index];
+        const next = { ...current, content };
+        const diff = lineDiff(next.operation === "create" ? "" : next.original, content);
+        next.added = diff.added;
+        next.removed = diff.removed;
+        const changeSet = [...data.changeSet];
+        changeSet[index] = next;
+        const summary = (data.editMeta?.notes[0] || "").trim();
+        get().updateBoxData(id, {
+          changeSet,
+          output: renderChangeSet(changeSet, summary),
         });
       },
 
@@ -1089,6 +1124,13 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // The Code Edit box reads the files it will change, then proposes a
+        // change set the app turns into a diff and a patch.
+        if (boxType === "codeedit") {
+          await runCodeEdit(id);
+          return;
+        }
+
         // Gather upstream inputs
         const { namedInputs, inputImage } = collectInputs(
           state.nodes,
@@ -1315,6 +1357,260 @@ async function runCodeMap(id: string) {
   } catch (err: any) {
     get().setBoxStatus(id, "error", err.message || "Generation failed");
   }
+}
+
+// ============================================================
+// Code Edit box — apply a change request to an existing repository.
+//
+// The flow (each step exists to keep the generated edit honest):
+//   1. decide WHICH files to read — pinned on the box, else from an upstream
+//      SDLC Plan's file list, else a cheap triage call over the repo tree;
+//   2. read those files IN FULL through /api/repo-digest (whole-file mode), so
+//      the model never rewrites a file it could not fully see;
+//   3. ask the model for a structured change set of WHOLE files;
+//   4. the APP validates it (safe paths, read files only, size caps) and computes
+//      the diff + the .patch, so the review surface and the patch cannot disagree.
+// Nothing is written to the repository — the deliverable is the patch.
+// ============================================================
+
+/** System prompt for the triage call: which files must be read? */
+const TRIAGE_SYSTEM_PROMPT = `You plan code changes. Given a repository tree and a change request, you name ONLY the files that must be read to make the change — the fewest possible, including any test file that should change with it. Reply with one JSON object: {"files":["path",...],"plan":"one line"}. Never invent a path: every path must appear in the tree.`;
+
+function emptyEditMeta(patch: Partial<EditMeta> = {}): EditMeta {
+  return { source: "none", read: [], missing: [], generatedAt: 0, error: "", notes: [], ...patch };
+}
+
+/** The upstream SDLC Plan's file list, if this box is wired after a plan. */
+function planFilesFor(id: string): { plan: string; files: string[] } {
+  const state = useBoardStore.getState();
+  const plan = upstreamStageContent(state.nodes, state.edges, state.boxData, id, "plan");
+  return { plan, files: parsePlanFiles(plan) };
+}
+
+async function runCodeEdit(id: string) {
+  const get = () => useBoardStore.getState();
+
+  const node = get().nodes.find((n) => n.id === id);
+  const data = get().boxData[id];
+  if (!node || !data) return;
+  if (data.status === "running") return;
+
+  const { namedInputs } = collectInputs(get().nodes, get().edges, get().boxData, id);
+
+  const ref = resolveRepoRef({
+    repoUrl: data.repoUrl,
+    content: data.content,
+    prompt: data.prompt,
+    defaultPrompt: BOX_TYPES.codeedit.defaultPrompt,
+    inputs: namedInputs,
+  });
+  if (!ref) {
+    get().setBoxStatus(
+      id,
+      "error",
+      "Give this box a GitHub repository (the field above, e.g. https://github.com/owner/repo or owner/repo#branch) — an edit needs a starting point."
+    );
+    return;
+  }
+
+  const request = [data.content, ...namedInputs.map((i) => i.output)]
+    .map((text) => (text || "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+  if (!request) {
+    get().setBoxStatus(
+      id,
+      "error",
+      "Describe the change you want (the textarea in this box), or connect a box that describes it — there is nothing to apply."
+    );
+    return;
+  }
+
+  get().setBoxStatus(id, "running");
+
+  try {
+    // ---- 1. which files? ----
+    let source = "pinned";
+    let targets = parsePathList(data.filesToEdit);
+    if (targets.length === 0) {
+      const fromPlan = planFilesFor(id);
+      if (fromPlan.files.length > 0) {
+        targets = fromPlan.files;
+        source = "plan";
+      }
+    }
+
+    // An overview fetch: gives the tree (to validate/choose paths) and the ranked
+    // files, which is exactly the context the triage call needs.
+    const overview = await fetchRepoDigest(ref.url);
+    const tree = treeFromDigest(overview.digest);
+
+    if (targets.length === 0) {
+      source = "triage";
+      const triage = await generate({
+        systemPrompt: TRIAGE_SYSTEM_PROMPT,
+        userPrompt:
+          `Change request:\n${request}\n\nRepository tree (${overview.treeEntries} entries):\n` +
+          `${tree.slice(0, 400).join("\n")}\n\n` +
+          `Repository overview:\n${overview.digest.slice(0, 20_000)}`,
+      });
+      if (triage.error) throw new Error(triage.error);
+      targets = parseTriage(triage.content || "").files;
+    }
+
+    if (targets.length === 0) {
+      get().updateBoxData(id, {
+        status: "error",
+        error:
+          "Could not work out which files to change. List them in “Files to change” (one path per line), or make the change request more specific.",
+        editMeta: emptyEditMeta({ source, error: "no target files" }),
+      });
+      return;
+    }
+
+    // ---- 2. read those files IN FULL ----
+    const fileFetch = await fetchRepoDigest(ref.url, targets);
+    const known: KnownFile[] = (fileFetch.contents || []).map((file) => ({
+      path: file.path,
+      content: file.content,
+      clipped: !!file.clipped,
+    }));
+    const missing = [
+      ...(fileFetch.missing || []),
+      ...(fileFetch.contents || []).filter((f) => f.clipped).map((f) => `${f.path} (too large to edit safely)`),
+    ];
+
+    if (known.length === 0) {
+      get().updateBoxData(id, {
+        status: "error",
+        error: `None of the ${targets.length} target file(s) could be read from ${ref.slug}. ${missing.length ? `Missing: ${missing.join(", ")}.` : ""}`,
+        editMeta: emptyEditMeta({ source, missing, error: "no readable target files" }),
+      });
+      return;
+    }
+
+    // ---- 3. ask for the change set ----
+    const userPrompt = buildEditPrompt(
+      {
+        prompt: data.prompt,
+        repo: { slug: `${ref.owner}/${ref.repo}`, branch: fileFetch.branch || ref.branch || "" },
+        tree,
+        files: known,
+        missing,
+      },
+      namedInputs
+    );
+
+    const result = await generateTextForBox(id, {
+      systemPrompt: data.systemPrompt,
+      userPrompt,
+      boxType: "codeedit",
+    });
+
+    // ---- 4. validate, diff, store ----
+    const parsed = parseChangeSet(result.content || "");
+    const meta: RepoMeta = {
+      repo: fileFetch.repo || ref.slug,
+      branch: fileFetch.branch || ref.branch || "",
+      files: fileFetch.files || known.length,
+      treeEntries: fileFetch.treeEntries || tree.length,
+      chars: fileFetch.chars || 0,
+      truncated: !!fileFetch.truncated,
+      fetchedAt: Date.now(),
+      error: "",
+      notes: fileFetch.notes || [],
+    };
+
+    if (parsed.error) {
+      get().updateBoxData(id, {
+        output: result.content,
+        status: "error",
+        error: parsed.error,
+        repoMeta: meta,
+        editMeta: emptyEditMeta({ source, read: known.map((f) => f.path), missing, error: parsed.error }),
+      });
+      return;
+    }
+
+    const { changes, dropped } = validateChangeSet(parsed, known);
+    const notes = [...parsed.notes, ...dropped.map((d) => `the app ${d}`)];
+
+    // The board document has to hold this, so a change set that would not fit is
+    // trimmed to its smallest files rather than silently corrupting the board.
+    const fitted = fitChangeSet(changes);
+    if (fitted.dropped.length > 0) notes.push(...fitted.dropped);
+
+    const summary = parsed.summary || `${fitted.changes.length} file(s) changed`;
+    const editMeta: EditMeta = {
+      source,
+      read: known.map((f) => f.path),
+      missing,
+      generatedAt: Date.now(),
+      error: "",
+      notes,
+    };
+
+    get().updateBoxData(id, {
+      // `output` is the Markdown change set, so a downstream box (the SDLC Review
+      // stage consumes a diff) receives it through the normal {{inputs}} path.
+      output: renderChangeSet(fitted.changes, summary),
+      status: "done",
+      error: undefined,
+      repoMeta: meta,
+      changeSet: fitted.changes,
+      editMeta,
+    });
+  } catch (err: any) {
+    const message = err?.message || "Could not prepare the change";
+    get().updateBoxData(id, {
+      status: "error",
+      error: message,
+      editMeta: emptyEditMeta({ error: message }),
+    });
+  }
+}
+
+/** Pulls the paths out of a digest's rendered file tree. */
+function treeFromDigest(digest: string): string[] {
+  const section = digest.split("## File tree")[1];
+  if (!section) return [];
+  const body = section.split(/\n## /)[0];
+  const out: string[] = [];
+  const stack: string[] = [];
+  for (const raw of body.split("\n")) {
+    if (!raw.trim() || raw.trim().startsWith("…")) continue;
+    const depth = Math.floor((raw.length - raw.trimStart().length) / 2);
+    const name = raw.trim();
+    stack.length = depth;
+    if (name.endsWith("/")) {
+      stack.push(name.slice(0, -1));
+      continue;
+    }
+    out.push([...stack, name].join("/"));
+  }
+  return out;
+}
+
+/**
+ * Keeps a change set inside the board document's size budget by dropping the
+ * largest files (reported, never silent) — the diff of the kept files is intact.
+ */
+function fitChangeSet(changes: FileChange[]): { changes: FileChange[]; dropped: string[] } {
+  if (changeSetChars(changes) <= MAX_CHANGE_SET_CHARS) return { changes, dropped: [] };
+  const sorted = [...changes].sort((a, b) => a.content.length + a.original.length - (b.content.length + b.original.length));
+  const kept: FileChange[] = [];
+  const dropped: string[] = [];
+  for (const change of sorted) {
+    const candidate = [...kept, change];
+    if (changeSetChars(candidate) > MAX_CHANGE_SET_CHARS) {
+      dropped.push(`${change.path} was changed by the model but does not fit in the board document — apply it manually from the model's reply`);
+      continue;
+    }
+    kept.push(change);
+  }
+  // Restore the order the model proposed, so the list reads in a sensible order.
+  const ordered = changes.filter((change) => kept.includes(change));
+  return { changes: ordered, dropped };
 }
 
 // ============================================================

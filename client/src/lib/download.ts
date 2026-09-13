@@ -1,5 +1,6 @@
 import type { BoxData, BoxType } from "../types.js";
 import { SDLC_ARTIFACT_FILENAMES } from "./sdlc.js";
+import { buildPatch } from "./codeedit.js";
 
 /**
  * Downloading a box's actual outcome.
@@ -15,6 +16,7 @@ const OUTCOME_FILENAMES: Partial<Record<BoxType, string>> = {
   prd: "prd.md",
   devplan: "dev-plan.md",
   codemap: "code-map.md",
+  codeedit: "code-changes.patch",
   agent: "agent-answer.md",
   slides: "slides.md",
 };
@@ -62,7 +64,7 @@ function slidesToMarkdown(data: BoxData): string {
 /** True when this box type has an outcome that can be downloaded as text. */
 export function hasDownloadableOutcome(type: BoxType | string): boolean {
   if (SDLC_ARTIFACT_FILENAMES[type]) return true;
-  return ["research", "summarize", "prd", "devplan", "codemap", "agent", "slides", "custom"].includes(type);
+  return ["research", "summarize", "prd", "devplan", "codemap", "codeedit", "agent", "slides", "custom"].includes(type);
 }
 
 /**
@@ -72,6 +74,8 @@ export function hasDownloadableOutcome(type: BoxType | string): boolean {
  * nothing yet — the caller hides the button in that case.
  */
 export function outcomeText(type: BoxType | string, data: BoxData): string {
+  // The Code Edit outcome IS the patch: download it and `git apply` it.
+  if (type === "codeedit") return buildPatch(data.changeSet);
   if (type === "slides") {
     const deck = slidesToMarkdown(data);
     if (deck.trim()) return deck.trim() + "\n";
@@ -79,6 +83,13 @@ export function outcomeText(type: BoxType | string, data: BoxData): string {
   }
   const text = (data.output || "").trim();
   return text ? data.output + "\n" : "";
+}
+
+/** The MIME type a box's outcome should be downloaded as. */
+export function outcomeMime(type: BoxType | string): string {
+  if (type === "codeedit") return "text/x-patch;charset=utf-8";
+  if (type === "slides" || type === "codemap" || type === "codeedit") return "text/markdown;charset=utf-8";
+  return "text/markdown;charset=utf-8";
 }
 
 /** Triggers a browser download of a text file. */

@@ -22,6 +22,7 @@ export const AGENT_CREATABLE_TYPES = [
   "codemap",
   "slides",
   "code",
+  "codeedit",
   "ui",
 ] as const;
 export type AgentCreatableType = (typeof AGENT_CREATABLE_TYPES)[number];

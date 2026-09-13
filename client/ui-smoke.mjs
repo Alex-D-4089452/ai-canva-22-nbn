@@ -1,6 +1,6 @@
 /**
- * Live UI smoke test for the SDLC pipeline group, the Code Map worker and the
- * per-box outcome downloads.
+ * Live UI smoke test for the SDLC pipeline group, the Code Map worker, the
+ * Code Edit worker and the per-box outcome downloads.
  * Drives the REAL dev app (localhost:5173) with /api/generate mocked at the
  * page level so the artifacts are deterministic.
  *
@@ -404,8 +404,8 @@ const cmNodeText = await page.evaluate(() => {
   const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Map") && n.innerText.includes("alexbonti"));
   return node ? node.innerText : "";
 });
-check("C9 the box shows the read summary and the digest notes", /alexbonti\/ai-canva@main/.test(cmNodeText)
-  && /3 files of 120/.test(cmNodeText) && /capped/.test(cmNodeText) && /Digest notes \(2\)/.test(cmNodeText),
+check("C9 the box shows the read summary and the repository notes", /alexbonti\/ai-canva@main/.test(cmNodeText)
+  && /3 files of 120/.test(cmNodeText) && /capped/.test(cmNodeText) && /Repository notes \(2\)/.test(cmNodeText),
   cmNodeText.slice(0, 120).replace(/\n/g, " / "));
 
 // Download the brief.
@@ -462,6 +462,266 @@ check("C13 a repo link in a connected box is used when the field is empty", awai
   const d = s().boxData[boxId];
   return d.status === "done" && (d.repoMeta?.repo || "") === "alexbonti/ai-canva";
 }, linkedId));
+
+// ---------- Code Edit worker: read a repo, propose a reviewable change set ----------
+
+// A small repository fixture the Code Edit mocks serve. The digest text is built
+// from it exactly like the real endpoint builds one, so tree parsing is exercised.
+await page.evaluate(() => {
+  window.__ce = { triageCalls: 0, editCalls: 0, systemPrompts: [] };
+  window.__ceFixture = {
+    tree: ["README.md", "src/app.ts", "src/tests/app.test.ts", "server/src/api.ts"],
+    contents: {
+      "src/app.ts": "export function main() {\n  return 1;\n}\n",
+      "src/tests/app.test.ts": "import { main } from \"../app\";\n\ntest(\"main\", () => {\n  expect(main()).toBe(1);\n});\n",
+      "server/src/api.ts": "export const api = () => 1;\n",
+      "README.md": "# demo\n",
+    },
+  };
+  window.__ceReply = { mode: "ok" };
+});
+
+const installCodeEditMocks = () => page.evaluate(() => {
+  const fixture = window.__ceFixture;
+  const original = window.fetch;
+  const digestText = (paths) => {
+    const treeLines = ["README.md", "src/", "  app.ts", "  tests/", "    app.test.ts", "server/", "  src/", "    api.ts"];
+    return (
+      "Repository: alexbonti/ai-canva@main\n\n## File tree\n\n" + treeLines.join("\n") +
+      "\n\n## File contents\n\n" +
+      paths.map((p) => `### ${p} (0.1 KB)\n\n\`\`\`ts\n${fixture.contents[p] || ""}\`\`\`\n`).join("\n")
+    );
+  };
+  window.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : url.url;
+    if (u.includes("/api/repo-digest")) {
+      const body = JSON.parse(opts?.body || "{}");
+      const asked = Array.isArray(body.paths) ? body.paths : [];
+      const missing = asked.filter((p) => !fixture.tree.includes(p));
+      const paths = asked.length > 0
+        ? asked.filter((p) => fixture.tree.includes(p))
+        : ["src/app.ts", "README.md"];
+      return new Response(JSON.stringify({
+        ok: true, repo: "alexbonti/ai-canva", branch: "main", digest: digestText(paths),
+        files: paths.length, treeEntries: fixture.tree.length, chars: 400,
+        truncated: false, notes: missing.length ? [`Requested path(s) not found in the tree: ${missing.join(", ")}.`] : [],
+        contents: paths.map((p) => ({ path: p, content: fixture.contents[p], clipped: false })),
+        missing,
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (u.includes("/api/generate")) {
+      const body = JSON.parse(opts?.body || "{}");
+      const system = body.systemPrompt || "";
+      const prompt = body.userPrompt || "";
+      window.__ce.systemPrompts.push(system);
+      window.__ce.userPrompts = window.__ce.userPrompts || [];
+      window.__ce.userPrompts.push(prompt);
+      if (system.includes("You plan code changes")) {
+        window.__ce.triageCalls++;
+        return new Response(JSON.stringify({
+          content: '```json\n{"files":["src/app.ts"],"plan":"change main()"}\n```',
+          model: "mock", usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      window.__ce.editCalls++;
+      if (window.__ceReply.mode === "garbage") {
+        return new Response(JSON.stringify({
+          content: "I changed src/app.ts to return 42.", model: "mock",
+          usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        content: "```json\n" + JSON.stringify({
+          summary: "return 42 from main()",
+          changes: [{
+            path: "src/app.ts",
+            operation: "update",
+            content: "export function main() {\n  return 42;\n}\n",
+            reason: "the request asked for 42",
+          }],
+          notes: ["not compiled or tested"],
+        }) + "\n```",
+        model: "mock", usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return original(url, opts);
+  };
+});
+
+check("CE1 palette offers the Code Edit worker", await page.evaluate(() =>
+  [...document.querySelectorAll("button.palette-row")].some((b) => (b.querySelector("span:last-child")?.textContent || "").trim() === "Code Edit")));
+
+const ceId = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  return s().addBox("codeedit", { x: 80, y: 1900 });
+});
+await page.waitForTimeout(400);
+
+const ceText = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Edit"));
+  return node ? node.innerText : "";
+});
+const cePlaceholders = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")].find((n) => n.innerText.includes("Code Edit"));
+  return [...node.querySelectorAll("input, textarea")].map((el) => el.getAttribute("placeholder") || "");
+});
+check("CE2 the box renders the repository, file-targeting and change-request fields",
+  /REPOSITORY/i.test(ceText) && /Files to change/i.test(ceText)
+  && cePlaceholders.some((ph) => /github\.com\/owner\/repo/.test(ph))
+  && cePlaceholders.some((ph) => /one repository path per line/.test(ph))
+  && cePlaceholders.some((ph) => /What should change/.test(ph)),
+  cePlaceholders.join(" | ").slice(0, 120));
+
+// A run without a repository must say so rather than inventing an edit.
+const ceNoRepo = await page.evaluate(() => window.__dsh.useBoardStore.getState().addBox("codeedit", { x: 620, y: 1900 }));
+await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  s().updateBoxData(boxId, { content: "change something" });
+}, ceNoRepo);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), ceNoRepo);
+check("CE3 a Code Edit run without a repository is refused with guidance", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.status === "error" && /GitHub repository/i.test(d.error || "");
+}, ceNoRepo));
+
+// The real flow: pinned file → whole-file read → change set → diff + patch.
+await installCodeEditMocks();
+await page.evaluate((boxId) => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  s().updateBoxData(boxId, {
+    repoUrl: "https://github.com/alexbonti/ai-canva",
+    filesToEdit: "src/app.ts\nsrc/nope.ts",
+    content: "make main() return 42",
+  });
+}, ceId);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), ceId);
+await page.waitForTimeout(900);
+
+const ceState = await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return { status: d.status, error: d.error || "", changeSet: d.changeSet || [], meta: d.editMeta || null, output: d.output || "" };
+}, ceId);
+check("CE4 the run produces a change set with real line counts",
+  ceState.status === "done" && ceState.changeSet.length === 1
+  && ceState.changeSet[0].path === "src/app.ts" && ceState.changeSet[0].added === 1 && ceState.changeSet[0].removed === 1,
+  JSON.stringify(ceState.changeSet.map((c) => `${c.path} ${c.operation} +${c.added} −${c.removed}`)) || ceState.error);
+check("CE5 the pinned list drove the read (and the unreadable path is reported)",
+  ceState.meta?.source === "pinned" && ceState.meta.read.join() === "src/app.ts" && ceState.meta.missing.join().includes("src/nope.ts"),
+  JSON.stringify({ source: ceState.meta?.source, read: ceState.meta?.read, missing: ceState.meta?.missing }));
+check("CE6 the prompt carried the file's CURRENT content and the no-claims rule",
+  await page.evaluate(() => {
+    const prompts = window.__ce.userPrompts || [];
+    const p = prompts.filter((x) => x.includes("#### src/app.ts")).pop() || "";
+    return p.includes("#### src/app.ts") && p.includes("return 1;")
+      && p.includes("compiled or tested") && p.includes("make main() return 42");
+  }),
+  await page.evaluate(() => (window.__ce.userPrompts || []).map((p) => p.length).join(",")));
+check("CE7 the stored output is a diff document (what the Review stage consumes)",
+  ceState.output.startsWith("# Change set") && ceState.output.includes("```diff") && ceState.output.includes("+  return 42;"));
+
+const ceNodeText = await page.evaluate(() => {
+  const node = [...document.querySelectorAll(".box-node")]
+    .find((n) => /code edit/i.test(n.innerText) && /change set/i.test(n.innerText));
+  return node ? node.innerText : "";
+});
+check("CE8 the box shows the change set, the operation, the diff and the apply hint",
+  /src\/app\.ts/.test(ceNodeText) && /update/i.test(ceNodeText) && /\+1/.test(ceNodeText)
+  && /return 42/.test(ceNodeText) && /git apply code-changes\.patch/.test(ceNodeText),
+  ceNodeText.slice(0, 130).replace(/\n/g, " / "));
+
+const [ceDl] = await Promise.all([
+  page.waitForEvent("download"),
+  page.evaluate(() => {
+    const node = [...document.querySelectorAll(".box-node")]
+      .find((n) => /code edit/i.test(n.innerText) && /change set/i.test(n.innerText));
+    if (!node) throw new Error("Code Edit box with a change set not found");
+    const btn = [...node.querySelectorAll("button")].find((b) => b.textContent.trim() === "💾 Save");
+    if (!btn) throw new Error("no Save button on the Code Edit box");
+    btn.click();
+  }),
+]);
+const cePatch = await (await import("node:fs/promises")).readFile(await ceDl.path(), "utf8");
+check("CE9 💾 Save downloads a git patch matching the displayed change",
+  ceDl.suggestedFilename() === "code-changes.patch"
+  && cePatch.includes("diff --git a/src/app.ts b/src/app.ts")
+  && cePatch.includes("-  return 1;") && cePatch.includes("+  return 42;"),
+  ceDl.suggestedFilename());
+
+// Hand-editing a file recomputes the diff (the patch can never drift from it).
+await page.evaluate((boxId) => {
+  window.__dsh.useBoardStore.getState().setChangeSetFile(boxId, "src/app.ts", "export function main() {\n  return 7;\n  // hand-edited\n}\n");
+}, ceId);
+await page.waitForTimeout(500);
+check("CE10 editing a file by hand recomputes the counts and the patch", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  const c = d.changeSet[0];
+  return c.added === 2 && c.removed === 1 && d.output.includes("+  // hand-edited");
+}, ceId));
+
+// A file list from an upstream SDLC Plan needs no triage call at all.
+const ceFromPlan = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  // A real SDLC Plan stage: its approved artifact names the files to change.
+  const plan = s().addBox("sdlc-plan", { x: 620, y: 2300 });
+  const artifact = "# Plan\n\n## Files to change\n- `src/app.ts` — change main\n\n## Tests\n- \"main returns 42\" → Decision 1";
+  s().updateBoxData(plan, {
+    output: artifact,
+    status: "done",
+    sdlcVersions: [{ version: 1, content: artifact, createdAt: 1, createdBy: "Tester", source: "generated", note: "" }],
+    sdlcGate: "approved",
+    sdlcApprovedVersion: 1,
+  });
+  const box = s().addBox("codeedit", { x: 80, y: 2300 });
+  s().updateBoxData(box, {
+    repoUrl: "https://github.com/alexbonti/ai-canva",
+    prompt: "Apply the change request below to the repository files provided.\n\nChange request:\n{{inputs}}",
+    content: "make main() return 42",
+  });
+  s().connectBoxes(plan, box);
+  return box;
+});
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), ceFromPlan);
+await page.waitForTimeout(900);
+check("CE11 an upstream SDLC Plan's file list drives the read (no triage call)", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.editMeta?.source === "plan" && d.editMeta.read.join() === "src/app.ts";
+}, ceFromPlan),
+  await page.evaluate((boxId) => JSON.stringify({
+    source: window.__dsh.useBoardStore.getState().boxData[boxId].editMeta?.source,
+    error: window.__dsh.useBoardStore.getState().boxData[boxId].error,
+  }), ceFromPlan));
+
+// No pinned files and no plan → one triage call picks the targets.
+const ceTriage = await page.evaluate(() => {
+  const s = () => window.__dsh.useBoardStore.getState();
+  const box = s().addBox("codeedit", { x: 620, y: 2600 });
+  s().updateBoxData(box, {
+    repoUrl: "https://github.com/alexbonti/ai-canva",
+    prompt: "Apply the change request below to the repository files provided.\n\nChange request:\n{{inputs}}",
+    content: "make main() return 42",
+  });
+  return box;
+});
+const triageBefore = await page.evaluate(() => window.__ce.triageCalls);
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), ceTriage);
+await page.waitForTimeout(900);
+check("CE12 without pins or a plan, one triage call chooses the files", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  return d.editMeta?.source === "triage" && d.changeSet?.length === 1;
+}, ceTriage) && (await page.evaluate(() => window.__ce.triageCalls)) === triageBefore + 1,
+  `triage calls ${triageBefore} → ${await page.evaluate(() => window.__ce.triageCalls)}`);
+
+// A reply that is not the JSON change set is reported, never guessed at.
+await page.evaluate(() => { window.__ceReply.mode = "garbage"; });
+await page.evaluate((boxId) => window.__dsh.useBoardStore.getState().runBox(boxId), ceTriage);
+await page.waitForTimeout(900);
+check("CE13 a non-JSON reply is surfaced as an error instead of a guessed edit", await page.evaluate((boxId) => {
+  const d = window.__dsh.useBoardStore.getState().boxData[boxId];
+  // The error is explicit, and the previous change set is kept but labelled as
+  // stale in the panel (never presented as the current proposal).
+  return d.status === "error" && /JSON change set/.test(d.error || "")
+    && /previous successful run/i.test([...document.querySelectorAll(".box-node")].map((n) => n.innerText).join("\n"));
+}, ceTriage));
 
 const realErrors = pageErrors.filter((e) => !/Missing or insufficient permissions/i.test(e));
 check("Z1 no unexpected page errors", realErrors.length === 0, realErrors.join(" | ").slice(0, 200));

@@ -28,6 +28,14 @@ export interface RepoRef {
   branch: string;
 }
 
+/** One file's content, handed to the client in structured form (Code Edit). */
+export interface RepoFileContent {
+  path: string;
+  content: string;
+  /** True when the content was clipped — such a file must not be rewritten. */
+  clipped: boolean;
+}
+
 /** What the endpoint returns to the client. */
 export interface RepoDigest {
   repo: string;
@@ -42,6 +50,10 @@ export interface RepoDigest {
   truncated: boolean;
   /** Human-readable notes about what was skipped or capped. */
   notes: string[];
+  /** The same contents in structured form (used by the Code Edit worker). */
+  contents: RepoFileContent[];
+  /** Requested paths (whole-file mode) that could not be read. */
+  missing: string[];
 }
 
 // === Caps (all deliberately conservative) ===
@@ -56,6 +68,15 @@ export const MAX_FILES = 24;
 export const MAX_BYTES_PER_FILE = 20_000;
 /** Above this, a file is assumed to be generated/bundled and is not downloaded. */
 export const HARD_SKIP_BYTES = 400_000;
+/**
+ * Whole-file mode (the Code Edit box pins the paths it wants): an edit needs the
+ * file in full, so the caps are per-file and total rather than a digest budget.
+ * Anything still clipped is reported as clipped, and the box refuses to rewrite
+ * a clipped file.
+ */
+export const MAX_EDIT_FILE_CHARS = 60_000;
+export const MAX_EDIT_TOTAL_CHARS = 150_000;
+export const MAX_EDIT_PATHS = 12;
 export const MAX_DIGEST_CHARS = 60_000;
 export const MAX_TREE_ENTRIES = 400;
 /**
@@ -156,6 +177,27 @@ export function isIgnoredPath(path: string): boolean {
   if (IGNORED_EXTS.has(ext)) return true;
   if (base.endsWith(".min.js") || base.endsWith(".min.css")) return true;
   return false;
+}
+
+/** Directories a requested path may never point into. */
+const FORBIDDEN_SEGMENTS = new Set([
+  "node_modules", ".git", "dist", "build", "out", "coverage", "vendor", ".next",
+  ".nuxt", "target", "__pycache__", ".venv", "venv", ".idea", ".vscode", ".terraform",
+]);
+
+/** True when a path is safe to read/request inside a repository. */
+export function isSafeRepoPath(path: unknown): path is string {
+  if (typeof path !== "string") return false;
+  const p = path.trim();
+  if (!p || p.length > 300) return false;
+  if (p.startsWith("/") || p.startsWith("~") || p.startsWith(".")) return false;
+  if (p.includes("\\") || p.includes("\u0000")) return false;
+  if (/(^|\/)\.\.(\/|$)/.test(p)) return false;
+  if (/^[a-zA-Z]:/.test(p)) return false;
+  for (const segment of p.split("/")) {
+    if (FORBIDDEN_SEGMENTS.has(segment.toLowerCase())) return false;
+  }
+  return true;
 }
 
 /** True for test/spec/fixture files (capped separately). */
@@ -434,7 +476,13 @@ export function describeHttpError(status: number, token: string | undefined): st
  */
 export async function fetchRepoDigest(
   ref: RepoRef,
-  opts: { token?: string; maxFiles?: number; maxChars?: number } = {}
+  opts: {
+    token?: string;
+    maxFiles?: number;
+    maxChars?: number;
+    /** Whole-file mode: read exactly these paths (the Code Edit box). */
+    paths?: string[];
+  } = {}
 ): Promise<RepoDigest> {
   const token = opts.token || undefined;
   const notes: string[] = [];
@@ -465,7 +513,25 @@ export async function fetchRepoDigest(
   const ignored = allPaths.filter(isIgnoredPath).length;
   if (ignored > 0) notes.push(`Ignored ${ignored} generated/binary/lock file(s) (build output, deps, images, lockfiles).`);
 
-  const selected = selectFiles(allPaths, { maxFiles: opts.maxFiles });
+  // Whole-file mode ("read exactly these files") vs. digest mode ("pick the files
+  // that explain this repository").
+  const requested: string[] = [];
+  for (const raw of opts.paths || []) {
+    if (typeof raw !== "string") continue;
+    const path = raw.trim().replace(/^\.\//, "").replace(/\/+/g, "/").replace(/\/$/, "");
+    if (!isSafeRepoPath(path) || requested.includes(path)) continue;
+    requested.push(path);
+    if (requested.length >= MAX_EDIT_PATHS) break;
+  }
+  const wholeFiles = requested.length > 0;
+  const inTree = new Set(allPaths);
+  const missing = wholeFiles ? requested.filter((path) => !inTree.has(path)) : [];
+  const selected = wholeFiles ? requested.filter((path) => inTree.has(path)) : selectFiles(allPaths, { maxFiles: opts.maxFiles });
+
+  if (wholeFiles && missing.length > 0) {
+    notes.push(`Requested path(s) not found in the tree: ${missing.slice(0, 8).join(", ")}.`);
+  }
+
   const sizes = new Map(entries.map((e) => [e.path as string, e.size || 0]));
 
   const tooBig: string[] = [];
@@ -481,7 +547,8 @@ export async function fetchRepoDigest(
     notes.push(`Skipped ${tooBig.length} file(s) larger than ${Math.round(HARD_SKIP_BYTES / 1000)} KB (generated/bundled): ${tooBig.slice(0, 6).join(", ")}.`);
   }
 
-  const maxChars = opts.maxChars ?? MAX_DIGEST_CHARS;
+  const maxChars = opts.maxChars ?? (wholeFiles ? MAX_EDIT_TOTAL_CHARS : MAX_DIGEST_CHARS);
+  const perFileCap = wholeFiles ? MAX_EDIT_FILE_CHARS : MAX_BYTES_PER_FILE;
   const files: { path: string; content: string }[] = [];
   const failed: string[] = [];
   const clipped: string[] = [];
@@ -515,7 +582,7 @@ export async function fetchRepoDigest(
     for (const result of results) {
       if ("content" in result && typeof result.content === "string") {
         const remaining = maxChars - chars;
-        const perFile = Math.min(MAX_BYTES_PER_FILE, remaining);
+        const perFile = Math.min(perFileCap, remaining);
         let content = result.content;
         if (content.length > perFile) {
           content = content.slice(0, perFile) + `\n…[clipped at ${Math.round(perFile / 1000)} KB]`;
@@ -531,12 +598,13 @@ export async function fetchRepoDigest(
   }
 
   if (clipped.length > 0) {
-    notes.push(`Clipped ${clipped.length} large file(s) to the first ${Math.round(MAX_BYTES_PER_FILE / 1000)} KB: ${clipped.slice(0, 6).join(", ")}.`);
+    notes.push(`Clipped ${clipped.length} large file(s) to the first ${Math.round(perFileCap / 1000)} KB: ${clipped.slice(0, 6).join(", ")}.`);
   }
   if (failed.length > 0) notes.push(`Could not read ${failed.length} file(s): ${failed.slice(0, 6).join(", ")}.`);
   if (truncated) notes.push("The digest was capped — it is NOT the whole repository.");
 
   const digest = renderDigest({ ref, branch, tree: allPaths, files, notes, truncated });
+  const clippedSet = new Set(clipped);
 
   return {
     repo: `${ref.owner}/${ref.repo}`,
@@ -547,5 +615,13 @@ export async function fetchRepoDigest(
     chars: digest.length,
     truncated,
     notes,
+    // Structured contents for callers that edit files (the Code Edit worker);
+    // `clipped` tells them a rewrite would lose the rest of the file.
+    contents: files.map((file) => ({
+      path: file.path,
+      content: file.content,
+      clipped: clippedSet.has(file.path),
+    })),
+    missing,
   };
 }

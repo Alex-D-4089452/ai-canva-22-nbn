@@ -116,6 +116,41 @@ success metrics. Ideal input for the Code box.
 - **Inputs:** typically Research; defaults to `{{inputs}}`.
 - **Output:** Markdown document.
 
+### ✍️ Code Edit — `codeedit`
+
+Applies a **change request to an existing GitHub repository** and hands back a reviewable change
+set plus a `git apply`-able patch. It is the Code box's sibling: same editing surface, but it starts
+from real files instead of generating a prototype.
+
+- **Where the repository comes from:** the box's **Repository** field, a GitHub link in its note, a
+  customised prompt, or any connected box — same rules as the Code Map worker (public repos, no
+  token; `POST /api/repo-digest` does the reading).
+- **The change request** is its textarea (or a connected Idea / SDLC Intent / Spec / Plan).
+- **Which files get read** (in this order): the box's **Files to change** list (one path per line) →
+  the file list in an upstream **SDLC Plan** artifact (`## Files to change`) → otherwise one cheap
+  **triage call** that names the paths to read. Only then are those files read **in full**.
+- **The contract that makes it trustworthy:** the model returns **whole files** and the **app**
+  computes the diff, the line counts and the patch — so what you review is exactly what
+  `code-changes.patch` contains. A model reply that is not the JSON change set is reported as an
+  error rather than guessed at.
+- **Refusals (never silent):** a path that was never read, a path outside the repository, an
+  unknown operation, an empty "update", a rewrite of a file whose content was **clipped**, a change
+  that would exceed the board document's budget — each is dropped and listed in the panel.
+  A run without a repository, or without a change request, is refused with guidance.
+- **Output:** the change-set panel (per file: operation, `+added −removed`, reason; a diff view and
+  an editor), stored as a Markdown diff document in `output` — which is exactly what the SDLC
+  **Review** stage consumes — plus 💾 **Save** → `code-changes.patch`.
+- **Nothing is written to the repository.** No token, no branch, no PR: apply the patch in your
+  checkout (`git apply code-changes.patch`) or paste a file's contents. Nothing is compiled or
+  tested either — CI and the Review stage are where that happens, and the model is required to list
+  what it could not verify.
+- **Caps:** up to 5 changed files, 24k characters per file, 60k per file read (`clipped` beyond
+  that), 150k characters read per run.
+- **Code:** `client/src/lib/codeedit.ts` (path safety/targeting, change-set validation, LCS line
+  diff, unified patch — unit-tested, including a suite that applies the generated patches with real
+  `git apply`), run path `runCodeEdit` in `boardStore.ts`, UI in `components/CodeEditPanel.tsx` +
+  `RepoField.tsx`.
+
 ### 🗺️ Dev Plan — `devplan`
 
 Transforms a PRD into a short, pragmatic development plan: components to build, state variables,
@@ -359,8 +394,8 @@ Every text-producing box can hand its **actual outcome** to the clipboard of you
 
 - **Which boxes:** the SDLC stages (`intent.md`, `spec.md`, `plan.md`, `implementation.md`,
   `review.md`, `merge.md`), Research, Summarize (`summary.md`), PRD, Dev Plan (`dev-plan.md`),
-  Code Map (`code-map.md`), Agent (`agent-answer.md`), Slides (rendered as a Markdown deck) and
-  custom boxes (slugified label).
+  Code Map (`code-map.md`), **Code Edit (`code-changes.patch` — a git patch, not Markdown)**,
+  Agent (`agent-answer.md`), Slides (rendered as a Markdown deck) and custom boxes (slugified label).
 - **Where:** the `💾 Save` button in the box footer, next to ⚙ — it appears once the box has an
   outcome.
 - **What's in the file:** the artifact text and nothing else, so it can be pasted straight into a

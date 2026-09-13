@@ -1,4 +1,4 @@
-export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "note" | "label" | "timer" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "note" | "label" | "timer" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -87,6 +87,7 @@ export const AGENT_CONTROLLER_SYSTEM_PROMPT = `You are an autonomous AI agent wo
 - "prd" — turns research into a Product Requirements Document
 - "devplan" — turns a PRD into a short technical build plan
 - "codemap" — reads a GitHub repository and writes an orientation brief (what the code does, how it is structured, where to start); it needs the repo URL inside its prompt, e.g. https://github.com/owner/repo
+- "codeedit" — applies a change request to an existing GitHub repository and returns a reviewable diff (it needs the repo URL inside its prompt; it never writes to the repository)
 - "slides" — generates a pitch deck (JSON-driven slide deck)
 - "code" — generates a working React prototype (live preview on the board)
 - "ui" — generates a polished React UI prototype with Tailwind (live preview)
@@ -366,6 +367,67 @@ export interface SdlcEvent {
   note: string;
 }
 
+/**
+ * Code Edit worker — applies a change request to an EXISTING repository: it
+ * reads the files it needs (see the `paths` mode of /api/repo-digest), then
+ * returns a structured change set the app turns into a diff and a git-apply-able
+ * patch. The model writes whole files; the APP computes the diff, so what the
+ * human reviews is exactly what the patch contains.
+ */
+export const CODE_EDIT_SYSTEM_PROMPT = `You are a careful engineer making a focused change to an existing codebase. You return the complete new content of every file you change; you never invent files or paths that were not provided; you keep unrelated code byte-for-byte identical; and you state plainly what you could not verify. Reply with the JSON change set only.`;
+
+export const CODE_EDIT_PROMPT = `Apply the change request below to the repository files provided.
+
+Return ONLY a JSON object, in one \`\`\`json fenced block with nothing after it:
+{"summary":"one line describing the change","changes":[{"path":"src/x.ts","operation":"update","content":"<the COMPLETE new file content>","reason":"why this file changes"}],"notes":["anything you could not verify or decide"]}
+
+Rules:
+- \`operation\` is "create", "update" or "delete".
+- \`content\` is the WHOLE file — never a fragment, never a diff. Every line you are not changing must still be present and identical. The app computes the diff itself.
+- Only touch files whose current content is given to you below. Never invent a path, and never touch a file that says its content was clipped or could not be read.
+- Keep the change as small as the request allows: no drive-by refactors, no reformatting, no unrelated cleanups.
+- If the request cannot be made with the files provided, return an empty \`changes\` array and explain what is missing in \`notes\`.
+- Nothing here has been compiled or tested. Put every unverified assumption in \`notes\` — do not claim it works.
+
+Change request:
+{{inputs}}`;
+
+/** One file in a Code Edit change set (a proposed create/update/delete). */
+export interface FileChange {
+  /** Repository-relative path. */
+  path: string;
+  operation: "create" | "update" | "delete";
+  /** The complete new file content ("" for a delete). */
+  content: string;
+  /** The content the edit was computed from ("" for a create). */
+  original: string;
+  /** Lines added, for the file list and the patch. */
+  added: number;
+  /** Lines removed. */
+  removed: number;
+  /** The model's reason for touching this file. */
+  reason: string;
+}
+
+/**
+ * How a Code Edit run chose and read its target files — kept on the box so the
+ * change set is auditable ("which files were read, and why these").
+ */
+export interface EditMeta {
+  /** "pinned" (the box's own file list), "plan" (an upstream SDLC Plan), "triage". */
+  source: string;
+  /** Paths whose current content was read before the edit. */
+  read: string[];
+  /** Requested paths that could not be read (missing, or too large to edit). */
+  missing: string[];
+  /** Epoch ms of the last change set (0 = never). */
+  generatedAt: number;
+  /** Why the run failed or was incomplete ("" on success). */
+  error: string;
+  /** The model's own notes / unverified assumptions. */
+  notes: string[];
+}
+
 /** One structured review finding parsed from the Review box's artifact. */
 export interface SdlcFinding {
   id: string;
@@ -472,10 +534,16 @@ export interface BoxData {
   sdlcGateRequired?: boolean;
   /** Org rule sets (security, brand, compliance) injected into spec/review. */
   skills?: string;
-  /** Code Map boxes: the GitHub repository to read ("" = use inputs only). */
+  /** Code Map / Code Edit boxes: the GitHub repository to read ("" = inputs only). */
   repoUrl?: string;
-  /** Code Map boxes: what the last run actually read. */
+  /** Code Map / Code Edit boxes: what the last run actually read. */
   repoMeta?: RepoMeta;
+  /** Code Edit boxes: repository paths to change, one per line ("" = auto). */
+  filesToEdit?: string;
+  /** Code Edit boxes: the proposed change set (whole files, app-computed diff). */
+  changeSet?: FileChange[];
+  /** Code Edit boxes: how the targets were chosen and what was read. */
+  editMeta?: EditMeta;
 }
 
 /** Metadata for each box type. */
@@ -642,6 +710,19 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "You are a React developer. You write clean, working React components. Output ONLY JavaScript/JSX code. No HTML wrapper, no script tags, no markdown code blocks, no explanation. Use the React.* API (React.useState, React.useEffect) — do not use import statements. Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />). Use inline styles for all styling. CRITICAL: Keep mock data SMALL (3-5 items maximum). Do NOT generate extensive data arrays, long constant lists, or large data definitions. Focus on the UI component, interactivity, and visual design. The output MUST include the full App component and the ReactDOM.createRoot render call.",
     defaultWidth: 440,
     defaultHeight: 420,
+  },
+  codeedit: {
+    label: "Code Edit",
+    icon: "✍️",
+    color: "#1d4ed8",
+    description: "Point it at an existing GitHub repository and describe a change: it reads the files that matter, proposes the edit as a reviewable diff, and hands you a .patch to apply.",
+    hasAI: true,
+    category: "worker",
+    roles: ["developer", "sdlc"],
+    defaultPrompt: CODE_EDIT_PROMPT,
+    defaultSystemPrompt: CODE_EDIT_SYSTEM_PROMPT,
+    defaultWidth: 460,
+    defaultHeight: 520,
   },
   prd: {
     label: "PRD",
