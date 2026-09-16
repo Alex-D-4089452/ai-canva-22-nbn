@@ -238,6 +238,10 @@ function defaultBoxData(type: BoxType): BoxData {
     ...(type === "handoff"
       ? { handoffFrom: "", handoffTo: "", handoffGeneratedAt: undefined }
       : null),
+    // Alignment Check boxes: run timestamp.
+    ...(type === "alignment"
+      ? { alignmentRanAt: undefined }
+      : null),
     // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
     // rejects `undefined` anywhere inside a nested value, and these arrays are
     // append-only for the whole life of the board.
@@ -1488,6 +1492,7 @@ export const useBoardStore = create<BoardState>()(
                 status: "done",
                 error: undefined,
                 ...(boxType === "handoff" ? { handoffGeneratedAt: Date.now() } : null),
+                ...(boxType === "alignment" ? { alignmentRanAt: Date.now() } : null),
               });
             }
           }
