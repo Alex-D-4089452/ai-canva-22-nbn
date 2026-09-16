@@ -940,7 +940,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   decision: {
     label: "Decision Log",
     icon: "🗒️",
-    color: "#10b981",
+    color: "#8b5cf6",
     description: "Extract decisions, rationale, and owners from meeting notes into a structured log.",
     hasAI: true,
     category: "worker",
