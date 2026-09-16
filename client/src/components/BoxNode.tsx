@@ -234,6 +234,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isHandoff = boxType === "handoff";
   // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
   const isAlignment = boxType === "alignment";
+  // Decision Log: custom banner with Source/Decisions captured.
+  const isDecision = boxType === "decision";
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1049,9 +1051,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* AI box output — text (research, summarize). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
-            block nor its "no output yet" placeholder. Handoff and Alignment
-            get their own blocks with metadata banners. */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && (
+            block nor its "no output yet" placeholder. Handoff, Alignment, and
+            Decision get their own blocks with metadata banners. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && !isDecision && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1230,6 +1232,70 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 <div className="text-slate-400 text-sm py-4 text-center">
                   No output yet. Connect two artefacts and click <strong>Run</strong> to
                   compare them.
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* AI box output — decision log (banner + text) */}
+        {!isInputBox && isDecision && (() => {
+          const srcNode = edges
+            .filter((e) => e.target === id)
+            .map((e) => allNodes.find((n) => n.id === e.source))
+            .find(Boolean);
+          const srcData = srcNode
+            ? useBoardStore.getState().boxData[srcNode.id]
+            : undefined;
+          let sourceLabel = (srcNode?.data?.title as string) || "";
+          if (
+            srcNode?.type === "documents" &&
+            srcData?.documents?.length
+          ) {
+            const docName = srcData.documents[0].name;
+            sourceLabel =
+              docName.replace(/\.[^.]+$/, "") + " (via Documents Box)";
+          }
+          return (
+            <div className="min-h-[80px]">
+              {/* Banner: Source / Decisions captured */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
+                {sourceLabel ? (
+                  <span>
+                    <span className="font-semibold text-slate-600">Source:</span>{" "}
+                    <span className="text-slate-700">{sourceLabel}</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">Connect an input to label the source</span>
+                )}
+                {(boxData.decisionCount ?? 0) > 0 && (
+                  <span>
+                    <span className="font-semibold text-slate-600">Decisions captured:</span>{" "}
+                    <span className="text-slate-700">{boxData.decisionCount}</span>
+                  </span>
+                )}
+              </div>
+
+              {isRunning && (
+                <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+                  <span className="animate-spin">⏳</span>
+                  <span>Extracting decisions...</span>
+                </div>
+              )}
+              {hasError && !isRunning && (
+                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                  ⚠️ {boxData.error}
+                </div>
+              )}
+              {hasTextOutput && !isRunning && (
+                <div className="markdown-output text-slate-700 text-sm">
+                  <ReactMarkdown>{boxData.output}</ReactMarkdown>
+                </div>
+              )}
+              {!hasTextOutput && !isRunning && !hasError && (
+                <div className="text-slate-400 text-sm py-4 text-center">
+                  No output yet. Connect meeting notes and click <strong>Run</strong> to
+                  extract decisions.
                 </div>
               )}
             </div>
