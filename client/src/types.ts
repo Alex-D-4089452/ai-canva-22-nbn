@@ -899,7 +899,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   handoff: {
     label: "Handoff Brief",
     icon: "📦",
-    color: "#8b5cf6",
+    color: "#1d4ed8",
     description: "Package one role's output into a clean handoff document for the next role.",
     hasAI: true,
     category: "worker",
