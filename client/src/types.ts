@@ -651,6 +651,8 @@ export interface BoxData {
   handoffGeneratedAt?: number;
   /** Alignment Check boxes: run timestamp. */
   alignmentRanAt?: number;
+  /** Decision Log boxes: number of decisions extracted from the output. */
+  decisionCount?: number;
 }
 
 /** Metadata for each box type. */
