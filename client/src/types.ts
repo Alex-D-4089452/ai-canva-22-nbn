@@ -649,6 +649,8 @@ export interface BoxData {
   handoffTo?: string;
   /** Epoch ms when the handoff output was last generated. */
   handoffGeneratedAt?: number;
+  /** Alignment Check boxes: run timestamp. */
+  alignmentRanAt?: number;
 }
 
 /** Metadata for each box type. */
