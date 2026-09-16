@@ -242,6 +242,8 @@ function defaultBoxData(type: BoxType): BoxData {
     ...(type === "alignment"
       ? { alignmentRanAt: undefined }
       : null),
+    // Decision Log boxes: decision count.
+    ...(type === "decision" ? { decisionCount: 0 } : null),
     // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
     // rejects `undefined` anywhere inside a nested value, and these arrays are
     // append-only for the whole life of the board.
@@ -1493,6 +1495,11 @@ export const useBoardStore = create<BoardState>()(
                 error: undefined,
                 ...(boxType === "handoff" ? { handoffGeneratedAt: Date.now() } : null),
                 ...(boxType === "alignment" ? { alignmentRanAt: Date.now() } : null),
+                ...(boxType === "decision"
+                  ? {
+                      decisionCount: (result.content.match(/^\d+\.\s/gm) || []).length,
+                    }
+                  : null),
               });
             }
           }
