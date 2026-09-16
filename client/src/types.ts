@@ -921,7 +921,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   alignment: {
     label: "Alignment Check",
     icon: "✅",
-    color: "#f97316",
+    color: "#b45309",
     description: "Compare two role artifacts for agreement, gaps, and drift.",
     hasAI: true,
     category: "worker",
