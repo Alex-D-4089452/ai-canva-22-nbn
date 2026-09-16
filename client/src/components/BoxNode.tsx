@@ -230,6 +230,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isCodeMap = boxType === "codemap";
   // Code Edit worker: reads a repository and proposes a reviewable change set.
   const isCodeEdit = boxType === "codeedit";
+  // Handoff Brief: custom banner with From/To/Generated/Status.
+  const isHandoff = boxType === "handoff";
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1045,8 +1047,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* AI box output — text (research, summarize). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
-            block nor its "no output yet" placeholder. */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && (
+            block nor its "no output yet" placeholder. Handoff gets its own
+            block with a From/To/Generated/Status banner. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1099,6 +1102,72 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
             {/* SDLC stage gate — approvals, cross-checks, versions, audit trail */}
             {isSdlc && <SdlcGatePanel id={id} boxType={boxType} />}
+          </div>
+        )}
+
+        {/* AI box output — handoff brief (banner + text) */}
+        {!isInputBox && isHandoff && (
+          <div className="min-h-[80px]">
+            {/* Banner: From / To / Generated / Status */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
+              <label className="flex items-center gap-1">
+                <span className="font-semibold text-slate-600">From:</span>
+                <input
+                  type="text"
+                  value={boxData.handoffFrom || ""}
+                  onChange={(e) => updateBoxData(id, { handoffFrom: e.target.value })}
+                  placeholder="e.g. UX Designer"
+                  className="nodrag bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder:text-slate-300 w-28"
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span className="font-semibold text-slate-600">To:</span>
+                <input
+                  type="text"
+                  value={boxData.handoffTo || ""}
+                  onChange={(e) => updateBoxData(id, { handoffTo: e.target.value })}
+                  placeholder="e.g. Content Designer"
+                  className="nodrag bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder:text-slate-300 w-32"
+                />
+              </label>
+              {boxData.handoffGeneratedAt && (
+                <span>
+                  <span className="font-semibold text-slate-600">Generated:</span>{" "}
+                  {new Date(boxData.handoffGeneratedAt).toLocaleDateString()}
+                </span>
+              )}
+              <span>
+                <span className="font-semibold text-slate-600">Status:</span>{" "}
+                {hasTextOutput ? (
+                  <span className="text-emerald-600 font-medium">Ready to send</span>
+                ) : (
+                  <span className="text-slate-400">Draft</span>
+                )}
+              </span>
+            </div>
+
+            {isRunning && (
+              <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+                <span className="animate-spin">⏳</span>
+                <span>Generating handoff brief...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {hasTextOutput && !isRunning && (
+              <div className="markdown-output text-slate-700 text-sm">
+                <ReactMarkdown>{boxData.output}</ReactMarkdown>
+              </div>
+            )}
+            {!hasTextOutput && !isRunning && !hasError && (
+              <div className="text-slate-400 text-sm py-4 text-center">
+                No output yet. Connect an upstream box and click <strong>Run</strong> to
+                generate the handoff brief.
+              </div>
+            )}
           </div>
         )}
 
