@@ -644,6 +644,11 @@ export interface BoxData {
   editMeta?: EditMeta;
   /** Code / UI / Stitch / Code Edit boxes: where the code was last published. */
   deploy?: DeployInfo;
+  /** Handoff Brief boxes: the source and destination roles. */
+  handoffFrom?: string;
+  handoffTo?: string;
+  /** Epoch ms when the handoff output was last generated. */
+  handoffGeneratedAt?: number;
 }
 
 /** Metadata for each box type. */
