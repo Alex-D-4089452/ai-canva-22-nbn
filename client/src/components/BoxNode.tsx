@@ -232,6 +232,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isCodeEdit = boxType === "codeedit";
   // Handoff Brief: custom banner with From/To/Generated/Status.
   const isHandoff = boxType === "handoff";
+  // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
+  const isAlignment = boxType === "alignment";
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1047,9 +1049,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* AI box output — text (research, summarize). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
-            block nor its "no output yet" placeholder. Handoff gets its own
-            block with a From/To/Generated/Status banner. */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && (
+            block nor its "no output yet" placeholder. Handoff and Alignment
+            get their own blocks with metadata banners. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1170,6 +1172,69 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
           </div>
         )}
+
+        {/* AI box output — alignment check (banner + text) */}
+        {!isInputBox && isAlignment && (() => {
+          const incomingNames = edges
+            .filter((e) => e.target === id)
+            .map((e) => {
+              const src = allNodes.find((n) => n.id === e.source);
+              return (src?.data?.title as string) || "Unnamed";
+            });
+          const art1 = incomingNames[0] || "";
+          const art2 = incomingNames[1] || "";
+          return (
+            <div className="min-h-[80px]">
+              {/* Banner: Artefact 1 / Artefact 2 / Ran */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
+                {art1 && (
+                  <span>
+                    <span className="font-semibold text-slate-600">Artefact 1:</span>{" "}
+                    <span className="text-slate-700">{art1}</span>
+                  </span>
+                )}
+                {art2 && (
+                  <span>
+                    <span className="font-semibold text-slate-600">Artefact 2:</span>{" "}
+                    <span className="text-slate-700">{art2}</span>
+                  </span>
+                )}
+                {!art1 && !art2 && (
+                  <span className="text-slate-400 italic">Connect two boxes to label artefacts</span>
+                )}
+                {boxData.alignmentRanAt && (
+                  <span>
+                    <span className="font-semibold text-slate-600">Ran:</span>{" "}
+                    {new Date(boxData.alignmentRanAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {isRunning && (
+                <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+                  <span className="animate-spin">⏳</span>
+                  <span>Comparing artefacts...</span>
+                </div>
+              )}
+              {hasError && !isRunning && (
+                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                  ⚠️ {boxData.error}
+                </div>
+              )}
+              {hasTextOutput && !isRunning && (
+                <div className="markdown-output text-slate-700 text-sm">
+                  <ReactMarkdown>{boxData.output}</ReactMarkdown>
+                </div>
+              )}
+              {!hasTextOutput && !isRunning && !hasError && (
+                <div className="text-slate-400 text-sm py-4 text-center">
+                  No output yet. Connect two artefacts and click <strong>Run</strong> to
+                  compare them.
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* AI box output — slides (pitch deck) */}
         {!isInputBox && isSlides && (
