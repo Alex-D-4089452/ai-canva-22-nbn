@@ -234,6 +234,10 @@ function defaultBoxData(type: BoxType): BoxData {
     // Checklist boxes: the shared task array is created EMPTY but DEFINED
     // (Firestore-safe, and the panel can rely on it existing).
     ...(type === "checklist" ? { checklistItems: [] } : null),
+    // Handoff Brief boxes: editable role fields + generation timestamp.
+    ...(type === "handoff"
+      ? { handoffFrom: "", handoffTo: "", handoffGeneratedAt: undefined }
+      : null),
     // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
     // rejects `undefined` anywhere inside a nested value, and these arrays are
     // append-only for the whole life of the board.
@@ -1478,11 +1482,12 @@ export const useBoardStore = create<BoardState>()(
                 codeVersion: versions[versions.length - 1].version,
               });
             } else {
-              // Store text output (research, summarize)
+              // Store text output (research, summarize, handoff, etc.)
               get().updateBoxData(id, {
                 output: result.content,
                 status: "done",
                 error: undefined,
+                ...(boxType === "handoff" ? { handoffGeneratedAt: Date.now() } : null),
               });
             }
           }
