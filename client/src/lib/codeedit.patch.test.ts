@@ -38,8 +38,10 @@ function makeRepo(files: Record<string, string>): string {
     mkdirSync(dirname(join(dir, rel)), { recursive: true });
     writeFileSync(join(dir, rel), content);
   }
-  const run = (args: string[]) => execFileSync("git", args, { cwd: dir, stdio: "ignore" });
+  const run = (args: string[]) =>
+    execFileSync("git", args, { cwd: dir, stdio: "ignore" });
   run(["init", "-q"]);
+  run(["config", "core.autocrlf", "false"]);
   run(["add", "-A"]);
   run(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]);
   return dir;

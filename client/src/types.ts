@@ -644,6 +644,15 @@ export interface BoxData {
   editMeta?: EditMeta;
   /** Code / UI / Stitch / Code Edit boxes: where the code was last published. */
   deploy?: DeployInfo;
+  /** Handoff Brief boxes: the source and destination roles. */
+  handoffFrom?: string;
+  handoffTo?: string;
+  /** Epoch ms when the handoff output was last generated. */
+  handoffGeneratedAt?: number;
+  /** Alignment Check boxes: run timestamp. */
+  alignmentRanAt?: number;
+  /** Decision Log boxes: number of decisions extracted from the output. */
+  decisionCount?: number;
 }
 
 /** Metadata for each box type. */
@@ -899,7 +908,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   handoff: {
     label: "Handoff Brief",
     icon: "📦",
-    color: "#8b5cf6",
+    color: "#1d4ed8",
     description: "Package one role's output into a clean handoff document for the next role.",
     hasAI: true,
     category: "worker",
@@ -916,7 +925,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   alignment: {
     label: "Alignment Check",
     icon: "✅",
-    color: "#f97316",
+    color: "#b45309",
     description: "Compare two role artifacts for agreement, gaps, and drift.",
     hasAI: true,
     category: "worker",
@@ -933,7 +942,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   decision: {
     label: "Decision Log",
     icon: "🗒️",
-    color: "#10b981",
+    color: "#8b5cf6",
     description: "Extract decisions, rationale, and owners from meeting notes into a structured log.",
     hasAI: true,
     category: "worker",
