@@ -1,6 +1,7 @@
 import { db } from "./firebase.js";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
+import { API_BASE } from "./api.js";
 
 const USERS_COLLECTION = "users";
 const ADMINS_COLLECTION = "admins";
@@ -44,7 +45,7 @@ export async function setFacilitatorRole(
   uid: string,
   grant: boolean
 ): Promise<void> {
-  const res = await adminFetch(user, "/api/admin/roles", {
+  const res = await adminFetch(user, "/admin/roles", {
     method: "POST",
     body: JSON.stringify({ uid, role: "facilitator", grant }),
   });
@@ -109,7 +110,7 @@ export interface AdminUser {
 
 async function adminFetch(user: User, path: string, init?: RequestInit): Promise<Response> {
   const token = await user.getIdToken();
-  return fetch(path, {
+  return fetch(path.startsWith("http") ? path : `${API_BASE}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -132,7 +133,7 @@ async function handleAdminResponse(res: Response): Promise<any> {
  * Requires the caller to be an admin; the backend verifies the ID token.
  */
 export async function fetchAdminStats(user: User): Promise<AdminStats> {
-  const res = await adminFetch(user, "/api/admin/stats");
+  const res = await adminFetch(user, "/admin/stats");
   return handleAdminResponse(res);
 }
 
@@ -145,7 +146,7 @@ export async function fetchUsers(
   pageToken?: string
 ): Promise<{ users: AdminUser[]; nextPageToken: string | null }> {
   const q = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
-  const res = await adminFetch(user, `/api/admin/users${q}`);
+  const res = await adminFetch(user, `/admin/users${q}`);
   return handleAdminResponse(res);
 }
 
@@ -155,7 +156,7 @@ export async function setUserBlocked(
   uid: string,
   disabled: boolean
 ): Promise<void> {
-  const res = await adminFetch(user, `/api/admin/users/${encodeURIComponent(uid)}/status`, {
+  const res = await adminFetch(user, `/admin/users/${encodeURIComponent(uid)}/status`, {
     method: "POST",
     body: JSON.stringify({ disabled }),
   });

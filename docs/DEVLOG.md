@@ -29,6 +29,29 @@ current state).
 
 ---
 
+## 2026-09-23 — Live Hosting deployed against Render; VITE_API_BASE bake fixed
+
+- **Done:** Production path is live: **Hosting** `https://ai-canva-22-nbn-fee4b.web.app` +
+  **API** `https://ai-canva-22-nbn.onrender.com` (`/api/health` 200, `r2Key` configured;
+  `POST /api/storage/sign` → 401 without token = route present; CORS `ACAO=*`).
+  Root cause of "deployed app has no new changes / no image upload": Hosting still served an
+  old bundle with `API_BASE="/api"` (no same-origin `/api` rewrite → every API call 404’d).
+  **`VITE_API_BASE` never baked on Windows** — a bash env-prefix on `npm run build` does not
+  reach Vite (PowerShell `$env:` does). `scripts/deploy-hosting.sh` now writes
+  **`client/.env.production`** for the build and removes it after (gitignored). Also fixed
+  **`admin.ts`** hardcoded `/api/admin/*` → `adminFetch` prefixes `API_BASE`. CRLF fixed on
+  `deploy-hosting.sh` / `deploy.sh`. Deployed twice; live main chunk
+  (`index-BWiQIH2H.js`) embeds `https://ai-canva-22-nbn.onrender.com/api`. Client tests
+  **287/287**, `tsc` clean.
+- **In flight:** uncommitted on `feature/r2-deployment` (admin API_BASE, deploy script,
+  gitignores, docs). **R2 bucket CORS still only allows `localhost:5173`** — S3
+  `PutBucketCors`/`GetBucketCors` denied for the R2 access key; wrangler not logged in.
+  Without Hosting origins on the bucket CORS, browser **PUT** from `*.web.app` to R2 will
+  fail even though sign + render work.
+- **Next steps:** (1) set R2 CORS in the Cloudflare dashboard (JSON in `docs/DEPLOYMENT.md`
+  §4) or `wrangler login` + bucket CORS; (2) hard-refresh the live site and smoke image
+  upload + a board save; (3) commit the session’s changes when the user asks.
+
 ## 2026-09-23 — Image box connected but downstream AI said "no image provided"
 
 - **Done:** Root cause: Image boxes only store `imageData` (empty `output`/`content`), so the

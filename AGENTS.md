@@ -46,7 +46,8 @@ npm test               # run server + client unit tests (Vitest)
 npm run test:watch    # watch mode for both server and client tests
 npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions — needs Blaze)
 # Render path (no Blaze): create Web Service from render.yaml (root server/), then
-#   bash scripts/deploy-hosting.sh https://<render-service>.onrender.com
+#   bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
+#   (writes client/.env.production for VITE_API_BASE — bash env-prefix does NOT reach Vite on Windows)
 ```
 
 ## Architecture notes

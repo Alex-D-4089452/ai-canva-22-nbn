@@ -32,7 +32,7 @@ This guide covers the Render path first, then Firebase Functions, then self-host
 - Render Dashboard → **New → Blueprint** → connect the GitHub repo → uses `render.yaml`, **or**
 - **New → Web Service** → root directory `server` → build `npm install && npm run build` → start `npm start`.
 
-Copy the service URL (e.g. `https://ai-canva-api.onrender.com`).
+Copy the service URL (this repo's live API is `https://ai-canva-22-nbn.onrender.com`).
 
 ### 2. Set Render environment variables
 
@@ -46,7 +46,7 @@ From `render.yaml` / `server/.env.example` — at least:
 ### 3. Deploy the client
 
 ```bash
-bash scripts/deploy-hosting.sh https://your-service.onrender.com
+bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
 ```
 
 Builds with `VITE_API_BASE=https://your-service.onrender.com/api` and runs

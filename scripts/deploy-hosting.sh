@@ -5,11 +5,11 @@
 #
 # Prereqs:
 #   - firebase CLI logged in; .firebaserc → ai-canva-22-nbn-fee4b
-#   - RENDER_API_URL set (or passed as $1), e.g. https://ai-canva-api.onrender.com
+#   - RENDER_API_URL set (or passed as $1), e.g. https://ai-canva-22-nbn.onrender.com
 #   - Firestore rules already deployed (or deploy them here too)
 #
 # Usage:
-#   bash scripts/deploy-hosting.sh https://ai-canva-api.onrender.com
+#   bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
 #   RENDER_API_URL=https://... bash scripts/deploy-hosting.sh
 
 set -euo pipefail
@@ -19,7 +19,7 @@ cd "$ROOT"
 
 API_URL="${1:-${RENDER_API_URL:-}}"
 if [ -z "$API_URL" ]; then
-  echo "ERROR: pass the Render service URL, e.g. bash scripts/deploy-hosting.sh https://ai-canva-api.onrender.com" >&2
+  echo "ERROR: pass the Render service URL, e.g. bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com" >&2
   exit 1
 fi
 # Client appends path segments: ${API_BASE}/generate → …/api/generate
@@ -36,7 +36,11 @@ echo "==> VITE_API_BASE: $API_URL"
 firebase use "$PROJECT"
 
 echo "==> Building client"
-( cd client && VITE_API_BASE="$API_URL" npm run build )
+# On Windows, a bash env-prefix on `npm run build` does not reach Vite —
+# write .env.production instead (Vite loads it for `vite build`).
+printf 'VITE_API_BASE=%s\n' "$API_URL" > client/.env.production
+( cd client && npm run build )
+rm -f client/.env.production
 
 echo "==> Deploying hosting + firestore rules (no functions)"
 firebase deploy --project "$PROJECT" --only hosting,firestore:rules
