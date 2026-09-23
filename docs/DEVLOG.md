@@ -29,6 +29,107 @@ current state).
 
 ---
 
+## 2026-09-23 — Image box connected but downstream AI said "no image provided"
+
+- **Done:** Root cause: Image boxes only store `imageData` (empty `output`/`content`), so the
+  old private `collectInputs` in `boardStore.ts` set `inputImage` for Cartoon but **never
+  pushed a named input** — text AI boxes got `[no inputs]` and the model reported no image.
+  Extracted `collectInputs` to **`client/src/lib/inputs.ts`** (+ `imageReferenceText`):
+  image-only sources now contribute a labeled `NamedInput` (`[image: <http url>]`, or a
+  local-only note for `data:` URLs so base64 never hits the prompt). Cartoon still uses
+  `imageUrl` and **filters image-only entries** out of `fillPromptTemplate` so image-to-image
+  prompts stay style text. New `inputs.test.ts`. Docs: `BOX_TYPES.md` Image outputs, AGENTS
+  pure-logic list. Tests: client **287/287** (was 279 + 8), server 66/66, `tsc` clean both.
+- **In flight:** — (uncommitted on `feature/r2-deployment` alongside the migrate/upload work).
+- **Next steps:** user re-runs Image → AI box (model should now see `[image: …]` in
+  `{{inputs}}`; a text-only Ollama model still cannot *view* pixels — vision would be a
+  separate feature). Then commit the session’s changes.
+
+## 2026-09-23 — Save failed + empty board list after Firebase project switch
+
+- **Done:** Root cause: `ce2b5fe` switched the client from **`carbondocs`** (all existing
+  boards) to **`ai-canva-22-nbn-fee4b`**. localStorage still held the old `currentBoardId`;
+  `loadBoard` returned null without clearing it, so `updateDoc` failed forever → "Save failed",
+  and `listBoards` queried the empty new project → "boards gone". Fixes on
+  `feature/r2-deployment`:
+  - `loadBoardFromFirestore` returns `false` and **clears a dead `currentBoardId`** (keeps the
+    local canvas) instead of leaving a phantom id.
+  - `saveToFirestore` **recreates** the board doc on `not-found` instead of looping on error.
+  - App init recovers: if persist still has nodes, `createNewBoard(…, { preserveContent: true })`
+    wraps the canvas in a new board in the current project; else loads most recent / creates.
+  - New **`client/src/lib/migrate.ts`** + Boards menu: **Migrate from carbondocs** (secondary
+    Firebase app → Google sign-in on the old project → copy owned/shared boards into the new
+    project under the current uid; re-run safe/skips existing ids), **Export/Import boards
+    (JSON)** for manual transfer (CLI cannot read carbondocs — 403 on this account).
+  Tests: client 279/279, `tsc` clean.
+- **In flight:** user still needs to run the migrate action (or export/import) and re-verify
+  saves; R2 image-upload hardening from earlier in the session still uncommitted alongside this.
+- **Next steps:** run Boards → "Migrate from carbondocs" with the Google account that owned the
+  old boards; confirm the list fills and the status dot reaches "Saved"; commit the whole
+  session's changes on `feature/r2-deployment`.
+
+## 2026-09-23 — Image box upload no longer fails silently
+
+- **Done:** `handleImageUpload` in `BoxNode.tsx` now (1) resets the file input so re-selecting
+  the same file fires `onChange`, (2) surfaces resize failures as `status: "error"` +
+  `boxData.error` instead of only `console.error`, and (3) on R2 sign/PUT failure still stores
+  the local data URL (best-effort, same posture as the Documents box) with a visible error banner
+  in the Image box body — previously a failed upload left the box empty with no UI feedback.
+  Image body wrapped in `nodrag` so the click-to-upload zone doesn’t fight React Flow drags.
+  Backend path verified independently: `signUpload` → PUT → public GET all 200 for an
+  `images/{boxId}.jpg` key. Tests: client 279/279, server 66/66, `tsc` clean.
+- **In flight:** — (fix uncommitted on `feature/r2-deployment`).
+- **Next steps:** user retries an image upload and shares the Network entry for
+  `POST /api/storage/sign` / R2 PUT if it still fails; then commit.
+
+## 2026-09-23 — R2 verified live; production path switched to Render (no Blaze)
+
+- **Done:** R2 end-to-end verified (public URL 200, CORS policy, document upload from the app
+  into `ai-canva-22-nbn`). Firebase project id fixed to **`ai-canva-22-nbn-fee4b`**
+  (`.firebaserc`, `server/src/auth.ts` default, `deploy.sh` default); Firestore rules deployed.
+  Cloud Functions blocked — project is on Spark and needs Blaze — so **API targets Render**:
+  added **`render.yaml`** (Web Service, root `server/`), **`scripts/deploy-hosting.sh`**
+  (client build with `VITE_API_BASE` + `firebase deploy --only hosting,firestore:rules`),
+  client **`API_BASE`** from `import.meta.env.VITE_API_BASE` (default `/api` — local proxy
+  unchanged) exported from `lib/api.ts` and used in `storage`/`auth`/`workshop` too;
+  `firebase.json` dropped the `/api` → function rewrite; workshop join no longer hardcodes a
+  carbondocs proxy (501 unless `WORKSHOP_PROXY_URL` set). `deploy.sh` CRLF fixed.
+  Tests 66+279 green; `tsc` clean server/client/functions. Docs: DEPLOYMENT (Render section),
+  this entry.
+- **In flight:** user has not yet created the Render service or run `deploy-hosting.sh`;
+  R2 CORS still only allows `localhost:5173` (needs Hosting origins); functions/ path left
+  in repo for optional Blaze later.
+- **Next steps:** (1) create Render Web Service from `render.yaml` + set env; (2)
+  `bash scripts/deploy-hosting.sh https://….onrender.com`; (3) add Hosting origins to R2 CORS;
+  (4) smoke `/api/health` + a document upload on the live site.
+
+## 2026-09-23 — File storage moved from Firebase Storage to Cloudflare R2
+
+- **Done:** Board images + Documents-box originals now upload to **Cloudflare R2** (free tier:
+  10 GB / 10M reads / 1M writes, **$0 egress**) instead of Firebase Storage. Firestore, Auth,
+  Hosting and `firebase deploy` are unchanged. New duplicated modules `server/src/r2.ts` +
+  `functions/src/r2.ts` (S3 client, presigned PUT, `validateStorageKey` limited to
+  `boards/…/images|documents/…`, `listStorageUsage` for admin stats) and **`POST
+  /api/storage/sign`** in both backends — auth-gated with a Firebase ID token (functions:
+  `requireAuth` via `verifyIdToken`; local server: new `server/src/auth.ts` verifying RS256
+  against Google's public securetoken certs, no service account). Client `lib/storage.ts`
+  rewritten (same two exports → `BoxNode.tsx` untouched): token → sign → PUT → durable
+  `R2_PUBLIC_BASE_URL` URL into Firestore. Admin stats storage metric now sums R2
+  `ListObjectsV2` (soft-fails to 0s). Removed: `getStorage`/`storageBucket` from `firebase.ts`,
+  `firebase/storage` vite chunk, `storage` block from `firebase.json`, `storage.rules` file.
+  `deploy.sh` copies `R2_*` into `functions/.env`; health reports `r2Key`. Deps:
+  `@aws-sdk/client-s3` + `s3-request-presigner` in `server/` and `functions/`. Tests: 6 sign
+  endpoint cases (partial `r2` mock keeps validation real; auth fully mocked). **Verified:**
+  server 66/66, client 279/279, `tsc` clean in all three packages. Docs updated (AGENTS, API,
+  BOX_TYPES, ARCHITECTURE, OSS_READINESS, SECURITY, README, DEPLOYMENT, ONBOARDING, CONTRIBUTING).
+- **In flight:** — (user still needs to create the Cloudflare account/bucket/token and fill
+  `R2_*` in `server/.env` before uploads work; without them sign returns 501 and behavior
+  degrades to the old signed-out mode).
+- **Next steps:** create R2 bucket + API token + enable its Public Development URL, set `R2_*`
+  env vars, re-run `npm run dev` and upload a cartoon image / document to confirm a
+  `pub-….r2.dev` URL lands in Firestore; then `bash scripts/deploy.sh`. Optionally migrate old
+  `storage.googleapis.com` blobs (old URLs keep working until the Firebase bucket is deleted).
+
 ## 2026-02-08 — Checklist box: a shared team to-do list on the board
 
 - **Done:** New **Checklist** collaboration box (✅ `checklist`, palette "Collaboration", `roles:

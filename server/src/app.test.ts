@@ -28,6 +28,31 @@ vi.mock("./stitch.js", () => ({
   })),
 }));
 
+// Storage sign: auth is stubbed (no Google cert fetch), r2 is partially
+// mocked so validateStorageKey/isValidContentType/R2ConfigError stay real.
+vi.mock("./auth.js", () => ({
+  requireAuth: vi.fn(async (req: { headers: Record<string, string | undefined> }) => {
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return { status: 401, error: "Missing authorization token" };
+    }
+    if (authHeader === "Bearer good-token") return { uid: "user-1" };
+    return { status: 401, error: "Invalid or expired token" };
+  }),
+}));
+
+vi.mock("./r2.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./r2.js")>();
+  return {
+    ...actual,
+    signUpload: vi.fn(
+      async (key: string) =>
+        `https://acct.r2.cloudflarestorage.com/bucket/${key}?X-Amz-Signature=test`
+    ),
+    publicUrl: vi.fn((key: string) => `https://pub-test.r2.dev/${key}`),
+  };
+});
+
 // Silence expected console noise (error paths intentionally log).
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -41,6 +66,8 @@ describe("GET /api/health", () => {
     delete process.env.OLLAMA_API_KEY;
     delete process.env.FAL_KEY;
     delete process.env.STITCH_API_KEY;
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_BUCKET;
 
     const res = await request(createApp()).get("/api/health");
     expect(res.status).toBe(200);
@@ -53,6 +80,8 @@ describe("GET /api/health", () => {
       githubToken: "optional",
       // Without a here.now key, deploys are anonymous 24-hour Sites.
       herenowKey: "anonymous",
+      // Without R2 keys, board image/document uploads are unavailable.
+      r2Key: "missing",
     });
   });
 
@@ -143,6 +172,84 @@ describe("GET /api/admin/stats", () => {
   it("returns 501 locally (production-only feature)", async () => {
     const res = await request(createApp()).get("/api/admin/stats");
     expect(res.status).toBe(501);
+  });
+});
+
+describe("POST /api/storage/sign", () => {
+  const IMAGE_KEY = "boards/board-1/images/box-123-abc.jpg";
+  const DOC_KEY = "boards/board-1/documents/box-123-abc/1700000000000-notes_v2.pdf";
+
+  it("returns 401 without a Bearer token", async () => {
+    const res = await request(createApp())
+      .post("/api/storage/sign")
+      .send({ key: IMAGE_KEY, contentType: "image/jpeg" });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/authorization/i);
+  });
+
+  it("returns 401 for an invalid token", async () => {
+    const res = await request(createApp())
+      .post("/api/storage/sign")
+      .set("Authorization", "Bearer bad-token")
+      .send({ key: IMAGE_KEY, contentType: "image/jpeg" });
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 for keys outside boards/.../images|documents", async () => {
+    for (const key of [
+      undefined,
+      "",
+      "secrets/creds.json",
+      "boards/../other/file.jpg",
+      "boards/b1/images/not-a-jpeg.png",
+      "boards/b1/documents/box-1/no-timestamp.pdf",
+    ]) {
+      const res = await request(createApp())
+        .post("/api/storage/sign")
+        .set("Authorization", "Bearer good-token")
+        .send({ key, contentType: "image/jpeg" });
+      expect(res.status, String(key)).toBe(400);
+      expect(res.body.error).toMatch(/board path/);
+    }
+  });
+
+  it("returns 400 when contentType is missing", async () => {
+    const res = await request(createApp())
+      .post("/api/storage/sign")
+      .set("Authorization", "Bearer good-token")
+      .send({ key: IMAGE_KEY });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/contentType/);
+  });
+
+  it("returns a presigned upload URL and the durable public download URL", async () => {
+    const res = await request(createApp())
+      .post("/api/storage/sign")
+      .set("Authorization", "Bearer good-token")
+      .send({ key: DOC_KEY, contentType: "application/pdf" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      key: DOC_KEY,
+      downloadUrl: `https://pub-test.r2.dev/${DOC_KEY}`,
+    });
+    expect(res.body.uploadUrl).toContain(DOC_KEY);
+    expect(res.body.uploadUrl).toContain("X-Amz-Signature");
+
+    const { signUpload } = await import("./r2.js");
+    expect(signUpload).toHaveBeenCalledWith(DOC_KEY, "application/pdf");
+  });
+
+  it("maps a missing R2 config to 501", async () => {
+    const { signUpload, R2ConfigError } = await import("./r2.js");
+    (signUpload as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new R2ConfigError("R2 is not configured (set R2_...)")
+    );
+    const res = await request(createApp())
+      .post("/api/storage/sign")
+      .set("Authorization", "Bearer good-token")
+      .send({ key: IMAGE_KEY, contentType: "image/jpeg" });
+    expect(res.status).toBe(501);
+    expect(res.body.error).toMatch(/not configured/);
   });
 });
 

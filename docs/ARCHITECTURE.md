@@ -1,8 +1,8 @@
 # Architecture
 
 This document explains how AI Canva is structured. It's a **client-side, React Flow canvas** that
-talks to a **Node backend** for AI generation and to **Firebase** for accounts, cloud storage,
-and real-time collaboration.
+talks to a **Node backend** for AI generation and to **Firebase** for accounts, real-time
+sync, and **Cloudflare R2** for file blobs (board images/documents).
 
 ## High-level overview
 
@@ -18,7 +18,8 @@ and real-time collaboration.
         v
 +----------------------------------------------+
 | Firebase: Auth (Google) · Firestore (boards, |
-| presence) · Storage (board images)           |
+| presence)                    Cloudflare R2:  |
+|                          board images/docs    |
 +----------------------------------------------+
 ```
 
@@ -116,7 +117,8 @@ and `copyToClipboard` power the Save/Copy buttons.
 - **`firebase.ts`** — initializes the app (config is hardcoded today; see OSS_READINESS).
 - **`firestore.ts`** — CRUD + real-time subscriptions + presence + sharing for the `boards`
   collection and `presence` subcollection.
-- **`storage.ts`** — uploads base64 images to Firebase Storage and returns a small fetchable URL.
+- **`storage.ts`** — uploads board images/documents to Cloudflare R2 via `POST /api/storage/sign`
+  (Firebase ID token → presigned PUT → durable public URL) and returns a small fetchable URL.
 - **`auth.ts`** — Google sign-in via popup and an auth-state listener.
 
 ---

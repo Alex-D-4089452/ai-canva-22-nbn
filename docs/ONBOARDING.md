@@ -163,13 +163,16 @@ is also a great learning exercise.
 1. Go to https://console.firebase.google.com and create a project.
 2. **Authentication** → Sign-in method → **Google** → Enable.
 3. **Firestore** → Create database (start in production mode).
-4. **Storage** → Get started.
-5. **Project settings** → Your apps → **Web** → register an app → copy the config (apiKey,
-   authDomain, projectId, storageBucket, messagingSenderId, appId).
-6. Paste those values into the `firebaseConfig` in `client/src/lib/firebase.ts`.
-7. (Recommended) Deploy the security rules from `firestore.rules` and `storage.rules` in the
+4. **Project settings** → Your apps → **Web** → register an app → copy the config (apiKey,
+   authDomain, projectId, messagingSenderId, appId — no `storageBucket`; file blobs use
+   Cloudflare R2).
+5. Paste those values into the `firebaseConfig` in `client/src/lib/firebase.ts`.
+6. (Recommended) Deploy the security rules from `firestore.rules` in the
    repo. Note: the current `firestore.rules` are permissive (see
    [OSS_READINESS.md](OSS_READINESS.md)) — fine for testing, tighten them for a public launch.
+7. (Optional) For image/document uploads, create a free **Cloudflare R2** bucket + API token and
+   put the `R2_*` keys in `server/.env` (see [DEPLOYMENT.md](DEPLOYMENT.md)). Without them the
+   app still works — document text is kept, image uploads stay local.
 
 > Without Firebase you can still explore the code and the canvas logic, but login, cloud save,
 > and collaboration won't work.

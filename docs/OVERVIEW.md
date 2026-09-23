@@ -86,7 +86,7 @@ The heart of this logic lives in `client/src/store/boardStore.ts` (the `runBox` 
 +---------------------+          +---------------------+         +----------------------+
         |  Firebase SDK
         v
-  Firebase: Auth (Google) · Firestore (boards, presence) · Storage (images)
+   Firebase: Auth (Google) · Firestore (boards, presence) · Cloudflare R2 (images/documents)
 ```
 
 Three layers worth understanding:
@@ -96,9 +96,9 @@ Three layers worth understanding:
 2. **Backend (`server/` + `functions/`)** — a small Node API. The local `server/` is an Express
    app for development; `functions/` is the same API packaged as a Firebase Cloud Function for
    production. Both call the same AI providers.
-3. **Firebase** — handles **accounts** (Google sign-in), **cloud storage** of boards
-   (Firestore), **real-time collaboration** (live board + cursor sync), and **image uploads**
-   (Storage).
+3. **Firebase + Cloudflare R2** — Firebase handles **accounts** (Google sign-in), **cloud
+   storage** of boards (Firestore), and **real-time collaboration** (live board + cursor sync);
+   **Cloudflare R2** stores file blobs (image/document uploads).
 
 > See [docs/ARCHITECTURE.md](ARCHITECTURE.md) for the full deep dive.
 
@@ -114,7 +114,7 @@ Three layers worth understanding:
 | Styling | Tailwind CSS | Utility-first CSS, responsive layout |
 | Backend | Express, Node.js | REST APIs, JSON, environment variables |
 | AI | Ollama (DeepSeek), fal.ai, Stitch | Prompt engineering, API integration, async workflows |
-| Cloud | Firebase (Auth, Firestore, Storage) | Authentication, NoSQL, real-time sync, security rules |
+| Cloud | Firebase (Auth, Firestore) + Cloudflare R2 (files) | Authentication, NoSQL, real-time sync, object storage, security rules |
 | Collaboration | Firestore real-time + presence | Live cursors, presence tracking, conflict/echo handling |
 | DevOps | Firebase Hosting + Functions | Building, deploying, CI, environment config |
 | Open source | Git + GitHub | Forking, PRs, issues, documentation, licensing |

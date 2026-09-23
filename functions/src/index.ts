@@ -4,12 +4,19 @@ import cors from "cors";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
 import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { enqueueStitchJob } from "./stitchJobs.js";
 import { RepoError, fetchRepoDigest, parseRepoRef } from "./repo.js";
 import { DeployError, deploySite, type DeployFile } from "./herenow.js";
+import {
+  R2ConfigError,
+  validateStorageKey,
+  isValidContentType,
+  signUpload,
+  publicUrl,
+  listStorageUsage,
+} from "./r2.js";
 
 // Initialize the Admin SDK (uses the Cloud Function's default credentials).
 initializeApp();
@@ -41,26 +48,37 @@ async function countAuthUsers(now: number, newWindowMs: number): Promise<{ total
 }
 
 /**
- * Verifies that a request is from an admin. Returns the caller's UID on
- * success, or an error descriptor `{ status, error }` on failure.
+ * Verifies that a request carries a valid Firebase ID token. Returns the
+ * caller's UID on success, or an error descriptor `{ status, error }` on failure.
  */
-async function requireAdmin(req: Request): Promise<{ uid: string } | { status: number; error: string }> {
+async function requireAuth(req: Request): Promise<{ uid: string } | { status: number; error: string }> {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
   if (!token) {
     return { status: 401, error: "Missing authorization token" };
   }
-  let uid: string;
   try {
-    uid = (await getAuth().verifyIdToken(token)).uid;
+    const { uid } = await getAuth().verifyIdToken(token);
+    return { uid };
   } catch {
     return { status: 401, error: "Invalid or expired token" };
   }
-  const adminSnap = await getFirestore().doc(`admins/${uid}`).get();
+}
+
+/**
+ * Verifies that a request is from an admin. Returns the caller's UID on
+ * success, or an error descriptor `{ status, error }` on failure.
+ */
+async function requireAdmin(req: Request): Promise<{ uid: string } | { status: number; error: string }> {
+  const auth = await requireAuth(req);
+  if ("status" in auth) {
+    return auth;
+  }
+  const adminSnap = await getFirestore().doc(`admins/${auth.uid}`).get();
   if (!adminSnap.exists) {
     return { status: 403, error: "Forbidden" };
   }
-  return { uid };
+  return auth;
 }
 
 const app = express();
@@ -221,6 +239,45 @@ app.post("/api/herenow-deploy", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/storage/sign
+ * Body: { key: string, contentType: string }
+ * Returns: { key, uploadUrl, downloadUrl }
+ *
+ * Mints a presigned R2 PUT URL for a board image/document (see ./r2.ts —
+ * keep it in sync with server/src/r2.ts). Auth: `Authorization: Bearer
+ * <Firebase ID token>` — mirrors the old Firebase Storage rules (signed-in
+ * users only). The key must match boards/{boardId}/images/... or
+ * boards/{boardId}/documents/..., so this cannot sign writes anywhere else
+ * in the bucket. Returns 501 when the R2_* env vars are missing.
+ */
+app.post("/api/storage/sign", async (req, res) => {
+  try {
+    const auth = await requireAuth(req);
+    if ("status" in auth) {
+      return res.status(auth.status).json({ error: auth.error });
+    }
+    const { key, contentType } = req.body as { key?: unknown; contentType?: unknown };
+    if (!validateStorageKey(key)) {
+      return res.status(400).json({
+        error:
+          "key must be a board path (boards/{boardId}/images/... or boards/{boardId}/documents/...).",
+      });
+    }
+    if (!isValidContentType(contentType)) {
+      return res.status(400).json({ error: "contentType is required" });
+    }
+    const uploadUrl = await signUpload(key, contentType);
+    res.json({ key, uploadUrl, downloadUrl: publicUrl(key) });
+  } catch (err: any) {
+    if (err instanceof R2ConfigError) {
+      return res.status(501).json({ error: err.message });
+    }
+    console.error("[/api/storage/sign] Error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to sign upload" });
+  }
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
@@ -231,6 +288,8 @@ app.get("/api/health", (_req, res) => {
     githubToken: process.env.GITHUB_TOKEN ? "configured" : "optional",
     // Optional: without it, here.now deploys are anonymous (24h) Sites.
     herenowKey: process.env.HERENOW_API_KEY ? "configured" : "anonymous",
+    // Board image/document uploads need the full R2_* set.
+    r2Key: process.env.R2_ACCOUNT_ID && process.env.R2_BUCKET ? "configured" : "missing",
   });
 });
 
@@ -256,8 +315,8 @@ app.get("/api/admin/stats", async (req, res) => {
     const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
 
     // Total/new users come from Auth; active users come from the heartbeat
-    // docs the client writes to the `users` collection. Boards/storage from
-    // Firestore/Storage.
+    // docs the client writes to the `users` collection. Boards from Firestore,
+    // storage usage from R2.
     const [authUsers, boardsTotal, boardsNew, usersActive] = await Promise.all([
       countAuthUsers(now, 7 * DAY_MS),
       db.collection("boards").count().get(),
@@ -265,13 +324,17 @@ app.get("/api/admin/stats", async (req, res) => {
       db.collection("users").where("lastActive", ">=", now - ACTIVE_WINDOW_MS).count().get(),
     ]);
 
-    // Storage usage: sum file sizes in the default bucket.
+    // Storage usage: sum file sizes in the R2 bucket (board images/docs).
     let storageBytes = 0;
     let storageFiles = 0;
-    const [files] = await getStorage().bucket().getFiles();
-    for (const f of files) {
-      storageBytes += Number(f.metadata?.size || 0);
-      storageFiles += 1;
+    try {
+      const usage = await listStorageUsage();
+      storageBytes = usage.bytes;
+      storageFiles = usage.files;
+    } catch (storageErr: any) {
+      // Missing R2 config or a transient listing failure must not sink the
+      // whole stats payload — the other metrics are still valuable.
+      console.warn("[/api/admin/stats] storage usage unavailable:", storageErr?.message);
     }
 
     // LLM tokens used across all users (sum each user's rolling totals,

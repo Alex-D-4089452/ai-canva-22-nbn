@@ -5,8 +5,9 @@ description: Deploy the ai-canva project (a React + Firebase + Ollama-powered wh
 
 # Deploying AI Canva
 
-AI Canva is a collaborative AI whiteboard: a Vite React client, an Express-style API, and
-Firebase (Auth + Firestore + Storage) for persistence and collaboration. Production hosting and
+AI Canva is a collaborative AI whiteboard: a Vite React client, an Express-style API,
+Firebase (Auth + Firestore) for accounts and board sync, and Cloudflare R2 for file blobs
+(images/documents). Production hosting and
 the API run on Firebase. This skill is the agent-facing deployment playbook; run it when asked
 to deploy.
 
@@ -19,8 +20,9 @@ bash scripts/deploy.sh            # or: npm run deploy
 FIREBASE_PROJECT=my-proj bash scripts/deploy.sh   # to a different project
 ```
 
-The script builds the client, clean-builds the Cloud Functions, copies `OLLAMA_API_KEY` into
-`functions/.env`, and runs `firebase deploy`. Always drive the deployment through this script
+The script builds the client, clean-builds the Cloud Functions, copies `OLLAMA_API_KEY` and any
+`R2_*` storage keys into `functions/.env`, and runs `firebase deploy`. Always drive the
+deployment through this script
 rather than re-typing the steps, so the gotchas below stay encoded.
 
 ## Prerequisites
@@ -29,7 +31,9 @@ rather than re-typing the steps, so the gotchas below stay encoded.
   and `firebase login:list`.
 - `server/.env` populated with at least `OLLAMA_API_KEY` (plus `FAL_KEY`, `STITCH_API_KEY` for
   the Cartoon / Stitch boxes). The script copies the Ollama key into `functions/.env` if missing.
-- Default deploy target is `carbondocs` (from `.firebaserc`), which matches the hardcoded
+- `R2_*` keys in `server/.env` (Cloudflare R2) for board image/document uploads — the script
+  copies them into `functions/.env` too. Without them uploads return 501 (app still runs).
+- Default deploy target is `ai-canva-22-nbn-fee4b` (from `.firebaserc`), which matches the hardcoded
   Firebase config in `client/src/lib/firebase.ts`. If you deploy elsewhere, update that config
   too.
 

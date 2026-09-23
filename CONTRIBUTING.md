@@ -82,8 +82,9 @@ functions/  Firebase Cloud Functions — the production backend (mirrors server/
 - **Canvas + node UI** in `client/src/components/` (`BoxNode.tsx` renders every box type).
 - **State + run logic** in `client/src/store/boardStore.ts`.
 - **AI/prompt filling** in `client/src/lib/` (`api.ts`, `prompts.ts`, `code.ts`).
-- **Firebase** in `client/src/lib/` (`firebase.ts`, `firestore.ts`, `storage.ts`, `auth.ts`) and
-  the `firestore.rules` / `storage.rules` files.
+- **Firebase + storage** in `client/src/lib/` (`firebase.ts`, `firestore.ts`, `storage.ts`,
+  `auth.ts`) and `firestore.rules` (file blobs go to Cloudflare R2 via `server/src/r2.ts` /
+  `functions/src/r2.ts`, not Firebase Storage).
 
 ## Style & conventions
 

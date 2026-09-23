@@ -4,9 +4,11 @@ The API surface is identical between the **local Express server** (`server/`) an
 **Firebase Cloud Function** (`functions/`). The client talks to it through the `/api` prefix
 (proxied by Vite during development, or rewritten to the Cloud Function in production).
 
-> **Security note:** These endpoints are **not authenticated** today. Anyone who can reach the
+> **Security note:** Most endpoints are **not authenticated** today. Anyone who can reach the
 > server/function can trigger paid AI generations. Rate-limit or protect them before exposing a
-> public deployment (see [OSS_READINESS.md](OSS_READINESS.md)).
+> public deployment (see [OSS_READINESS.md](OSS_READINESS.md)). Exceptions that do check a
+> Firebase ID token: `POST /api/storage/sign` (any signed-in user) and the `/api/admin/*`
+> routes (admin role required).
 
 ## Endpoints
 
@@ -21,9 +23,15 @@ Lightweight health check. Returns which API keys are configured.
   "status": "ok",
   "ollamaKey": "configured" | "missing",
   "falKey": "configured" | "missing",
-  "stitchKey": "configured" | "missing"
+  "stitchKey": "configured" | "missing",
+  "githubToken": "configured" | "optional",
+  "herenowKey": "configured" | "anonymous",
+  "r2Key": "configured" | "missing"
 }
 ```
+
+`r2Key` reflects the Cloudflare R2 storage config (`R2_ACCOUNT_ID` + `R2_BUCKET`); when it is
+`missing`, `POST /api/storage/sign` returns `501` and board uploads degrade to local-only.
 
 ### `POST /api/generate`
 
@@ -288,10 +296,63 @@ returns **exactly once**. With a key configured the Site is permanent and belong
 | `400` | Nothing to publish, an unsafe path, a cap exceeded, or here.now refused the deploy (the message says which step: create, upload or finalize) |
 | `500` | Unexpected failure |
 
+### `POST /api/storage/sign`
+
+Mints a **presigned Cloudflare R2 PUT URL** for a board image or document (replaces Firebase
+Storage). The browser never holds R2 credentials: it authenticates here, uploads straight to R2
+with the returned URL, then stores the durable `downloadUrl` in Firestore.
+
+**Auth**
+
+```
+Authorization: Bearer <Firebase ID token>
+```
+
+(Any signed-in user — mirrors the old Firebase Storage rules. The local server verifies the token
+with `server/src/auth.ts`; the Cloud Function uses `firebase-admin`'s `verifyIdToken`.)
+
+**Request body**
+
+```json
+{
+  "key": "boards/{boardId}/images/{boxId}.jpg | boards/{boardId}/documents/{boxId}/{ts}-{name}",
+  "contentType": "image/jpeg"
+}
+```
+
+`key` must match `boards/…/images/…` or `boards/…/documents/…` exactly (see
+`validateStorageKey` in `server/src/r2.ts`) — anything else is a `400`, so this endpoint can
+never sign a write elsewhere in the bucket.
+
+**Response** — `200`
+
+```json
+{
+  "key": "boards/b1/images/box-1.jpg",
+  "uploadUrl": "https://<account>.r2.cloudflarestorage.com/...?X-Amz-Signature=...",
+  "downloadUrl": "https://pub-xxxx.r2.dev/boards/b1/images/box-1.jpg"
+}
+```
+
+`uploadUrl` is valid for **15 minutes**; the client must `PUT` with the same `Content-Type`
+header (it is part of the signature). `downloadUrl` is the bucket's public r2.dev URL — durable,
+stored in Firestore, readable by anyone with the link (same model as Firebase download-token URLs).
+
+**Errors**
+
+| Status | When |
+|--------|------|
+| `400` | `key` is not a board image/document path, or `contentType` missing/invalid |
+| `401` | Missing or invalid Firebase ID token |
+| `500` | Unexpected failure (e.g. R2 unreachable) |
+| `501` | R2 env vars not configured (`R2_*`) |
+
 ### `GET /api/admin/stats`
 
 Admin-only. Returns system-wide usage stats (users, boards, storage). Requires the caller to be
-an admin (a doc must exist at `admins/{uid}`) and to send a Firebase ID token.
+an admin (a doc must exist at `admins/{uid}`) and to send a Firebase ID token. Storage figures
+come from Cloudflare R2 (`listStorageUsage`); if R2 is unconfigured they report zeros instead of
+failing the request.
 
 **Auth**
 

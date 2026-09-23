@@ -101,14 +101,23 @@ limiting before exposing the API.
 
 ---
 
-## 🟠 4. Storage rules are permissive
+## 🟠 4. Board file storage: public reads + open sign endpoint
 
-**File:** `storage.rules`
+**Files:** `server/src/r2.ts` / `functions/src/r2.ts`, `POST /api/storage/sign`
 
-`storage.rules` allow **any signed-in user** to read/write any `boards/{boardId}/images/...`.
-Tighten path ownership (only the board owner or a collaborator) if you deploy publicly.
+Board images and documents live in a **Cloudflare R2** bucket. Two properties to be aware of
+before a public deploy:
 
-**Issues to file:** "Restrict Storage rules to board owners/collaborators"
+- **Reads are public** via the bucket's r2.dev URL (the durable link stored in Firestore).
+  Anyone who obtains a URL can fetch that file — the same effective model as the old Firebase
+  download-token URLs. If you need private files, switch to short-lived signed GET URLs and
+  store object keys instead of URLs.
+- **Writes require a Firebase ID token** on `POST /api/storage/sign`, but the sign endpoint is
+  otherwise unauthenticated in the same way the rest of the API is (see §3): it validates the
+  `key` path strictly, yet does not yet check board membership. Tighten to "caller must be a
+  board owner/collaborator" if you deploy publicly.
+
+**Issues to file:** "Restrict storage sign to board collaborators; consider private R2 reads"
 
 ---
 

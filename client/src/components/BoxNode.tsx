@@ -402,20 +402,43 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
+    // Reset so choosing the same file again still fires onChange.
+    e.target.value = "";
     if (!file) return;
+    let dataUrl: string;
     try {
-      const dataUrl = await resizeImage(file);
-      // Upload to Firebase Storage so other users can see it via Firestore sync
-      const boardId = useBoardStore.getState().currentBoardId;
-      if (boardId) {
-        const imageUrl = await uploadImageToStorage(boardId, id, dataUrl);
-        updateBoxData(id, { imageData: imageUrl });
-      } else {
-        // Fallback: store base64 locally (no board loaded)
-        updateBoxData(id, { imageData: dataUrl });
-      }
-    } catch (err) {
-      console.error("Image upload failed:", err);
+      dataUrl = await resizeImage(file);
+    } catch (err: any) {
+      console.error("Image resize failed:", err);
+      updateBoxData(id, {
+        status: "error",
+        error: err?.message || "Could not read this image file.",
+      });
+      return;
+    }
+    const boardId = useBoardStore.getState().currentBoardId;
+    if (!boardId) {
+      // No board loaded — keep the preview locally (base64; not synced).
+      updateBoxData(id, { imageData: dataUrl, status: "idle", error: "" });
+      return;
+    }
+    try {
+      // Upload to R2 so the durable URL syncs via Firestore.
+      const imageUrl = await uploadImageToStorage(boardId, id, dataUrl);
+      updateBoxData(id, { imageData: imageUrl, status: "idle", error: "" });
+    } catch (err: any) {
+      // Best-effort like the Documents box: still show the image locally so a
+      // transient sign/PUT failure doesn't look like a dead control. Base64 is
+      // stripped on the next Firestore save — surface that in the console.
+      console.warn("Image upload to storage failed (local preview only):", err);
+      updateBoxData(id, {
+        imageData: dataUrl,
+        status: "error",
+        error:
+          "Uploaded locally only — storage sync failed (" +
+          (err?.message || "error") +
+          ").",
+      });
     }
   };
 
@@ -851,7 +874,12 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* Image upload box */}
         {isImage && (
-          <div>
+          <div className="nodrag">
+            {hasError && boxData.error && (
+              <div className="text-red-500 text-xs p-2 mb-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
             {hasUploadedImage ? (
               <div>
                 <img

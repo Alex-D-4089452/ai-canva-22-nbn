@@ -10,7 +10,7 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
@@ -45,7 +45,8 @@ import {
   upstreamStageContent,
 } from "../lib/sdlc.js";
 import { generate, generateImage, generateStitchUI, fetchRepoDigest, publishSite } from "../lib/api.js";
-import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
+import { fillPromptTemplate } from "../lib/prompts.js";
+import { collectInputs } from "../lib/inputs.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
   MAX_AGENT_TURNS,
@@ -58,7 +59,6 @@ import {
   parseAgentAction,
   clip,
 } from "../lib/agent.js";
-import { buildDocumentsOutput } from "../lib/documents.js";
 import { buildCodeChangePrompt, extractCode, isCompletePrototype } from "../lib/code.js";
 import {
   deployBlockedReason,
@@ -133,66 +133,8 @@ let presenceUnsub: (() => void) | null = null;
 // current LLM call/run always finishes; the loop halts before the next one).
 const agentCancelled = new Set<string>();
 
-interface CollectedInputs {
-  namedInputs: NamedInput[];
-  inputImage?: string;
-}
-
-/**
- * Gathers upstream inputs for a box: walks incoming edges, collects text
- * outputs (documents boxes contribute their extracted-file text) and the
- * first image input. Also includes the box's own `content` so AI boxes work
- * standalone — pass `skipSelf: true` to exclude it (the Agent box uses this,
- * since its `content` is the task and travels in the context separately).
- */
-function collectInputs(
-  nodes: Node[],
-  edges: Edge[],
-  boxData: Record<string, BoxData>,
-  id: string,
-  opts: { skipSelf?: boolean } = {}
-): CollectedInputs {
-  let inputImage: string | undefined;
-  const namedInputs: NamedInput[] = [];
-
-  const incomingEdges = edges.filter((e) => e.target === id);
-  for (const edge of incomingEdges) {
-    const sourceData = boxData[edge.source];
-    const sourceNode = nodes.find((n) => n.id === edge.source);
-    if (sourceData) {
-      // Check for image data (from Image Upload boxes)
-      if (sourceData.imageData) {
-        if (!inputImage) inputImage = sourceData.imageData;
-      }
-      // Gather text output with the source box name. Documents boxes
-      // derive their output from the extracted file text (labeled by
-      // filename) — see lib/documents.ts.
-      const textOutput = sourceData.documents?.length
-        ? buildDocumentsOutput(sourceData.documents)
-        : getBoxOutput(sourceData.output, sourceData.content);
-      if (textOutput) {
-        namedInputs.push({
-          name: (sourceNode?.data?.title as string) || "Unnamed",
-          output: textOutput,
-        });
-      }
-    }
-  }
-
-  if (!opts.skipSelf) {
-    const data = boxData[id];
-    const node = nodes.find((n) => n.id === id);
-    // Also include this box's own content (lets AI boxes work standalone)
-    if (data && data.content && data.content.trim()) {
-      namedInputs.push({
-        name: (node?.data?.title as string) || "This Box",
-        output: data.content.trim(),
-      });
-    }
-  }
-
-  return { namedInputs, inputImage };
-}
+// collectInputs lives in lib/inputs.ts (pure, unit-tested) — image-only
+// sources contribute a named input so text prompts see them.
 
 /** A deploy record with every field defined (Firestore rejects `undefined`). */
 function emptyDeployInfo(): DeployInfo {
@@ -348,8 +290,9 @@ interface BoardState {
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
 
   // Board operations (Firestore)
-  createNewBoard: (title?: string) => Promise<void>;
-  loadBoardFromFirestore: (boardId: string) => Promise<void>;
+  createNewBoard: (title?: string, opts?: { preserveContent?: boolean }) => Promise<void>;
+  /** Returns true when the board was found and applied; false if the id is dead. */
+  loadBoardFromFirestore: (boardId: string) => Promise<boolean>;
   saveToFirestore: () => Promise<void>;
   setBoardTitle: (title: string) => void;
   refreshBoardList: () => Promise<void>;
@@ -1080,25 +1023,32 @@ export const useBoardStore = create<BoardState>()(
 
       // --- Firestore board operations ---
 
-      createNewBoard: async (title) => {
+      createNewBoard: async (title, opts) => {
         const user = useAuthStore.getState().user;
         if (!user) return;
         const boardId = makeId();
         const now = Date.now();
+        const state = get();
+        // Default: a brand-new empty board. preserveContent keeps the current
+        // canvas (recovery when a stored currentBoardId no longer exists —
+        // e.g. after a Firebase project switch).
+        const keep = opts?.preserveContent === true;
         await saveBoard({
           id: boardId,
           title: title || "Untitled Board",
           ownerId: user.uid,
           ownerEmail: user.email || "",
           collaborators: [],
-          nodes: [], edges: [], boxData: {},
+          nodes: keep ? state.nodes : [],
+          edges: keep ? state.edges : [],
+          boxData: keep ? state.boxData : {},
           createdAt: now, updatedAt: now,
         });
         set({
           currentBoardId: boardId,
           boardTitle: title || "Untitled Board",
           collaborators: [],
-          nodes: [], edges: [], boxData: {},
+          ...(keep ? null : { nodes: [], edges: [], boxData: {} }),
           saveStatus: "saved",
         });
         get().refreshBoardList();
@@ -1106,7 +1056,14 @@ export const useBoardStore = create<BoardState>()(
 
       loadBoardFromFirestore: async (boardId) => {
         const board = await loadBoard(boardId);
-        if (!board) return;
+        if (!board) {
+          // Dead id (deleted board, or localStorage pointing at another
+          // Firebase project). Drop it so scheduleSave/updateDoc stop failing
+          // forever — keep the local canvas so content isn't wiped.
+          console.warn("[load] Board not found in this project:", boardId);
+          set({ currentBoardId: null, saveStatus: "idle" });
+          return false;
+        }
         console.log("[load] Board collaborators from Firestore:", board.collaborators);
         set({
           currentBoardId: board.id,
@@ -1120,6 +1077,7 @@ export const useBoardStore = create<BoardState>()(
         });
         // Subscription is handled automatically by the useEffect in App.tsx
         // that watches currentBoardId — no need to manually subscribe here
+        return true;
       },
 
       saveToFirestore: async () => {
@@ -1152,7 +1110,38 @@ export const useBoardStore = create<BoardState>()(
           lastSavedUpdatedAt = saveTimestamp;
           console.log("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
           set({ saveStatus: "saved" });
-        } catch (err) {
+        } catch (err: any) {
+          // updateDoc on a missing doc (project switch / deleted board):
+          // recreate the document with the full payload instead of failing forever.
+          const missing =
+            err?.code === "not-found" ||
+            /No document to update|NOT_FOUND|not exist/i.test(String(err?.message || ""));
+          if (missing && state.currentBoardId) {
+            try {
+              const cleanBoxData = cleanBoxDataForFirestore(state.boxData);
+              const saveTimestamp = Date.now();
+              await saveBoard({
+                id: state.currentBoardId,
+                title: state.boardTitle,
+                ownerId: user.uid,
+                ownerEmail: user.email || "",
+                collaborators: state.collaborators || [],
+                nodes: state.nodes,
+                edges: state.edges,
+                boxData: cleanBoxData,
+                createdAt: saveTimestamp,
+                updatedAt: saveTimestamp,
+              });
+              lastSavedUpdatedAt = saveTimestamp;
+              console.log("[save] RECREATED missing board doc", state.currentBoardId);
+              set({ saveStatus: "saved" });
+              return;
+            } catch (err2) {
+              console.error("Firestore save (recreate) failed:", err2);
+              set({ saveStatus: "error" });
+              return;
+            }
+          }
           console.error("Firestore save failed:", err);
           set({ saveStatus: "error" });
         }
@@ -1407,10 +1396,15 @@ export const useBoardStore = create<BoardState>()(
 
         try {
           if (boxType === "cartoon") {
-            // Image generation via fal.ai
+            // Image generation via fal.ai. The source image travels as
+            // imageUrl — drop image-only named inputs so the prompt is style
+            // text, not "[image: <url>]".
+            const textInputs = namedInputs.filter(
+              (i) => !/^\[image(\s|:)/.test(i.output)
+            );
             let prompt = data.prompt;
-            if (namedInputs.length > 0) {
-              prompt = fillPromptTemplate(data.prompt, namedInputs);
+            if (textInputs.length > 0) {
+              prompt = fillPromptTemplate(data.prompt, textInputs);
             }
 
             const result = await generateImage({

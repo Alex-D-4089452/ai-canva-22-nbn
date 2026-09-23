@@ -47,7 +47,7 @@ export default defineConfig(({ command }) => ({
           // chunk would come out empty). Splitting the heavy SDKs below is what
           // actually shrinks the initial parse/render path.
           reactflow: ["@xyflow/react", "zustand"],
-          firebase: ["firebase/app", "firebase/auth", "firebase/firestore", "firebase/storage"],
+          firebase: ["firebase/app", "firebase/auth", "firebase/firestore"],
           markdown: ["react-markdown"],
         },
       },

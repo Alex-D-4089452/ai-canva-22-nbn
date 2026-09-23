@@ -96,12 +96,12 @@
 +---------------------+          +---------------------+         +----------------------+
         |  Firebase SDK
         v
-  Firebase: Auth (Google) · Firestore (boards, presence) · Storage (images)</pre>
+     Firebase: Auth (Google) · Firestore (boards, presence) · Cloudflare R2 (images/documents)</pre>
   <p>Three layers worth understanding:</p>
   <ol>
     <li><b>Client (<code>client/</code>)</b> — the whole UI. React 19, Vite, TypeScript, Tailwind CSS, React Flow for the canvas, and Zustand for state.</li>
     <li><b>Backend (<code>server/</code> + <code>functions/</code>)</b> — a small Node API. The local <code>server/</code> is an Express app for development; <code>functions/</code> is the same API as a Firebase Cloud Function for production.</li>
-    <li><b>Firebase</b> — handles accounts (Google sign-in), cloud storage of boards (Firestore), real-time collaboration, and image uploads (Storage).</li>
+    <li><b>Firebase + Cloudflare R2</b> — accounts (Google sign-in), cloud storage of boards (Firestore), real-time collaboration, and image/document uploads (R2).</li>
   </ol>
 
   <h2><span class="n">6.</span> Tech stack &amp; what you'll learn</h2>
@@ -113,7 +113,7 @@
     <tr><td>Styling</td><td>Tailwind CSS</td><td>Utility-first CSS, responsive layout</td></tr>
     <tr><td>Backend</td><td>Express, Node.js</td><td>REST APIs, JSON, environment variables</td></tr>
     <tr><td>AI</td><td>Ollama (DeepSeek), fal.ai, Stitch</td><td>Prompt engineering, API integration, async workflows</td></tr>
-    <tr><td>Cloud</td><td>Firebase (Auth, Firestore, Storage)</td><td>Authentication, NoSQL, real-time sync, security rules</td></tr>
+      <tr><td>Cloud</td><td>Firebase (Auth, Firestore) + Cloudflare R2</td><td>Authentication, NoSQL, real-time sync, object storage</td></tr>
     <tr><td>Collaboration</td><td>Firestore real-time + presence</td><td>Live cursors, presence tracking, conflict/echo handling</td></tr>
     <tr><td>DevOps</td><td>Firebase Hosting + Functions</td><td>Building, deploying, CI, environment config</td></tr>
     <tr><td>Open source</td><td>Git + GitHub</td><td>Forking, PRs, issues, documentation, licensing</td></tr>
