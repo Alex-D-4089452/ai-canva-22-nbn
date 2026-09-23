@@ -32,8 +32,8 @@ downstream boxes.
 
 ### 🖼️ Image — `image`
 
-Upload an image. It's auto-resized to ≤1024px, compressed to JPEG, and uploaded to Firebase
-Storage (if a board is loaded) so it syncs to collaborators. Downstream boxes receive a fetchable
+Upload an image. It's auto-resized to ≤1024px, compressed to JPEG, and uploaded to Cloudflare R2
+(if a board is loaded) so it syncs to collaborators. Downstream boxes receive a fetchable
 URL.
 
 - **Inputs:** none (no target handle).
@@ -54,8 +54,8 @@ report, or Documents → PRD to turn a spec into a product doc.
   capped at 100k chars per file and 400k chars per box (oversized files are marked *truncated*)
   so boards stay within Firestore's 1MB document limit.
 - **Persistence:** the extracted text lives in the board itself (syncs to collaborators and
-  survives reloads). The original file is also uploaded to Firebase Storage when signed in
-  ("Open original ↗" link); when signed out, only the text is kept.
+  survives reloads). The original file is also uploaded to Cloudflare R2 when signed in
+  ("Open original ↗" link); when signed out (or R2 is unconfigured), only the text is kept.
 - **Settings:** none (input box).
 
 ---

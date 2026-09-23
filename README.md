@@ -227,8 +227,7 @@ ai-canva/
 ├── functions/                # Firebase Cloud Functions (production backend)
 │   └── src/                  # Mirrors the server API
 ├── firestore.rules           # Firestore security rules
-├── storage.rules             # Storage security rules
-└── firebase.json             # Firebase hosting/functions/firestore/storage config
+└── firebase.json             # Firebase hosting/functions/firestore config (files → Cloudflare R2)
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a deep dive, [docs/API.md](docs/API.md) for the backend endpoints, and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) to deploy to Firebase.
@@ -237,7 +236,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a deep dive, [docs/API.md](
 
 ## 🔐 Security rules
 
-The repo ships a `firestore.rules` and `storage.rules` intended to keep each user's boards private. **Note:** the current `firestore.rules` contain a permissive placeholder (any signed-in user can read/update any board) — see [docs/OSS_READINESS.md](docs/OSS_READINESS.md) for the recommended fix before deploying publicly.
+The repo ships a `firestore.rules` intended to keep each user's boards private. **Note:** the current `firestore.rules` contain a permissive placeholder (any signed-in user can read/update any board) — see [docs/OSS_READINESS.md](docs/OSS_READINESS.md) for the recommended fix before deploying publicly. Board image/document files live in **Cloudflare R2** (signed via `POST /api/storage/sign`), not Firebase Storage.
 
 ---
 

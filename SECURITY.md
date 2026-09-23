@@ -45,8 +45,11 @@ The app is designed to be self-hosted. Before deploying publicly, review these:
   [docs/OSS_READINESS.md](docs/OSS_READINESS.md) for the recommended ownership/collaborator rules.
 - **Firebase web config** is currently hardcoded in `client/src/lib/firebase.ts`. Before open
   hosting, move it to environment variables and point it at your own Firebase project.
-- **Storage rules** (`storage.rules`) allow any signed-in user to write to board image paths.
-  Consider tightening path ownership if you deploy publicly.
+- **File storage (Cloudflare R2):** board image/document URLs are public once uploaded (r2.dev
+  links stored in Firestore — same model as the old Firebase download-token URLs). Writes go
+  through `POST /api/storage/sign`, which requires a Firebase ID token and only signs
+  `boards/…/images|documents` paths. Consider board-membership checks on the sign endpoint and
+  private reads before a public deploy — see [docs/OSS_READINESS.md](docs/OSS_READINESS.md).
 
 ## Environment / secret handling
 

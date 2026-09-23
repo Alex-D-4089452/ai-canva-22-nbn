@@ -20,18 +20,19 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
   production.
 - **AI providers:** Ollama (LLM text), fal.ai (image generation), Google Stitch (UI screens).
 - **Persistence & collaboration:** Firebase — Google Auth, Firestore (boards, presence, live
-  cursors), Storage (board images). localStorage is an offline cache.
+  cursors). **File blobs (board images/documents) live in Cloudflare R2** (free tier, zero
+  egress), signed via `POST /api/storage/sign`. localStorage is an offline cache.
 
 ## Repository layout
 
 | Path | Purpose |
 |------|---------|
 | `client/` | React + Vite frontend. Entry `client/src/`, store at `client/src/store/boardStore.ts`. |
-| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/repo-digest`, `/api/health`). |
+| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/repo-digest`, `/api/storage/sign`, `/api/health`). |
 | `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
-| `firebase.json`, `firestore.rules`, `storage.rules` | Firebase config and security rules. |
+| `firebase.json`, `firestore.rules` | Firebase config and security rules (Hosting + Functions + Firestore; file storage is Cloudflare R2, not Firebase Storage). |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
 ## Key commands
@@ -43,7 +44,9 @@ npm run dev:client     # Vite client only
 npm run install:all    # npm install in both server/ and client/
 npm test               # run server + client unit tests (Vitest)
 npm run test:watch    # watch mode for both server and client tests
-npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
+npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions — needs Blaze)
+# Render path (no Blaze): create Web Service from render.yaml (root server/), then
+#   bash scripts/deploy-hosting.sh https://<render-service>.onrender.com
 ```
 
 ## Architecture notes
@@ -81,6 +84,22 @@ npm run deploy         # = bash scripts/deploy.sh (production Firebase deploy)
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
+- **File storage is Cloudflare R2, not Firebase Storage.** Board images (Cartoon/Image boxes) and
+  Documents-box originals upload to an R2 bucket; Firestore/Auth/Hosting are unchanged. The browser
+  never holds R2 credentials: `client/src/lib/storage.ts` calls **`POST /api/storage/sign`**
+  (both backends) with a Firebase ID token, receives a ~15-min presigned PUT URL, uploads straight
+  to R2, and stores the durable public URL (`R2_PUBLIC_BASE_URL/key`, bucket's r2.dev public
+  access — same effective model as Firebase download-token URLs) in Firestore. Key rules live in
+  the duplicated **`server/src/r2.ts` / `functions/src/r2.ts`** (`validateStorageKey` only allows
+  `boards/{boardId}/images/…` and `boards/{boardId}/documents/…`, so the sign endpoint is never a
+  general bucket-write proxy; `listStorageUsage` feeds admin stats). Env:
+  `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_BASE_URL` in
+  `server/.env` (+ `functions/.env` — `scripts/deploy.sh` copies them). Missing config → sign
+  returns **501** and uploads degrade exactly like the old signed-out mode (document text kept,
+  image upload fails). The local server verifies ID tokens with **`server/src/auth.ts`**
+  (node:crypto against Google's public securetoken certs — no service account, no firebase-admin);
+  functions uses `getAuth().verifyIdToken`. `storage.rules` was removed from the repo/deploy;
+  old Firebase Storage download URLs still work until that bucket is deleted.
 - **26 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
   Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**, Cartoon Profile,
   Slides, Code, UI Design,
@@ -471,8 +490,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `remainingDocBudget`) so the board doc stays under Firestore's 1MB limit; entries that fail
   extraction are kept with an `error` message instead of being dropped. **`BoxDocument` fields are
   always defined** (no `undefined`) — Firestore rejects `undefined` nested anywhere in a value.
-  The raw file is uploaded best-effort to Storage at `boards/{boardId}/documents/{boxId}/…`
-  (`uploadDocumentToStorage`, rules added to `storage.rules` — **deploy rules** for it to work);
+  The raw file is uploaded best-effort to **Cloudflare R2** at `boards/{boardId}/documents/{boxId}/…`
+  (`uploadDocumentToStorage` → signed PUT via `POST /api/storage/sign`);
   the extracted text always lives in `boxData.documents`, so prompts, persistence, and cross-user
   sync work even when the upload fails (signed-out local mode). Downstream integration is one line
   in `runBox`: a source box with documents contributes `buildDocumentsOutput()` (each doc labeled
@@ -629,8 +648,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   grouping logic is the pure `groupRoster()` in `client/src/lib/presence.ts` (unit-tested).
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
-- **Deploying:** follow `docs/DEPLOYMENT.md` or the `ai-canva-deploy` skill
-  (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI logged in and real API keys
+- **Deploying:** follow `docs/DEPLOYMENT.md`. Preferred free path: **API on Render**
+  (`render.yaml`, root `server/`) + **client on Firebase Hosting** via
+  `scripts/deploy-hosting.sh <render-url>` (embeds `VITE_API_BASE`; no Cloud Functions /
+  Blaze). Full Firebase Functions path needs Blaze (`scripts/deploy.sh`). Also the
+  `ai-canva-deploy` skill (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI logged in and real API keys
   (Ollama, optionally fal.ai + Google Stitch).
 - **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated.
 

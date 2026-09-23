@@ -1,4 +1,9 @@
-const API_BASE = "/api";
+/**
+ * API base path. Local dev: Vite proxies `/api` → Express (see vite.config.ts).
+ * Production: set `VITE_API_BASE` at build time (e.g. `https://ai-canva-api.onrender.com/api`)
+ * so the client calls the Render-hosted server instead of same-origin `/api`.
+ */
+export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || "/api";
 
 export interface GenerateRequest {
   systemPrompt: string;

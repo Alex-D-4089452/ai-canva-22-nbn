@@ -6,6 +6,14 @@ import { generateCartoonImage } from "./fal.js";
 import { generateStitchUI } from "./stitch.js";
 import { RepoError, fetchRepoDigest, parseRepoRef } from "./repo.js";
 import { DeployError, deploySite, type DeployFile } from "./herenow.js";
+import {
+  R2ConfigError,
+  validateStorageKey,
+  isValidContentType,
+  signUpload,
+  publicUrl,
+} from "./r2.js";
+import { requireAuth } from "./auth.js";
 
 /**
  * In-memory Stitch job store (local dev only).
@@ -235,6 +243,45 @@ export function createApp(): express.Express {
   });
 
   /**
+   * POST /api/storage/sign
+   * Body: { key: string, contentType: string }
+   * Returns: { key, uploadUrl, downloadUrl }
+   *
+   * Mints a presigned R2 PUT URL for a board image/document (see ./r2.ts).
+   * Auth: `Authorization: Bearer <Firebase ID token>` — mirrors the old
+   * Firebase Storage rules (signed-in users only). The key must match
+   * boards/{boardId}/images/... or boards/{boardId}/documents/..., so this
+   * cannot sign writes anywhere else in the bucket. Returns 501 when the
+   * R2_* env vars are missing (same posture as admin stats locally).
+   */
+  app.post("/api/storage/sign", async (req, res) => {
+    try {
+      const auth = await requireAuth(req);
+      if ("status" in auth) {
+        return res.status(auth.status).json({ error: auth.error });
+      }
+      const { key, contentType } = req.body as { key?: unknown; contentType?: unknown };
+      if (!validateStorageKey(key)) {
+        return res.status(400).json({
+          error:
+            "key must be a board path (boards/{boardId}/images/... or boards/{boardId}/documents/...).",
+        });
+      }
+      if (!isValidContentType(contentType)) {
+        return res.status(400).json({ error: "contentType is required" });
+      }
+      const uploadUrl = await signUpload(key, contentType);
+      res.json({ key, uploadUrl, downloadUrl: publicUrl(key) });
+    } catch (err: any) {
+      if (err instanceof R2ConfigError) {
+        return res.status(501).json({ error: err.message });
+      }
+      console.error("[/api/storage/sign] Error:", err.message);
+      res.status(500).json({ error: err.message || "Failed to sign upload" });
+    }
+  });
+
+  /**
    * GET /api/health — simple health check
    */
   app.get("/api/health", (_req, res) => {
@@ -247,6 +294,8 @@ export function createApp(): express.Express {
       githubToken: process.env.GITHUB_TOKEN ? "configured" : "optional",
       // Optional: without it, here.now deploys are anonymous (24h) Sites.
       herenowKey: process.env.HERENOW_API_KEY ? "configured" : "anonymous",
+      // Board image/document uploads need the full R2_* set.
+      r2Key: process.env.R2_ACCOUNT_ID && process.env.R2_BUCKET ? "configured" : "missing",
     });
   });
 
@@ -274,15 +323,20 @@ export function createApp(): express.Express {
   });
 
   /**
-   * Workshop guest join proxies to the DEPLOYED Cloud Function. The join
-   * endpoint mints Firebase custom tokens, which requires the Admin SDK —
-   * the local server has no service account. Proxying (instead of stubbing)
-   * keeps the full guest flow testable on localhost: the deployed function
-   * is the source of truth and localhost is an authorized auth domain.
+   * Workshop guest join — mint a Firebase custom token for a seat code.
+   *
+   * Needs the Admin SDK + a service account. Set WORKSHOP_PROXY_URL to forward
+   * to a deployed join endpoint (Cloud Function or another host). Without it,
+   * return 501 (same posture as local admin routes).
    */
   app.post("/api/workshop/join", async (req, res) => {
-    const PROXY_TARGET =
-      process.env.WORKSHOP_PROXY_URL || "https://carbondocs.web.app/api/workshop/join";
+    const PROXY_TARGET = process.env.WORKSHOP_PROXY_URL;
+    if (!PROXY_TARGET) {
+      return res.status(501).json({
+        error:
+          "Workshop join is not configured (set WORKSHOP_PROXY_URL to a join endpoint).",
+      });
+    }
     try {
       const r = await fetch(PROXY_TARGET, {
         method: "POST",
@@ -295,7 +349,7 @@ export function createApp(): express.Express {
       console.error("[/api/workshop/join] proxy error:", e?.message);
       res
         .status(502)
-        .json({ error: "Workshop join is unavailable — the production function could not be reached." });
+        .json({ error: "Workshop join is unavailable — the join endpoint could not be reached." });
     }
   });
 

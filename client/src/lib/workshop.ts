@@ -11,6 +11,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "./firebase.js";
+import { API_BASE } from "./api.js";
 
 const BOARDS_COLLECTION_REF = "boards";
 import {
@@ -260,7 +261,7 @@ export async function deleteTeam(team: Team): Promise<void> {
 
 /** Redeems a seat code via the join endpoint (functions only; local proxies). */
 export async function joinWorkshop(code: string): Promise<JoinResult> {
-  const res = await fetch("/api/workshop/join", {
+  const res = await fetch(`${API_BASE}/workshop/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code: code.trim().toUpperCase() }),

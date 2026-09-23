@@ -29,6 +29,54 @@ current state).
 
 ---
 
+## 2026-09-23 — R2 verified live; production path switched to Render (no Blaze)
+
+- **Done:** R2 end-to-end verified (public URL 200, CORS policy, document upload from the app
+  into `ai-canva-22-nbn`). Firebase project id fixed to **`ai-canva-22-nbn-fee4b`**
+  (`.firebaserc`, `server/src/auth.ts` default, `deploy.sh` default); Firestore rules deployed.
+  Cloud Functions blocked — project is on Spark and needs Blaze — so **API targets Render**:
+  added **`render.yaml`** (Web Service, root `server/`), **`scripts/deploy-hosting.sh`**
+  (client build with `VITE_API_BASE` + `firebase deploy --only hosting,firestore:rules`),
+  client **`API_BASE`** from `import.meta.env.VITE_API_BASE` (default `/api` — local proxy
+  unchanged) exported from `lib/api.ts` and used in `storage`/`auth`/`workshop` too;
+  `firebase.json` dropped the `/api` → function rewrite; workshop join no longer hardcodes a
+  carbondocs proxy (501 unless `WORKSHOP_PROXY_URL` set). `deploy.sh` CRLF fixed.
+  Tests 66+279 green; `tsc` clean server/client/functions. Docs: DEPLOYMENT (Render section),
+  this entry.
+- **In flight:** user has not yet created the Render service or run `deploy-hosting.sh`;
+  R2 CORS still only allows `localhost:5173` (needs Hosting origins); functions/ path left
+  in repo for optional Blaze later.
+- **Next steps:** (1) create Render Web Service from `render.yaml` + set env; (2)
+  `bash scripts/deploy-hosting.sh https://….onrender.com`; (3) add Hosting origins to R2 CORS;
+  (4) smoke `/api/health` + a document upload on the live site.
+
+## 2026-09-23 — File storage moved from Firebase Storage to Cloudflare R2
+
+- **Done:** Board images + Documents-box originals now upload to **Cloudflare R2** (free tier:
+  10 GB / 10M reads / 1M writes, **$0 egress**) instead of Firebase Storage. Firestore, Auth,
+  Hosting and `firebase deploy` are unchanged. New duplicated modules `server/src/r2.ts` +
+  `functions/src/r2.ts` (S3 client, presigned PUT, `validateStorageKey` limited to
+  `boards/…/images|documents/…`, `listStorageUsage` for admin stats) and **`POST
+  /api/storage/sign`** in both backends — auth-gated with a Firebase ID token (functions:
+  `requireAuth` via `verifyIdToken`; local server: new `server/src/auth.ts` verifying RS256
+  against Google's public securetoken certs, no service account). Client `lib/storage.ts`
+  rewritten (same two exports → `BoxNode.tsx` untouched): token → sign → PUT → durable
+  `R2_PUBLIC_BASE_URL` URL into Firestore. Admin stats storage metric now sums R2
+  `ListObjectsV2` (soft-fails to 0s). Removed: `getStorage`/`storageBucket` from `firebase.ts`,
+  `firebase/storage` vite chunk, `storage` block from `firebase.json`, `storage.rules` file.
+  `deploy.sh` copies `R2_*` into `functions/.env`; health reports `r2Key`. Deps:
+  `@aws-sdk/client-s3` + `s3-request-presigner` in `server/` and `functions/`. Tests: 6 sign
+  endpoint cases (partial `r2` mock keeps validation real; auth fully mocked). **Verified:**
+  server 66/66, client 279/279, `tsc` clean in all three packages. Docs updated (AGENTS, API,
+  BOX_TYPES, ARCHITECTURE, OSS_READINESS, SECURITY, README, DEPLOYMENT, ONBOARDING, CONTRIBUTING).
+- **In flight:** — (user still needs to create the Cloudflare account/bucket/token and fill
+  `R2_*` in `server/.env` before uploads work; without them sign returns 501 and behavior
+  degrades to the old signed-out mode).
+- **Next steps:** create R2 bucket + API token + enable its Public Development URL, set `R2_*`
+  env vars, re-run `npm run dev` and upload a cartoon image / document to confirm a
+  `pub-….r2.dev` URL lands in Firestore; then `bash scripts/deploy.sh`. Optionally migrate old
+  `storage.googleapis.com` blobs (old URLs keep working until the Firebase bucket is deleted).
+
 ## 2026-02-08 — Checklist box: a shared team to-do list on the board
 
 - **Done:** New **Checklist** collaboration box (✅ `checklist`, palette "Collaboration", `roles:

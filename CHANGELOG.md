@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **File storage moved from Firebase Storage to Cloudflare R2** — board images and Documents-box
+  originals upload via a new authenticated `POST /api/storage/sign` endpoint (presigned PUT) to an
+  R2 bucket with public r2.dev reads and zero egress fees. Firestore/Auth/Hosting unchanged;
+  `storage.rules` removed. Missing `R2_*` env vars degrade gracefully (document text kept, image
+  upload fails like signed-out mode). Admin storage stats now read from R2.
+
 ### Added
 
 - **Stitch UI box** — Google Stitch SDK integration for production-quality UI generation.

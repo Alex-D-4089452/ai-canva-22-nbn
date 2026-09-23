@@ -75,14 +75,15 @@ The heart of this logic lives in `client/src/store/boardStore.ts` (the `runBox` 
 +---------------------+          +---------------------+         +----------------------+
         |  Firebase SDK
         v
-  Firebase: Auth (Google) · Firestore (boards, presence) · Storage (images)
+   Firebase: Auth (Google) · Firestore (boards, presence) · Cloudflare R2 (images/documents)
 ```
 
 Three layers worth understanding:
 
 1. **Client (`client/`)** — the whole UI. React 19, Vite, TypeScript, Tailwind CSS, React Flow for the canvas, and Zustand for state.
 2. **Backend (`server/` + `functions/`)** — a small Node API. The local `server/` is an Express app for development; `functions/` is the same API as a Firebase Cloud Function for production.
-3. **Firebase** — handles accounts (Google sign-in), cloud storage of boards (Firestore), real-time collaboration, and image uploads (Storage).
+3. **Firebase + Cloudflare R2** — accounts (Google sign-in), cloud storage of boards (Firestore),
+   real-time collaboration, and image/document uploads (R2).
 
 ---
 
@@ -96,7 +97,7 @@ Three layers worth understanding:
 | Styling | Tailwind CSS | Utility-first CSS, responsive layout |
 | Backend | Express, Node.js | REST APIs, JSON, environment variables |
 | AI | Ollama (DeepSeek), fal.ai, Stitch | Prompt engineering, API integration, async workflows |
-| Cloud | Firebase (Auth, Firestore, Storage) | Authentication, NoSQL, real-time sync, security rules |
+| Cloud | Firebase (Auth, Firestore) + Cloudflare R2 | Authentication, NoSQL, real-time sync, object storage |
 | Collaboration | Firestore real-time + presence | Live cursors, presence tracking, conflict/echo handling |
 | DevOps | Firebase Hosting + Functions | Building, deploying, CI, environment config |
 | Open source | Git + GitHub | Forking, PRs, issues, documentation, licensing |

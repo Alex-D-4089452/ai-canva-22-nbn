@@ -1,0 +1,45 @@
+# Render blueprint — AI Canva API (Express server).
+# Deploy: Render Dashboard → New → Blueprint → point at this repo.
+# Or: New → Web Service → connect repo → root Directory = server.
+services:
+  - type: web
+    name: ai-canva-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # Required — AI text generation (Ollama Cloud)
+      - key: OLLAMA_API_KEY
+        sync: false
+      # Optional model override (defaults deepseek-v4-flash in code)
+      - key: OLLAMA_MODEL
+        value: gemma4:31b
+      # Optional providers
+      - key: FAL_KEY
+        sync: false
+      - key: STITCH_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: HERENOW_API_KEY
+        sync: false
+      # Cloudflare R2 — board image/document storage (POST /api/storage/sign)
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+      # Must match client/src/lib/firebase.ts projectId (ID-token iss/aud check)
+      - key: FIREBASE_PROJECT_ID
+        value: ai-canva-22-nbn-fee4b
+      # Node listens on process.env.PORT (set by Render automatically)
+      - key: NODE_VERSION
+        value: "20"
