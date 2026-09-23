@@ -29,6 +29,20 @@ current state).
 
 ---
 
+## 2026-09-23 — Image box upload no longer fails silently
+
+- **Done:** `handleImageUpload` in `BoxNode.tsx` now (1) resets the file input so re-selecting
+  the same file fires `onChange`, (2) surfaces resize failures as `status: "error"` +
+  `boxData.error` instead of only `console.error`, and (3) on R2 sign/PUT failure still stores
+  the local data URL (best-effort, same posture as the Documents box) with a visible error banner
+  in the Image box body — previously a failed upload left the box empty with no UI feedback.
+  Image body wrapped in `nodrag` so the click-to-upload zone doesn’t fight React Flow drags.
+  Backend path verified independently: `signUpload` → PUT → public GET all 200 for an
+  `images/{boxId}.jpg` key. Tests: client 279/279, server 66/66, `tsc` clean.
+- **In flight:** — (fix uncommitted on `feature/r2-deployment`).
+- **Next steps:** user retries an image upload and shares the Network entry for
+  `POST /api/storage/sign` / R2 PUT if it still fails; then commit.
+
 ## 2026-09-23 — R2 verified live; production path switched to Render (no Blaze)
 
 - **Done:** R2 end-to-end verified (public URL 200, CORS policy, document upload from the app

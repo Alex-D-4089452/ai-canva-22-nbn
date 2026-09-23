@@ -95,8 +95,9 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   general bucket-write proxy; `listStorageUsage` feeds admin stats). Env:
   `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_BASE_URL` in
   `server/.env` (+ `functions/.env` — `scripts/deploy.sh` copies them). Missing config → sign
-  returns **501** and uploads degrade exactly like the old signed-out mode (document text kept,
-  image upload fails). The local server verifies ID tokens with **`server/src/auth.ts`**
+  returns **501** and uploads degrade like the old signed-out mode (document text kept; the Image
+  box keeps a **local base64 preview** and shows a visible error — base64 is stripped on the next
+  Firestore save, so it won’t survive reload until a retry succeeds). The local server verifies ID tokens with **`server/src/auth.ts`**
   (node:crypto against Google's public securetoken certs — no service account, no firebase-admin);
   functions uses `getAuth().verifyIdToken`. `storage.rules` was removed from the repo/deploy;
   old Firebase Storage download URLs still work until that bucket is deleted.
