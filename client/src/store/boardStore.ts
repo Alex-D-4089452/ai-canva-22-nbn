@@ -348,8 +348,9 @@ interface BoardState {
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
 
   // Board operations (Firestore)
-  createNewBoard: (title?: string) => Promise<void>;
-  loadBoardFromFirestore: (boardId: string) => Promise<void>;
+  createNewBoard: (title?: string, opts?: { preserveContent?: boolean }) => Promise<void>;
+  /** Returns true when the board was found and applied; false if the id is dead. */
+  loadBoardFromFirestore: (boardId: string) => Promise<boolean>;
   saveToFirestore: () => Promise<void>;
   setBoardTitle: (title: string) => void;
   refreshBoardList: () => Promise<void>;
@@ -1080,25 +1081,32 @@ export const useBoardStore = create<BoardState>()(
 
       // --- Firestore board operations ---
 
-      createNewBoard: async (title) => {
+      createNewBoard: async (title, opts) => {
         const user = useAuthStore.getState().user;
         if (!user) return;
         const boardId = makeId();
         const now = Date.now();
+        const state = get();
+        // Default: a brand-new empty board. preserveContent keeps the current
+        // canvas (recovery when a stored currentBoardId no longer exists —
+        // e.g. after a Firebase project switch).
+        const keep = opts?.preserveContent === true;
         await saveBoard({
           id: boardId,
           title: title || "Untitled Board",
           ownerId: user.uid,
           ownerEmail: user.email || "",
           collaborators: [],
-          nodes: [], edges: [], boxData: {},
+          nodes: keep ? state.nodes : [],
+          edges: keep ? state.edges : [],
+          boxData: keep ? state.boxData : {},
           createdAt: now, updatedAt: now,
         });
         set({
           currentBoardId: boardId,
           boardTitle: title || "Untitled Board",
           collaborators: [],
-          nodes: [], edges: [], boxData: {},
+          ...(keep ? null : { nodes: [], edges: [], boxData: {} }),
           saveStatus: "saved",
         });
         get().refreshBoardList();
@@ -1106,7 +1114,14 @@ export const useBoardStore = create<BoardState>()(
 
       loadBoardFromFirestore: async (boardId) => {
         const board = await loadBoard(boardId);
-        if (!board) return;
+        if (!board) {
+          // Dead id (deleted board, or localStorage pointing at another
+          // Firebase project). Drop it so scheduleSave/updateDoc stop failing
+          // forever — keep the local canvas so content isn't wiped.
+          console.warn("[load] Board not found in this project:", boardId);
+          set({ currentBoardId: null, saveStatus: "idle" });
+          return false;
+        }
         console.log("[load] Board collaborators from Firestore:", board.collaborators);
         set({
           currentBoardId: board.id,
@@ -1120,6 +1135,7 @@ export const useBoardStore = create<BoardState>()(
         });
         // Subscription is handled automatically by the useEffect in App.tsx
         // that watches currentBoardId — no need to manually subscribe here
+        return true;
       },
 
       saveToFirestore: async () => {
@@ -1152,7 +1168,38 @@ export const useBoardStore = create<BoardState>()(
           lastSavedUpdatedAt = saveTimestamp;
           console.log("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
           set({ saveStatus: "saved" });
-        } catch (err) {
+        } catch (err: any) {
+          // updateDoc on a missing doc (project switch / deleted board):
+          // recreate the document with the full payload instead of failing forever.
+          const missing =
+            err?.code === "not-found" ||
+            /No document to update|NOT_FOUND|not exist/i.test(String(err?.message || ""));
+          if (missing && state.currentBoardId) {
+            try {
+              const cleanBoxData = cleanBoxDataForFirestore(state.boxData);
+              const saveTimestamp = Date.now();
+              await saveBoard({
+                id: state.currentBoardId,
+                title: state.boardTitle,
+                ownerId: user.uid,
+                ownerEmail: user.email || "",
+                collaborators: state.collaborators || [],
+                nodes: state.nodes,
+                edges: state.edges,
+                boxData: cleanBoxData,
+                createdAt: saveTimestamp,
+                updatedAt: saveTimestamp,
+              });
+              lastSavedUpdatedAt = saveTimestamp;
+              console.log("[save] RECREATED missing board doc", state.currentBoardId);
+              set({ saveStatus: "saved" });
+              return;
+            } catch (err2) {
+              console.error("Firestore save (recreate) failed:", err2);
+              set({ saveStatus: "error" });
+              return;
+            }
+          }
           console.error("Firestore save failed:", err);
           set({ saveStatus: "error" });
         }

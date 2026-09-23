@@ -148,20 +148,31 @@ export default function App() {
       // regardless of whether a stored/URL board short-circuits below.
       await refreshBoardList();
       if (urlBoardId) {
-        await loadBoardFromFirestore(urlBoardId);
+        if (await loadBoardFromFirestore(urlBoardId)) return;
+        // Unknown ?board= id — fall through to normal recovery.
+      }
+      // Board from localStorage — reload from Firestore to set up subscription.
+      // loadBoardFromFirestore returns false when the id is dead (e.g. a
+      // currentBoardId from a previous Firebase project); don't leave the
+      // store pointed at a doc that doesn't exist (that caused endless
+      // "Save failed").
+      if (storedBoardId && (await loadBoardFromFirestore(storedBoardId))) {
         return;
       }
-      // Board from localStorage — reload from Firestore to set up subscription
-      if (storedBoardId) {
-        await loadBoardFromFirestore(storedBoardId);
-        return;
-      }
-      // No board yet — auto-load most recent or create new. Workshop guests
-      // (custom-token users with no auth email) skip the auto-create: the
+      // No usable board — recover the local canvas if the persist cache still
+      // has boxes (dead id after a project switch), else load most recent or
+      // create empty. Workshop guests (no auth email) skip auto-create: the
       // join flow loads their team board instead.
       if (!user.email) return;
       const boards = useBoardStore.getState().boardList;
-      if (boards.length > 0) {
+      const localNodes = useBoardStore.getState().nodes;
+      if (localNodes.length > 0) {
+        // Keep what's on canvas: wrap it in a new board in THIS project.
+        await createNewBoard(
+          useBoardStore.getState().boardTitle || "Recovered Board",
+          { preserveContent: true }
+        );
+      } else if (boards.length > 0) {
         await loadBoardFromFirestore(boards[0].id);
       } else {
         await createNewBoard("My First Board");

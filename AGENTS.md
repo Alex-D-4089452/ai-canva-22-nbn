@@ -101,6 +101,11 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   (node:crypto against Google's public securetoken certs — no service account, no firebase-admin);
   functions uses `getAuth().verifyIdToken`. `storage.rules` was removed from the repo/deploy;
   old Firebase Storage download URLs still work until that bucket is deleted.
+- **Firebase project is `ai-canva-22-nbn-fee4b`** (client `lib/firebase.ts`, `.firebaserc`, deploy
+  script defaults). Older boards may still live in the legacy **`carbondocs`** project. A dead
+  `currentBoardId` (wrong project / deleted board) is cleared by `loadBoardFromFirestore`
+  (returns false); App then recovers the local canvas via
+  `createNewBoard(…, { preserveContent: true })` so saves don’t loop on `not-found`.
 - **26 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
   Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**, Cartoon Profile,
   Slides, Code, UI Design,
