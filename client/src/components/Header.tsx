@@ -1,10 +1,16 @@
-import { memo } from "react";
+import { memo, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { useBoardStore } from "../store/boardStore.js";
 import { useTokenStore } from "../store/tokenStore.js";
 import { Button } from "./ui/Button.js";
 import { Menu, MenuDivider, MenuItem } from "./ui/Menu.js";
 import PresenceRoster from "./PresenceRoster.js";
+import {
+  migrateBoardsFromCarbondocs,
+  exportBoardsJson,
+  parseBoardsExport,
+  importBoards,
+} from "../lib/migrate.js";
 
 /**
  * Top app bar — the app's primary chrome.
@@ -73,6 +79,48 @@ function Header({
 
   const totalTokens = useTokenStore((s) => s.totalTokens);
   const fmtTokens = (n: number) => n.toLocaleString("en-US");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferMsg, setTransferMsg] = useState("");
+
+  const runMigrate = async () => {
+    if (transferBusy) return;
+    setTransferBusy(true);
+    setTransferMsg("Signing in to carbondocs…");
+    try {
+      const r = await migrateBoardsFromCarbondocs();
+      const parts = [`${r.migrated} migrated`, `${r.skipped} skipped`];
+      if (r.shared) parts.push(`${r.shared} shared`);
+      if (r.errors.length) parts.push(`${r.errors.length} errors`);
+      setTransferMsg(parts.join(" · "));
+      await refreshBoardList();
+    } catch (err: any) {
+      setTransferMsg(err?.message || "Migration failed");
+    } finally {
+      setTransferBusy(false);
+    }
+  };
+
+  const onImportFile = async (file: File | undefined) => {
+    if (!file || transferBusy) return;
+    setTransferBusy(true);
+    setTransferMsg("Importing…");
+    try {
+      const boards = await parseBoardsExport(file);
+      const r = await importBoards(boards);
+      setTransferMsg(
+        `${r.imported} imported · ${r.skipped} skipped` +
+          (r.errors.length ? ` · ${r.errors.length} errors` : "")
+      );
+      await refreshBoardList();
+    } catch (err: any) {
+      setTransferMsg(err?.message || "Import failed");
+    } finally {
+      setTransferBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const saveLabel = SAVE_LABEL[saveStatus];
   const avatarInitials = (user.displayName || user.email || "?").slice(0, 2).toUpperCase();
@@ -210,6 +258,50 @@ function Header({
                   />
                 </>
               )}
+              <MenuDivider />
+              <MenuItem
+                icon="⬇"
+                label="Export boards (JSON)"
+                description="Download every board in the list"
+                onClick={() => {
+                  exportBoardsJson(boardList);
+                  setTransferMsg(`Exported ${boardList.length} boards`);
+                }}
+              />
+              <MenuItem
+                icon="⬆"
+                label="Import boards (JSON)"
+                description="Load a previously exported file"
+                onClick={() => {
+                  close();
+                  fileInputRef.current?.click();
+                }}
+              />
+              <MenuItem
+                icon="🔄"
+                label={
+                  transferBusy
+                    ? "Working…"
+                    : "Migrate from carbondocs"
+                }
+                description="Copy boards from the old Firebase project"
+                onClick={() => {
+                  close();
+                  runMigrate();
+                }}
+              />
+              {transferMsg && (
+                <div className="px-3.5 py-2 text-[11px] text-slate-500 leading-snug">
+                  {transferMsg}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => onImportFile(e.target.files?.[0])}
+              />
             </>
           )}
         </Menu>

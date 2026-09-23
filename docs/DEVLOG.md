@@ -29,6 +29,29 @@ current state).
 
 ---
 
+## 2026-09-23 — Save failed + empty board list after Firebase project switch
+
+- **Done:** Root cause: `ce2b5fe` switched the client from **`carbondocs`** (all existing
+  boards) to **`ai-canva-22-nbn-fee4b`**. localStorage still held the old `currentBoardId`;
+  `loadBoard` returned null without clearing it, so `updateDoc` failed forever → "Save failed",
+  and `listBoards` queried the empty new project → "boards gone". Fixes on
+  `feature/r2-deployment`:
+  - `loadBoardFromFirestore` returns `false` and **clears a dead `currentBoardId`** (keeps the
+    local canvas) instead of leaving a phantom id.
+  - `saveToFirestore` **recreates** the board doc on `not-found` instead of looping on error.
+  - App init recovers: if persist still has nodes, `createNewBoard(…, { preserveContent: true })`
+    wraps the canvas in a new board in the current project; else loads most recent / creates.
+  - New **`client/src/lib/migrate.ts`** + Boards menu: **Migrate from carbondocs** (secondary
+    Firebase app → Google sign-in on the old project → copy owned/shared boards into the new
+    project under the current uid; re-run safe/skips existing ids), **Export/Import boards
+    (JSON)** for manual transfer (CLI cannot read carbondocs — 403 on this account).
+  Tests: client 279/279, `tsc` clean.
+- **In flight:** user still needs to run the migrate action (or export/import) and re-verify
+  saves; R2 image-upload hardening from earlier in the session still uncommitted alongside this.
+- **Next steps:** run Boards → "Migrate from carbondocs" with the Google account that owned the
+  old boards; confirm the list fills and the status dot reaches "Saved"; commit the whole
+  session's changes on `feature/r2-deployment`.
+
 ## 2026-09-23 — Image box upload no longer fails silently
 
 - **Done:** `handleImageUpload` in `BoxNode.tsx` now (1) resets the file input so re-selecting
