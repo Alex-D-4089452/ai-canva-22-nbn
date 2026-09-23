@@ -29,6 +29,22 @@ current state).
 
 ---
 
+## 2026-09-23 — Image box connected but downstream AI said "no image provided"
+
+- **Done:** Root cause: Image boxes only store `imageData` (empty `output`/`content`), so the
+  old private `collectInputs` in `boardStore.ts` set `inputImage` for Cartoon but **never
+  pushed a named input** — text AI boxes got `[no inputs]` and the model reported no image.
+  Extracted `collectInputs` to **`client/src/lib/inputs.ts`** (+ `imageReferenceText`):
+  image-only sources now contribute a labeled `NamedInput` (`[image: <http url>]`, or a
+  local-only note for `data:` URLs so base64 never hits the prompt). Cartoon still uses
+  `imageUrl` and **filters image-only entries** out of `fillPromptTemplate` so image-to-image
+  prompts stay style text. New `inputs.test.ts`. Docs: `BOX_TYPES.md` Image outputs, AGENTS
+  pure-logic list. Tests: client **287/287** (was 279 + 8), server 66/66, `tsc` clean both.
+- **In flight:** — (uncommitted on `feature/r2-deployment` alongside the migrate/upload work).
+- **Next steps:** user re-runs Image → AI box (model should now see `[image: …]` in
+  `{{inputs}}`; a text-only Ollama model still cannot *view* pixels — vision would be a
+  separate feature). Then commit the session’s changes.
+
 ## 2026-09-23 — Save failed + empty board list after Firebase project switch
 
 - **Done:** Root cause: `ce2b5fe` switched the client from **`carbondocs`** (all existing

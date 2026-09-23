@@ -36,6 +36,7 @@ npm test --prefix client
 ### Client (`client/src/lib/*.test.ts`) — pure functions
 
 - `prompts.test.ts` — `fillPromptTemplate` (all variable forms) + `getBoxOutput`
+- `inputs.test.ts` — `collectInputs` / `imageReferenceText` (image-only sources become named inputs)
 - `code.test.ts` — `extractCode` (markdown fences) + HTML wrappers
 - `slides.test.ts` — `parseSlidesResponse` (plain JSON, fenced, prose-wrapped, malformed)
 - `serialization.test.ts` — `cleanBoxDataForFirestore` (strips `undefined` and base64 `imageData`)

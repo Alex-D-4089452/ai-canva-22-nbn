@@ -10,7 +10,7 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, NamedInput, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, AgentStep, ChatMessage, DeployInfo, FileChange, EditMeta, ArtifactVersion, SdlcEvent, SdlcStage, RepoMeta, ChecklistItem } from "../types.js";
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
 import { buildCodeMapPrompt, resolveRepoRef } from "../lib/repo.js";
 import {
@@ -45,7 +45,8 @@ import {
   upstreamStageContent,
 } from "../lib/sdlc.js";
 import { generate, generateImage, generateStitchUI, fetchRepoDigest, publishSite } from "../lib/api.js";
-import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
+import { fillPromptTemplate } from "../lib/prompts.js";
+import { collectInputs } from "../lib/inputs.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
   MAX_AGENT_TURNS,
@@ -58,7 +59,6 @@ import {
   parseAgentAction,
   clip,
 } from "../lib/agent.js";
-import { buildDocumentsOutput } from "../lib/documents.js";
 import { buildCodeChangePrompt, extractCode, isCompletePrototype } from "../lib/code.js";
 import {
   deployBlockedReason,
@@ -133,66 +133,8 @@ let presenceUnsub: (() => void) | null = null;
 // current LLM call/run always finishes; the loop halts before the next one).
 const agentCancelled = new Set<string>();
 
-interface CollectedInputs {
-  namedInputs: NamedInput[];
-  inputImage?: string;
-}
-
-/**
- * Gathers upstream inputs for a box: walks incoming edges, collects text
- * outputs (documents boxes contribute their extracted-file text) and the
- * first image input. Also includes the box's own `content` so AI boxes work
- * standalone — pass `skipSelf: true` to exclude it (the Agent box uses this,
- * since its `content` is the task and travels in the context separately).
- */
-function collectInputs(
-  nodes: Node[],
-  edges: Edge[],
-  boxData: Record<string, BoxData>,
-  id: string,
-  opts: { skipSelf?: boolean } = {}
-): CollectedInputs {
-  let inputImage: string | undefined;
-  const namedInputs: NamedInput[] = [];
-
-  const incomingEdges = edges.filter((e) => e.target === id);
-  for (const edge of incomingEdges) {
-    const sourceData = boxData[edge.source];
-    const sourceNode = nodes.find((n) => n.id === edge.source);
-    if (sourceData) {
-      // Check for image data (from Image Upload boxes)
-      if (sourceData.imageData) {
-        if (!inputImage) inputImage = sourceData.imageData;
-      }
-      // Gather text output with the source box name. Documents boxes
-      // derive their output from the extracted file text (labeled by
-      // filename) — see lib/documents.ts.
-      const textOutput = sourceData.documents?.length
-        ? buildDocumentsOutput(sourceData.documents)
-        : getBoxOutput(sourceData.output, sourceData.content);
-      if (textOutput) {
-        namedInputs.push({
-          name: (sourceNode?.data?.title as string) || "Unnamed",
-          output: textOutput,
-        });
-      }
-    }
-  }
-
-  if (!opts.skipSelf) {
-    const data = boxData[id];
-    const node = nodes.find((n) => n.id === id);
-    // Also include this box's own content (lets AI boxes work standalone)
-    if (data && data.content && data.content.trim()) {
-      namedInputs.push({
-        name: (node?.data?.title as string) || "This Box",
-        output: data.content.trim(),
-      });
-    }
-  }
-
-  return { namedInputs, inputImage };
-}
+// collectInputs lives in lib/inputs.ts (pure, unit-tested) — image-only
+// sources contribute a named input so text prompts see them.
 
 /** A deploy record with every field defined (Firestore rejects `undefined`). */
 function emptyDeployInfo(): DeployInfo {
@@ -1454,10 +1396,15 @@ export const useBoardStore = create<BoardState>()(
 
         try {
           if (boxType === "cartoon") {
-            // Image generation via fal.ai
+            // Image generation via fal.ai. The source image travels as
+            // imageUrl — drop image-only named inputs so the prompt is style
+            // text, not "[image: <url>]".
+            const textInputs = namedInputs.filter(
+              (i) => !/^\[image(\s|:)/.test(i.output)
+            );
             let prompt = data.prompt;
-            if (namedInputs.length > 0) {
-              prompt = fillPromptTemplate(data.prompt, namedInputs);
+            if (textInputs.length > 0) {
+              prompt = fillPromptTemplate(data.prompt, textInputs);
             }
 
             const result = await generateImage({

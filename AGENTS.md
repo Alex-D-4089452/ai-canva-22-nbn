@@ -80,7 +80,10 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 - **Client pure logic lives in `client/src/lib/`** and is unit-tested: prompt templating
   (`prompts.ts`), code/HTML wrapping (`code.ts`), slides JSON parsing (`slides.ts`), Firestore
   save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), the
-  Agent box action protocol (`agent.ts`), and the Chatbot companion prompt building (`chatbot.ts`).
+  Agent box action protocol (`agent.ts`), input gathering (`inputs.ts` — `collectInputs`
+  walks edges into `NamedInput[]` + first `inputImage`; **image-only sources contribute a
+  labeled named input** so `{{inputs}}` resolves), and the Chatbot companion prompt building
+  (`chatbot.ts`).
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.

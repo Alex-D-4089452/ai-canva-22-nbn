@@ -37,7 +37,11 @@ Upload an image. It's auto-resized to ≤1024px, compressed to JPEG, and uploade
 URL.
 
 - **Inputs:** none (no target handle).
-- **Outputs:** an image URL (used as `imageData` input by Cartoon boxes).
+- **Outputs:** an image URL as `imageData`. Cartoon boxes use it as image-to-image input;
+  text AI boxes receive a labeled `{{inputs}}` entry (`[image: <url>]`, or a local-only note
+  when the upload did not reach storage) so `{{inputs}}` / `{{Box Name}}` resolve and the
+  model knows an image is connected (the text model cannot *view* pixels — only Cartoon /
+  image-generation paths send the actual image).
 - **Settings:** none (input box).
 
 ### 📎 Documents — `documents`
