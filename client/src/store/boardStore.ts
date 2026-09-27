@@ -186,6 +186,8 @@ function defaultBoxData(type: BoxType): BoxData {
       : null),
     // Decision Log boxes: decision count.
     ...(type === "decision" ? { decisionCount: 0 } : null),
+    // Jargon Translator boxes: jargon term count.
+    ...(type === "jargon" ? { jargonTerms: 0 } : null),
     // SDLC stage boxes start with empty, ALWAYS-DEFINED records: Firestore
     // rejects `undefined` anywhere inside a nested value, and these arrays are
     // append-only for the whole life of the board.
@@ -1483,6 +1485,18 @@ export const useBoardStore = create<BoardState>()(
               });
             } else {
               // Store text output (research, summarize, handoff, etc.)
+              // Jargon Translator: count only the numbered entries under the
+              // "Terms Simplified" heading — the translated artefact may keep
+              // the source's own numbering, which must not inflate the count.
+              let jargonTerms: number | undefined;
+              if (boxType === "jargon") {
+                const section = result.content
+                  .split(/^#{1,}\s+/m)
+                  .find((s) => s.toLowerCase().startsWith("terms simplified"));
+                jargonTerms = section
+                  ? (section.match(/^\d+\.\s/gm) || []).length
+                  : 0;
+              }
               get().updateBoxData(id, {
                 output: result.content,
                 status: "done",
@@ -1494,6 +1508,7 @@ export const useBoardStore = create<BoardState>()(
                       decisionCount: (result.content.match(/^\d+\.\s/gm) || []).length,
                     }
                   : null),
+                ...(jargonTerms !== undefined ? { jargonTerms } : null),
               });
             }
           }
