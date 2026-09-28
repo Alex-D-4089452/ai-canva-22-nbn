@@ -96,8 +96,8 @@ function resizeImage(file: File, maxSize = 1024): Promise<string> {
 
 /**
  * Label for the first box connected into `id` — the "Source:" field on the
- * Decision Log and Jargon Translator banners. A Documents box upstream shows
- * its uploaded filename (without the extension) instead of the box name.
+ * Jargon Translator banner. A Documents box upstream shows its uploaded
+ * filename (without the extension) instead of the box name.
  */
 function connectedSourceLabel(
   edges: Edge[],
@@ -258,11 +258,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isHandoff = boxType === "handoff";
   // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
   const isAlignment = boxType === "alignment";
-  // Decision Log: custom banner with Source/Decisions captured.
-  const isDecision = boxType === "decision";
   // Jargon Translator: custom banner with Source/Terms simplified.
   const isJargon = boxType === "jargon";
-  // Shared banner source label (Decision Log + Jargon Translator).
+  // Banner source label (Jargon Translator).
   const sourceLabel = connectedSourceLabel(edges, allNodes, id);
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
@@ -1107,9 +1105,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* AI box output — text (research, summarize). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
-            block nor its "no output yet" placeholder. Handoff, Alignment,
-            Decision and Jargon get their own blocks with metadata banners. */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && !isDecision && !isJargon && (
+            block nor its "no output yet" placeholder. Handoff, Alignment, and
+            Jargon get their own blocks with metadata banners. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && !isJargon && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1293,52 +1291,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </div>
           );
         })()}
-
-        {/* AI box output — decision log (banner + text) */}
-        {!isInputBox && isDecision && (
-          <div className="min-h-[80px]">
-            {/* Banner: Source / Decisions captured */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
-              {sourceLabel ? (
-                <span>
-                  <span className="font-semibold text-slate-600">Source:</span>{" "}
-                  <span className="text-slate-700">{sourceLabel}</span>
-                </span>
-              ) : (
-                <span className="text-slate-400 italic">Connect an input to label the source</span>
-              )}
-              {(boxData.decisionCount ?? 0) > 0 && (
-                <span>
-                  <span className="font-semibold text-slate-600">Decisions captured:</span>{" "}
-                  <span className="text-slate-700">{boxData.decisionCount}</span>
-                </span>
-              )}
-            </div>
-
-            {isRunning && (
-              <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
-                <span className="animate-spin">⏳</span>
-                <span>Extracting decisions...</span>
-              </div>
-            )}
-            {hasError && !isRunning && (
-              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                ⚠️ {boxData.error}
-              </div>
-            )}
-            {hasTextOutput && !isRunning && (
-              <div className="markdown-output text-slate-700 text-sm">
-                <ReactMarkdown>{boxData.output}</ReactMarkdown>
-              </div>
-            )}
-            {!hasTextOutput && !isRunning && !hasError && (
-              <div className="text-slate-400 text-sm py-4 text-center">
-                No output yet. Connect meeting notes and click <strong>Run</strong> to
-                extract decisions.
-              </div>
-            )}
-          </div>
-        )}
 
         {/* AI box output — jargon translator (banner + text) */}
         {!isInputBox && isJargon && (
