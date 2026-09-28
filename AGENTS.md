@@ -111,11 +111,11 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   Google sign-in) or Export/Import JSON. A dead `currentBoardId` (wrong project / deleted board)
   is cleared by `loadBoardFromFirestore` (returns false); App then recovers the local canvas via
   `createNewBoard(…, { preserveContent: true })` so saves don’t loop on `not-found`.
-- **30 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
+- **29 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
   Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**, Cartoon Profile,
   Slides, Code, UI Design,
-  Stitch UI, four **NBN cross-functional** boxes (**Handoff Brief**, **Alignment Check**,
-  **Decision Log**, **Jargon Translator**), four collaboration boxes (Note, Label, Timer,
+  Stitch UI, three **NBN cross-functional** boxes (**Handoff Brief**, **Alignment Check**,
+  **Jargon Translator**), four collaboration boxes (Note, Label, Timer,
   **Checklist**), the six **SDLC pipeline
   stages** (Intent, Spec, Plan, Implementation, Review, Merge), and the `custom` runtime type (see
   "Custom boxes" below). Categories: `input`, `sdlc` (the six gated stages), `worker`,
@@ -370,19 +370,20 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   the `ROLES` list there — extend it AND the `localStorage` whitelist check when adding one, or the
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
   a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
-- **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🗒️ Decision Log /
-  🔁 Jargon Translator — types `handoff`/`alignment`/`decision`/`jargon`, palette section
+- **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🔁 Jargon Translator —
+  types `handoff`/`alignment`/`jargon`, palette section
   "Workers", `category: "worker"`):** generic text-AI boxes (they fall through `runBox`'s else
   branch) that each render a **metadata banner** above the markdown output via their own block in
-  `BoxNode.tsx` (excluded from the generic text block's guard, like handoff). Shared pieces: the
+  `BoxNode.tsx` (each excluded from the generic text block's guard). Shared pieces: the
   banner's **`Source:`** label is `connectedSourceLabel()` (module-level in `BoxNode.tsx`) —
   first connected upstream box, or the uploaded filename when that box is a Documents box; run-time
-  metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`decisionCount`/`jargonTerms`)
+  metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`jargonTerms`)
   written by the text branch of `runBox`. Handoff's From/To are editable inputs
-  (`nodrag`); Alignment's Artefact 1/2 and Decision/Jargon's Source are inferred from edges —
+  (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
   never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
   heading** so a numbered source list copied into the translated artefact can't inflate it. None
-  of the four is in `AGENT_CREATABLE_TYPES`.
+  of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier and was
+  removed — don't reintroduce `"decision"`/`decisionCount` references.)
 - **SDLC pipeline boxes (🎯📐🧭🛠️🔎🚀, palette section "SDLC", `roles: ["sdlc"]`):** the app's
   translation of its SDLC blueprint — six gated stages (Intent → Spec → Plan → Implementation →
   Review → Merge, box types `sdlc-intent`…`sdlc-merge`, category `sdlc`), each producing exactly one
