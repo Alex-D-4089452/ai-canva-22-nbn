@@ -961,7 +961,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   jargon: {
     label: "Jargon Translator",
     icon: "🔁",
-    color: "#e11d48",
+    color: "#8b5cf6",
     description: "Translate an artefact from one role's language into another's (BA jargon → plain English, UX → acceptance criteria).",
     hasAI: true,
     category: "worker",

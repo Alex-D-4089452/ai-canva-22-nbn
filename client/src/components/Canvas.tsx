@@ -312,7 +312,7 @@ export default function Canvas() {
             handoff: "#1d4ed8",
             alignment: "#b45309",
             decision: "#8b5cf6",
-            jargon: "#e11d48",
+            jargon: "#8b5cf6",
             note: "#fbbf24",
             label: "#64748b",
             timer: "#06b6d4",
