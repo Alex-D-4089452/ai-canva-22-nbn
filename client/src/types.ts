@@ -1,5 +1,5 @@
-// Handoff Brief, Alignment Check, Decision Log and Jargon Translator BoxTypes have been added
-export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "jargon" | "note" | "label" | "timer" | "checklist" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+// Handoff Brief, Alignment Check and Jargon Translator BoxTypes have been added
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "handoff" | "alignment" | "jargon" | "note" | "label" | "timer" | "checklist" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
 
 /**
  * One task in a Checklist box — the team's shared to-do list. Every field is
@@ -651,8 +651,6 @@ export interface BoxData {
   handoffGeneratedAt?: number;
   /** Alignment Check boxes: run timestamp. */
   alignmentRanAt?: number;
-  /** Decision Log boxes: number of decisions extracted from the output. */
-  decisionCount?: number;
   /** Jargon Translator boxes: number of jargon terms explained in the output. */
   jargonTerms?: number;
 }
@@ -940,23 +938,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "You are a requirements analyst who compares cross-functional artefacts for consistency. Be specific — quote or paraphrase the conflicting parts rather than saying 'they differ'. Identify root causes of drift, not just symptoms. Format as clean Markdown.",
     defaultWidth: 380,
     defaultHeight: 400,
-  },
-  decision: {
-    label: "Decision Log",
-    icon: "🗒️",
-    color: "#8b5cf6",
-    description: "Extract decisions, rationale, and owners from meeting notes into a structured log.",
-    hasAI: true,
-    category: "worker",
-    // Everyone role aligns with the decision log: all roles can use it to capture decisions from meetings.
-    roles: ["everyone"],
-    defaultPrompt:
-      // Include {{inputs}} in the prompt to pass the meeting notes into the decision log.
-      "Extract all decisions from the following meeting notes. For each decision, record:\n\n- **Decision** — what was decided\n- **Rationale** — why it was decided this way\n- **Owner** — who is responsible (if mentioned)\n- **Status** — confirmed / tentative / needs follow-up\n\nIf no decisions are found, say so clearly.\n\nMeeting notes:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are a meticulous project coordinator who captures decisions from meeting notes. Be precise — use the exact wording from the notes when quoting rationale. If the notes are ambiguous about a decision, mark it 'tentative'. If no owner is named, mark it 'No owner'. Format as clean Markdown with a numbered list of decisions.",
-    defaultWidth: 360,
-    defaultHeight: 380,
   },
   jargon: {
     label: "Jargon Translator",
