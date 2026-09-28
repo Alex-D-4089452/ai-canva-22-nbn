@@ -29,26 +29,31 @@ current state).
 
 ---
 
-## 2026-09-27 — NBN boxes completed (Jargon Translator); Stitch + Windows test fixes
+## 2026-09-27 — NBN boxes completed (Jargon Translator); Decision Log removed; Stitch + Windows test fixes
 
-- **Done:** Four NBN-collaboration box types now ship in the standard integration pattern
+- **Done:** Three NBN-collaboration box types ship in the standard integration pattern
   (`types.ts` union + `BOX_TYPES` + `Canvas.tsx` nodeTypes/minimap + `BoxNode.tsx` banner block):
   **Handoff Brief** (`handoff`, editable From/To + generated timestamp), **Alignment Check**
-  (`alignment`, edge-inferred Artefact 1/2 + ran timestamp), **Decision Log** (`decision`,
-  inferred Source + `decisionCount`), and — this session — **Jargon Translator**
-  (`jargon`, 🔁 / `#e11d48`, same banner styling as Decision Log: `Source:` + `Terms simplified`
-  count stored as `jargonTerms`, counted **only under the `## Terms Simplified` heading** so a
-  numbered source list in the translated artefact can't inflate it). The Decision/Jargon source
-  label is now the shared module-level `connectedSourceLabel()` in `BoxNode.tsx` (Documents
-  upstream → filename without extension). Also: `stitch.ts` in `server`+`functions` builds a
-  fresh `StitchToolClient` per request (SDK v0.3.5 leaves a stale MCP transport on a singleton),
-  drops the retired `STITCH_MODEL` (`GEMINI_3_PRO`) and sends only required params; fixed 3
+  (`alignment`, edge-inferred Artefact 1/2 + ran timestamp), and — this session —
+  **Jargon Translator** (`jargon`, 🔁, banner styling matching the old Decision Log: edge-inferred
+  `Source:` + `Terms simplified` count stored as `jargonTerms`, counted **only under the
+  `## Terms Simplified` heading** so a numbered source list in the translated artefact can't
+  inflate it); the source label comes from the shared module-level `connectedSourceLabel()` in
+  `BoxNode.tsx` (Documents upstream → filename without extension). A **Decision Log** box was
+  built alongside them earlier but **removed at the user's request** — union / `BOX_TYPES` /
+  `BoxData.decisionCount` / store / Canvas / banner references all deleted (the SDLC pipeline's
+  `parseDecisions`/`crossCheckSpecDecisions` are unrelated and untouched; AGENTS.md now carries a
+  don't-reintroduce note). Also: `stitch.ts` in `server`+`functions` builds a fresh
+  `StitchToolClient` per request (SDK v0.3.5 leaves a stale MCP transport on a singleton), drops
+  the retired `STITCH_MODEL` (`GEMINI_3_PRO`) and sends only required params; fixed 3
   Windows-only `codeedit.patch.test.ts` failures by pinning `core.autocrlf=false` per test repo.
-  AGENTS.md box list → 30 + new NBN-boxes conventions bullet. Verified: client `tsc --noEmit`
-  clean, `npm test` green (server 66 + client 287).
+  AGENTS.md box list → 29 + NBN-boxes conventions bullet. Verified after removal: client
+  `tsc --noEmit` clean, `npm test` green (server 66 + client 287), no `"decision"` references
+  left in `client/src`.
 - **In flight:** —
-- **Next steps:** `docs/BOX_TYPES.md` documents none of the four NBN boxes yet; the E2E/UI-smoke
-  suites haven't been run against them.
+- **Next steps:** `docs/BOX_TYPES.md` documents none of the three NBN boxes yet; the E2E/UI-smoke
+  suites haven't been run against them. Any board saved with a `decision` node now renders it as
+  React Flow's plain default node — delete it from the canvas.
 
 ## 2026-09-23 — Live Hosting deployed against Render; VITE_API_BASE bake fixed
 
