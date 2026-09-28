@@ -965,7 +965,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Translate an artefact from one role's language into another's (BA jargon → plain English, UX → acceptance criteria).",
     hasAI: true,
     category: "worker",
-    // Glue activity like the decision log: any role can move work between roles.
+    // Any role can move work between roles.
     roles: ["everyone"],
     defaultPrompt:
       // Include {{inputs}} in the prompt to pass the source artefact into the translation.
