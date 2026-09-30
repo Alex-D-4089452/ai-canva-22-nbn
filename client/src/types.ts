@@ -1,5 +1,5 @@
 // Handoff Brief, Alignment Check and Decision Log BoxTypes have been added
-export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarize" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "note" | "label" | "timer" | "checklist" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
+export type BoxType = "agent" | "chatbot" | "idea" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "code" | "codeedit" | "prd" | "devplan" | "codemap" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "note" | "label" | "timer" | "checklist" | "custom" | "sdlc-intent" | "sdlc-spec" | "sdlc-plan" | "sdlc-implement" | "sdlc-review" | "sdlc-merge";
 
 /**
  * One task in a Checklist box — the team's shared to-do list. Every field is
@@ -734,16 +734,16 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultWidth: 320,
     defaultHeight: 320,
   },
-  summarize: {
-    label: "Summarize",
+  summarise: {
+    label: "Summarise",
     icon: "📋",
     color: "#a78bfa",
-    description: "Combine and summarize multiple inputs into a concise overview.",
+    description: "Combine and summarise multiple inputs into a concise overview.",
     hasAI: true,
     category: "worker",
     roles: ["everyone"],
     defaultPrompt:
-      "Synthesize the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
+      "Synthesise the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
     defaultSystemPrompt:
       "You are a synthesis expert. Combine multiple inputs into a clear, concise summary in Markdown format. Highlight key insights.",
     defaultWidth: 320,
