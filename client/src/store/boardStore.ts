@@ -46,7 +46,7 @@ import {
 } from "../lib/sdlc.js";
 import { generate, generateImage, generateStitchUI, fetchRepoDigest, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
-import { collectInputs } from "../lib/inputs.js";
+import { collectInputs, alignmentRunBlocker } from "../lib/inputs.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
   MAX_AGENT_TURNS,
@@ -1390,6 +1390,22 @@ export const useBoardStore = create<BoardState>()(
           state.boxData,
           id
         );
+
+        // Alignment Check compares two artefacts — refuse BEFORE any model
+        // call unless two connected boxes actually contribute content (the
+        // Run button is already disabled below two connections in BoxNode).
+        if (boxType === "alignment") {
+          const blocked = alignmentRunBlocker(
+            state.nodes,
+            state.edges,
+            state.boxData,
+            id
+          );
+          if (blocked) {
+            get().setBoxStatus(id, "error", blocked);
+            return;
+          }
+        }
 
         // Set running state
         get().setBoxStatus(id, "running");
