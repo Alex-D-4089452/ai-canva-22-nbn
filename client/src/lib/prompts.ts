@@ -1,4 +1,4 @@
-import type { NamedInput } from "../types.js";
+import type { NamedInput } from "../types/index.js";
 
 /**
  * Fills a prompt template's variables with upstream box outputs.

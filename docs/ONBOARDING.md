@@ -198,12 +198,12 @@ is also a great learning exercise.
 
 Once it runs, try these to build confidence:
 
-1. Build an **Idea → Research → PRD → Code** pipeline and preview the generated app.
+1. Build an **Idea → Research → PRD → UI Design** pipeline and preview the generated app.
 2. Open the **⚙ settings** on a box and edit its **prompt template**. Insert `{{Box Name}}`
    and `{{inputs}}` to see how variables get filled.
 3. Open a **second browser window** and share the board to watch **live cursors** and
    real-time edits.
-4. In `client/src/types.ts`, change a box's **default prompt** and run it. What changes?
+4. In `client/src/types/boxes/<type>.ts`, change a box's **default prompt** and run it. What changes?
 5. Read `client/src/store/boardStore.ts` — find `runBox`. Trace what happens on **▶ Run**.
 
 ---

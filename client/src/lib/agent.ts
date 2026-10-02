@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, NamedInput } from "../types.js";
+import type { BoxData, NamedInput } from "../types/index.js";
 
 /**
  * Pure helpers for the Agent box (client/src/store/boardStore.ts runs the loop).

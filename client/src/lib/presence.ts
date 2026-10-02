@@ -1,4 +1,4 @@
-import type { PresenceUser } from "../types.js";
+import type { PresenceUser } from "../types/index.js";
 
 /** One row of the "who's on this board" roster. */
 export interface RosterEntry {

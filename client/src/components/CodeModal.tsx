@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import CodeEditor from "./CodeEditor.js";
 import { wrapUIInHtml } from "../lib/code.js";
-import type { BoxType } from "../types.js";
+import type { BoxType } from "../types/index.js";
 
 interface CodeModalProps {
   onClose: () => void;

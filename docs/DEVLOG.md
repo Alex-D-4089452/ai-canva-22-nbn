@@ -29,6 +29,28 @@ current state).
 
 ---
 
+## 2026-10-02 — Split `client/src/types.ts` into a `types/` directory (one file per box)
+
+- **Done:** `client/src/types.ts` (583 lines) replaced by `client/src/types/`:
+  `core.ts` (BoxType union, BoxData + shared shapes, BoxTypeMeta, BoxRole/BoxCategory,
+  AREA_COLORS), `boxes/<type>.ts` ×19 (each box's metadata, re-indented from the old
+  `BOX_TYPES` entries — content sliced, never retyped, so prompts are byte-identical),
+  `boxTypes.ts` (the `BOX_TYPES` record — same insertion order = palette order, `Record<>`
+  still locks union↔table), and `index.ts` (public surface). Box-specific constants moved with
+  their box: `AGENT_CONTROLLER_SYSTEM_PROMPT` → `boxes/agent.ts`, `CODE_CHANGE_PROMPT` →
+  `boxes/ui.ts`, `LABEL_COLORS` → `boxes/label.ts`. No shim: `types.ts` deleted and all
+  **33 importers / 45 import lines** rewritten `../types.js` → `../types/index.js` (verified
+  zero leftovers). Core docs updated: ARCHITECTURE (Box definitions section rewritten),
+  BOX_TYPES (intro, LABEL_COLORS ref, add-a-box step), README tree, ONBOARDING (exercise + a
+  stale `PRD → Code` pipeline line → `PRD → UI Design`), OVERVIEW, CONTRIBUTING, AGENTS.md
+  (new "box definitions live one file per box" bullet + path fixes). **Verified:** `tsc -b`
+  0, vitest **189/189**, `vite build` ok.
+- **In flight:** uncommitted (`types.ts` deletion staged, new `types/` dir untracked).
+- **Next steps:** (1) **course materials still say "register in `types.ts`"** — user chose
+  core-docs-only for now, so `docs/course/02–07` + course 05's walkthrough need a pass to
+  describe `types/core.ts` + `types/boxes/<type>.ts` + `types/boxTypes.ts`; (2) commit when
+  asked (this sits on top of the box-removal working tree).
+
 ## 2026-10-02 — Removed the SDLC / Chatbot / legacy code box types end-to-end
 
 - **Done:** Deleted 11 box types (`sdlc-intent|spec|plan|implement|review|merge`, `code`,

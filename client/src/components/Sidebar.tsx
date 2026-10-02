@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import { useUserBoxesStore } from "../store/userBoxesStore.js";
-import { BOX_TYPES } from "../types.js";
-import type { BoxType, BoxCategory, BoxRole } from "../types.js";
+import { BOX_TYPES } from "../types/index.js";
+import type { BoxType, BoxCategory, BoxRole } from "../types/index.js";
 import CustomBoxModal from "./CustomBoxModal.js";
 
 interface SidebarProps {

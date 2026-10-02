@@ -58,6 +58,13 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 - **Single Zustand store** (`client/src/store/boardStore.ts`) owns the whole board: `nodes`/`edges`
   (React Flow graph), `boxData` (per-box content/prompts/status/output — kept separate from the
   graph objects so it serializes cleanly to Firestore), and board/collaboration metadata.
+- **Box definitions live one file per box** under `client/src/types/`: `core.ts` (the `BoxType`
+  union, `BoxData`, `BoxTypeMeta`, shared shapes, `AREA_COLORS`), `boxes/<type>.ts` (each box's
+  metadata — box-specific constants ride along: `AGENT_CONTROLLER_SYSTEM_PROMPT` in `agent.ts`,
+  `CODE_CHANGE_PROMPT` in `ui.ts`, `LABEL_COLORS` in `label.ts`), `boxTypes.ts` (the `BOX_TYPES`
+  record — **insertion order is the palette order**), and `index.ts` (the public surface; modules
+  import `../types/index.js`). The `Record<BoxType, BoxTypeMeta>` keeps union and table in
+  lockstep, so adding a box touches `core.ts` + a new `boxes/<type>.ts` + `boxTypes.ts`.
 - **`runBox(id)`** is the orchestrator: gathers upstream inputs from incoming edges, builds
   `NamedInput[]` for prompt templating, then branches by box type (cartoon → fal.ai, stitch →
   Google Stitch, slides → Ollama + JSON parsing, ui → Ollama + code extraction, else Ollama
@@ -339,7 +346,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
-  (`everyone`/`designer`/`developer`/`product`) in `client/src/types.ts`; the View dropdown in
+  (`everyone`/`designer`/`developer`/`product` — `BoxRole` in `types/core.ts`, the tags on each
+  box in `types/boxes/`); the View dropdown in
   `Sidebar.tsx` filters which boxes appear in the "Add Box" palette (the selectable profiles live in
   the `ROLES` list there — extend it AND the `localStorage` whitelist check when adding one, or the
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
@@ -454,7 +462,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   board save/snapshot; `deleteBox(id)` deletes them (no boxData entry). While the tool is active,
   `panOnDrag`/`nodesDraggable` are off and drags on `.react-flow__pane` become a draft rectangle
   (`lib/areas.ts` `normalizeRect`/`isValidAreaSize`, unit-tested; drags <24 units are ignored).
-  The palette (`AREA_COLORS` in `types.ts`) is intentionally **very light** (Tailwind -100 fills,
+  The palette (`AREA_COLORS` in `types/core.ts`) is intentionally **very light** (Tailwind -100 fills,
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.

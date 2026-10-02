@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
-import type { BoxData, BoxType } from "../types.js";
+import type { BoxData, BoxType } from "../types/index.js";
 import { computeLineDiff, lineDiff } from "../lib/diff.js";
 
 /**

@@ -10,8 +10,8 @@ import {
   type EdgeChange,
   type Connection,
 } from "@xyflow/react";
-import type { BoxData, BoxType, BoxStatus, AgentStep, DeployInfo, ArtifactVersion, ChecklistItem } from "../types.js";
-import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types.js";
+import type { BoxData, BoxType, BoxStatus, AgentStep, DeployInfo, ArtifactVersion, ChecklistItem } from "../types/index.js";
+import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types/index.js";
 import { generate, generateImage, generateStitchUI, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
 import { collectInputs } from "../lib/inputs.js";
@@ -45,7 +45,7 @@ import {
   recordTokenUsage,
   type BoardDoc,
 } from "../lib/firestore.js";
-import type { PresenceUser } from "../types.js";
+import type { PresenceUser } from "../types/index.js";
 import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";

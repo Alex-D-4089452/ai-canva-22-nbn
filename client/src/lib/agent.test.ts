@@ -12,8 +12,8 @@ import {
   nextAgentChildPosition,
   parseAgentAction,
 } from "./agent.js";
-import type { BoxData, BoxType, NamedInput } from "../types.js";
-import { BOX_TYPES } from "../types.js";
+import type { BoxData, BoxType, NamedInput } from "../types/index.js";
+import { BOX_TYPES } from "../types/index.js";
 import type { Edge, Node } from "@xyflow/react";
 
 function node(id: string, type: string, title: string, extra: Partial<Node> = {}): Node {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 import { hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText, slugifyFilename } from "./download.js";
 
 function data(patch: Partial<BoxData> = {}): BoxData {

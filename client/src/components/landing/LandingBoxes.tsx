@@ -1,5 +1,5 @@
-import { BOX_TYPES } from "../../types.js";
-import type { BoxType } from "../../types.js";
+import { BOX_TYPES } from "../../types/index.js";
+import type { BoxType } from "../../types/index.js";
 import Reveal from "./Reveal.js";
 
 const ORDER: BoxType[] = [

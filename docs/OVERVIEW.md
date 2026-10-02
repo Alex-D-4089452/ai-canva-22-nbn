@@ -53,7 +53,8 @@ chaining them** (often called "pipelining" or "agentic workflows").
 | **Stitch UI** | 🧵 | Worker | Generates UI screens via Google Stitch. |
 
 **Input boxes** (no AI) start data; **worker boxes** (AI) transform it. Boxes are defined in
-`client/src/types.ts` and rendered by a single component, `client/src/components/BoxNode.tsx`.
+`client/src/types/` (one file per box type) and rendered by a single component,
+`client/src/components/BoxNode.tsx`.
 
 ---
 

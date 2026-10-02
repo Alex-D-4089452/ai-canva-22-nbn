@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
-import type { BoxType } from "../types.js";
+import type { BoxType } from "../types/index.js";
 import { deployBlockedReason, deployFilesFor } from "../lib/deploy.js";
 
 /**

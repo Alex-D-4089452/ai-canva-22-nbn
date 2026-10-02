@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, NamedInput } from "../types.js";
+import type { BoxData, NamedInput } from "../types/index.js";
 import { buildDocumentsOutput } from "./documents.js";
 import { getBoxOutput } from "./prompts.js";
 

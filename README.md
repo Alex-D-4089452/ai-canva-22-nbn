@@ -195,7 +195,7 @@ ai-canva/
 │       ├── components/      # Canvas, BoxNode, Sidebar, Toolbar, modals, LandingPage
 │       ├── store/            # Zustand stores (board + auth)
 │       ├── lib/              # API client, prompts, firebase/firestore/storage, code helpers
-│       ├── types.ts          # Box types + metadata
+│       ├── types/            # Box definitions — one file per box type + core shapes
 │       ├── App.tsx           # Shell / layout
 │       └── main.tsx          # Entry point
 ├── server/                   # Express API (local dev backend)

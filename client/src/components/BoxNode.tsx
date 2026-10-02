@@ -3,8 +3,8 @@ import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
-import { BOX_TYPES, LABEL_COLORS } from "../types.js";
-import type { BoxType } from "../types.js";
+import { BOX_TYPES, LABEL_COLORS } from "../types/index.js";
+import type { BoxType } from "../types/index.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
 import CodeChangePanel from "./CodeChangePanel.js";
@@ -30,7 +30,7 @@ import {
   makeDocId,
   remainingDocBudget,
 } from "../lib/documents.js";
-import type { BoxDocument } from "../types.js";
+import type { BoxDocument } from "../types/index.js";
 import sdk from "@stackblitz/sdk";
 import { toStackBlitzProject } from "../lib/project.js";
 // Lazy-load the code editor so CodeMirror (~500KB) is only fetched when a

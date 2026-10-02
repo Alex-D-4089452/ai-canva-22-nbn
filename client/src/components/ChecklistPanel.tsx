@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import type { ChecklistItem } from "../types.js";
+import type { ChecklistItem } from "../types/index.js";
 import {
   MAX_CHECKLIST_ITEMS,
   appendChecklistItems,

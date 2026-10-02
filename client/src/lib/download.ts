@@ -1,4 +1,4 @@
-import type { BoxData, BoxType } from "../types.js";
+import type { BoxData, BoxType } from "../types/index.js";
 
 /**
  * Downloading a box's actual outcome.

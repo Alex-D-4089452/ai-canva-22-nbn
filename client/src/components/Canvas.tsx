@@ -15,7 +15,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
-import { AREA_COLORS } from "../types.js";
+import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
 import { Button } from "./ui/Button.js";
 import BoxNode from "./BoxNode.js";

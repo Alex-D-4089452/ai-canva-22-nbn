@@ -1,7 +1,8 @@
 # Box types reference
 
-This document describes every box type. Metadata lives in `client/src/types.ts`
-(`BOX_TYPES`), rendering in `client/src/components/BoxNode.tsx`, and the "run" behavior in
+This document describes every box type. Metadata lives in `client/src/types/boxes/` (one file per
+box, assembled into `BOX_TYPES` by `client/src/types/boxTypes.ts`), rendering in
+`client/src/components/BoxNode.tsx`, and the "run" behavior in
 `client/src/store/boardStore.ts` (`runBox`).
 
 Boxes fall into three categories:
@@ -203,7 +204,7 @@ a slightly rotated yellow sticky with a hover/selected ✕ delete button.
 A small colored text pill for annotating areas of the board. Labels render as a **floating chip
 with no card frame at all** — the pill *is* the node, with a hover/selected ✕ delete button.
 
-- **Fields:** `content` (label text), `labelColor` (one of `LABEL_COLORS` in `types.ts`).
+- **Fields:** `content` (label text), `labelColor` (one of `LABEL_COLORS` in `types/boxes/label.ts`).
 - **Interaction:** click the pill to edit the text; select the box to reveal five color dots.
 
 ### ⏱️ Timer — `timer`
@@ -316,8 +317,10 @@ Tagging a box does not affect collaboration, the canvas, or `runBox` — it is p
 
 ## Adding a new box type
 
-1. Add a `BoxType` union member and a `BOX_TYPES` entry in `client/src/types.ts` (including its
-   `roles` tags and `category` — see above).
+1. Add a `BoxType` union member in `client/src/types/core.ts`, create
+   `client/src/types/boxes/<type>.ts` with the metadata (including its `roles` tags and `category`
+   — see above), and register it in `BOX_TYPES` in `client/src/types/boxTypes.ts` (union and table
+   must match — a mismatch is a compile error).
 2. Register it in `Canvas.tsx` (`nodeTypes`) and the MiniMap color map.
 3. Add a render/output branch in `BoxNode.tsx`.
 4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch — a plain text

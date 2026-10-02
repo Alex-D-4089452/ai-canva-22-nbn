@@ -1,4 +1,4 @@
-import type { BoxDocument } from "../types.js";
+import type { BoxDocument } from "../types/index.js";
 
 /**
  * Documents box logic: which files are supported, how their text is
