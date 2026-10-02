@@ -5,10 +5,8 @@ import Reveal from "./Reveal.js";
 const ORDER: BoxType[] = [
   "idea",
   "research",
-  "summarize",
+  "summarise",
   "prd",
-  "devplan",
-  "code",
   "ui",
   "stitch",
   "slides",

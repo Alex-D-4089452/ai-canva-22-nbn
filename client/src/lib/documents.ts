@@ -8,7 +8,7 @@ import type { BoxDocument } from "../types.js";
  * Pure helpers here are unit-tested (`documents.test.ts`); the PDF and DOCX
  * extractors lazy-load their heavy libraries (pdf.js ~400KB, mammoth
  * ~200KB) so they stay out of the main bundle until a user actually uploads
- * that file type — same pattern as the lazy CodeMirror/Sandpack imports.
+ * that file type — same pattern as the lazy CodeMirror imports.
  */
 
 /** File extensions the Documents box accepts (lowercase, no dot). */

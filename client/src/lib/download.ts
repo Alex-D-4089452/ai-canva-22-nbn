@@ -1,6 +1,4 @@
 import type { BoxData, BoxType } from "../types.js";
-import { SDLC_ARTIFACT_FILENAMES } from "./sdlc.js";
-import { buildPatch } from "./codeedit.js";
 
 /**
  * Downloading a box's actual outcome.
@@ -12,11 +10,8 @@ import { buildPatch } from "./codeedit.js";
 /** Per-type file names for the download of a box's output. */
 const OUTCOME_FILENAMES: Partial<Record<BoxType, string>> = {
   research: "research.md",
-  summarize: "summary.md",
+  summarise: "summary.md",
   prd: "prd.md",
-  devplan: "dev-plan.md",
-  codemap: "code-map.md",
-  codeedit: "code-changes.patch",
   agent: "agent-answer.md",
   slides: "slides.md",
 };
@@ -35,13 +30,10 @@ export function slugifyFilename(name: string): string {
 }
 
 /**
- * The file name a box's outcome is downloaded as: the blueprint's artifact name
- * for an SDLC stage (`intent.md`, `spec.md`, …), the box type for the other
+ * The file name a box's outcome is downloaded as: the box type for the known
  * text boxes, and the slugified instance label for custom boxes.
  */
 export function outcomeFilename(type: BoxType | string, label: string): string {
-  const sdlc = SDLC_ARTIFACT_FILENAMES[type];
-  if (sdlc) return sdlc;
   const known = OUTCOME_FILENAMES[type as BoxType];
   if (known) return known;
   return `${slugifyFilename(label)}.md`;
@@ -63,19 +55,15 @@ function slidesToMarkdown(data: BoxData): string {
 
 /** True when this box type has an outcome that can be downloaded as text. */
 export function hasDownloadableOutcome(type: BoxType | string): boolean {
-  if (SDLC_ARTIFACT_FILENAMES[type]) return true;
-  return ["research", "summarize", "prd", "devplan", "codemap", "codeedit", "agent", "slides", "custom"].includes(type);
+  return ["research", "summarise", "prd", "agent", "slides", "custom"].includes(type);
 }
 
 /**
- * The box's **actual outcome** and nothing else: the generated text (for an
- * SDLC stage that is the latest artifact version, since `output` always mirrors
- * it), or the slide deck rendered as Markdown. "" when the box has produced
- * nothing yet — the caller hides the button in that case.
+ * The box's **actual outcome** and nothing else: the generated text, or the
+ * slide deck rendered as Markdown. "" when the box has produced nothing yet —
+ * the caller hides the button in that case.
  */
 export function outcomeText(type: BoxType | string, data: BoxData): string {
-  // The Code Edit outcome IS the patch: download it and `git apply` it.
-  if (type === "codeedit") return buildPatch(data.changeSet);
   if (type === "slides") {
     const deck = slidesToMarkdown(data);
     if (deck.trim()) return deck.trim() + "\n";
@@ -86,9 +74,7 @@ export function outcomeText(type: BoxType | string, data: BoxData): string {
 }
 
 /** The MIME type a box's outcome should be downloaded as. */
-export function outcomeMime(type: BoxType | string): string {
-  if (type === "codeedit") return "text/x-patch;charset=utf-8";
-  if (type === "slides" || type === "codemap" || type === "codeedit") return "text/markdown;charset=utf-8";
+export function outcomeMime(_type: BoxType | string): string {
   return "text/markdown;charset=utf-8";
 }
 

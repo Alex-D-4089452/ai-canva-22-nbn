@@ -29,6 +29,36 @@ current state).
 
 ---
 
+## 2026-10-02 — Removed the SDLC / Chatbot / legacy code box types end-to-end
+
+- **Done:** Deleted 11 box types (`sdlc-intent|spec|plan|implement|review|merge`, `code`,
+  `codeedit`, `codemap`, `devplan`, `chatbot`) and their whole surface: components
+  (`SdlcGatePanel`, `CodeEditPanel`, `ChatbotPanel`, `StickFigure`, `RepoField`,
+  `SandpackPreview`), libs (`sdlc`, `codeedit`, `chatbot`, `repo` in client **and** the
+  duplicated `server/`+`functions/`), palette/sidebar/landing entries, boardStore branches,
+  index.css styles, and the `sandpack-react` dependency. Shared logic was extracted first:
+  `lib/diff.ts` (`computeLineDiff`/`lineDiff`) and `appendVersion` in `lib/code.ts`.
+  **`/api/repo-digest`** route + `repo.ts` removed from both backends; `GITHUB_TOKEN` dropped
+  from `.env`/`.env.example` (server+functions), `render.yaml` and all docs. `BoxType` is now
+  **19 (18 built-in + `custom`)**; legacy `summarize`→`summarise` aliases kept in
+  `Canvas.tsx`/`BoxNode.tsx`, and the e2e's `"summarize"` lookups + `"Summarize"` palette click
+  were fixed to the real label **Summarise**. `ui` is now the only code-editing box (CDN iframe
+  preview via `wrapUIInHtml`, StackBlitz, AI change requests + versions, here.now deploy for
+  ui+stitch). Docs synced: `BOX_TYPES.md` 525→327, `API.md` 502→434, `OVERVIEW`, `MODELS`,
+  `DEPLOYMENT`, `README` (18 box types table + examples), course 01/05 (BoxType examples),
+  `CHANGELOG` (Removed entry), `AGENTS.md` (box list, removed bullets, ui-smoke description,
+  roles). `ui-smoke.mjs` rewritten 1041→378 lines — now 18 checks: CC1–CC9 (UI change requests)
+  + DP1–DP8 (deploys) + Z1; SDLC/Code-Map/repo-digest coverage removed.
+  **Verified:** client `tsc -b` 0, `vitest` **189/189**, `vite build` ok; server `tsc` 0 +
+  **36/36**; functions `tsc` 0. Temp `.remove-*.ps1` scripts deleted and the `.gitignore`
+  `*.ps1` block reverted.
+- **In flight:** everything above is uncommitted; `client/ui-smoke.mjs` and `client/e2e.mjs`
+  were **not executed** (ui-smoke hardcodes a macOS Chrome path; e2e needs live
+  `npm run dev` + Firebase).
+- **Next steps:** (1) run `node e2e.mjs` / `node ui-smoke.mjs` from `client/` on a machine
+  that can drive Chrome when convenient; (2) commit when the user asks (working tree holds the
+  whole removal — ~40 modified + 15 deleted files).
+
 ## 2026-09-23 — Live Hosting deployed against Render; VITE_API_BASE bake fixed
 
 - **Done:** Production path is live: **Hosting** `https://ai-canva-22-nbn-fee4b.web.app` +

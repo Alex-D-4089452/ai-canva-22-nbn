@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import type { BoxData, BoxType } from "../types.js";
-import { computeLineDiff, lineDiff } from "../lib/codeedit.js";
+import { computeLineDiff, lineDiff } from "../lib/diff.js";
 
 /**
  * AI change requests for a Code / UI Design box, with the safety net.

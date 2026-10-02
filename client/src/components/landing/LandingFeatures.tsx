@@ -3,8 +3,8 @@ import Reveal from "./Reveal.js";
 const FEATURES = [
   {
     icon: "🧩",
-    title: "11 AI box types",
-    body: "Idea, Research, PRD, Dev Plan, Code, UI Design, Stitch and more — each a focused, reusable AI step.",
+    title: "12 AI box types",
+    body: "Idea, Research, PRD, UI Design, Stitch, Agent and more — each a focused, reusable AI step.",
   },
   {
     icon: "🔗",

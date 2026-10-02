@@ -4,17 +4,12 @@ import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
 import { BOX_TYPES, LABEL_COLORS } from "../types.js";
-import { chatbotName } from "../lib/chatbot.js";
 import type { BoxType } from "../types.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
-import { buildAuditExport, forcedGateReason, isSdlcBox, sdlcStageMeta } from "../lib/sdlc.js";
-import SdlcGatePanel, { SdlcGateBadge } from "./SdlcGatePanel.js";
-import CodeEditPanel from "./CodeEditPanel.js";
 import CodeChangePanel from "./CodeChangePanel.js";
 import DeployPanel from "./DeployPanel.js";
 import ChecklistPanel from "./ChecklistPanel.js";
-import RepoField from "./RepoField.js";
 import {
   DEFAULT_TIMER_MS,
   computeRemainingMs,
@@ -43,17 +38,6 @@ import { toStackBlitzProject } from "../lib/project.js";
 const CodeEditor = lazy(() => import("./CodeEditor.js"));
 // The split-view modal also pulls in CodeMirror, so lazy-load it too.
 const CodeModal = lazy(() => import("./CodeModal.js"));
-// The chatbot companion's tick figure + chat panel.
-import StickFigure from "./StickFigure.js";
-import ChatbotPanel from "./ChatbotPanel.js";
-// Sandpack (in-browser bundler) is heavy, so lazy-load it for the real-project
-// preview of Code boxes. This module is also lazy-imported by CodeModal. React
-// lazy always resolves a dynamic import to its `.default` export, so a bare
-// `lazy(() => import("./SandpackPreview.js"))` is the correct form — do NOT
-// wrap the import in `.then((m) => m.default)`, which resolves to the bare
-// component and makes React return `undefined` (white screen / "resolves to
-// undefined"). See AGENTS.md "Lazy-load gotcha (shared chunks)".
-const SandpackPreview = lazy(() => import("./SandpackPreview.js"));
 
 /**
  * Reads an image File, resizes it to max 1024px, and returns a compressed
@@ -95,7 +79,10 @@ function resizeImage(file: File, maxSize = 1024): Promise<string> {
 }
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
-  const boxType = (data.boxType || type) as BoxType;
+  // Legacy boards may still carry the old `summarize` spelling (the box was
+  // renamed to `summarise`); resolve it so BOX_TYPES lookup never misses.
+  const rawType = (data.boxType || type) as string;
+  const boxType = (rawType === "summarize" ? "summarise" : rawType) as BoxType;
   // Custom boxes: the base meta is a fallback — instances carry their own
   // icon/color/label copied from the user's saved definition (node.data).
   const baseMeta = BOX_TYPES[boxType];
@@ -116,7 +103,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const edges = useBoardStore((s) => s.edges);
   const allNodes = useBoardStore((s) => s.nodes);
   const setBoxName = useBoardStore((s) => s.setBoxName);
-  const setSdlcGateRequired = useBoardStore((s) => s.setSdlcGateRequired);
   const deployBox = useBoardStore((s) => s.deployBox);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -134,8 +120,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   // Label box: click-to-edit text (same pattern as the box-name editor).
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
-  // Chatbot companion: chat panel open state (per-node).
-  const [chatPanelOpen, setChatPanelOpen] = useState(false);
   // Timer box: duration input draft. null = show the stored duration.
   const [durationDraft, setDurationDraft] = useState<string | null>(null);
   // Timer box: live clock. Only this box instance ticks, and only while its
@@ -180,23 +164,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   };
 
   // ALL hooks must be called before any early return (Rules of Hooks)
-  // Listen for "preview-ready" message from the iframe
-  useEffect(() => {
-    if (!boxData || boxType !== "code") return;
-    const handler = (e: MessageEvent) => {
-      if (e.data && e.data.type === "preview-ready") {
-        setPreviewLoading(false);
-      }
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [boxData, boxType]);
-
   // Show the loading overlay for iframe-based previews (ui/stitch) when their
   // code changes, with a timeout fallback in case the iframe's "preview-ready"
   // message is lost. Keyed on the code string — boxData object identity changes
   // on every store patch (presence, tokens, snapshots) and must not re-trigger
-  // this. The Sandpack preview (boxType "code") shows its own loading state.
+  // this.
   useEffect(() => {
     if ((boxType !== "ui" && boxType !== "stitch") || !boxData?.code || boxData.status !== "done") return;
     setPreviewLoading(true);
@@ -209,12 +181,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   const isIdea = boxType === "idea";
   const isAgent = boxType === "agent";
-  const isChatbot = boxType === "chatbot";
   const isImage = boxType === "image";
   const isDocuments = boxType === "documents";
   const isCartoon = boxType === "cartoon";
   const isSlides = boxType === "slides";
-  const isCode = boxType === "code" || boxType === "ui" || boxType === "stitch";
+  const isCode = boxType === "ui" || boxType === "stitch";
   const isStitch = boxType === "stitch";
   const isInputBox = isIdea || isImage || isDocuments;
   // Collaboration boxes (note / label / timer / checklist) are standalone
@@ -224,12 +195,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isTimer = boxType === "timer";
   const isChecklist = boxType === "checklist";
   const isUtility = isNote || isLabel || isTimer || isChecklist;
-  // SDLC pipeline stage boxes (gated; see components/SdlcGatePanel.tsx).
-  const isSdlc = isSdlcBox(boxType);
-  // Code Map worker: reads a GitHub repository through the backend.
-  const isCodeMap = boxType === "codemap";
-  // Code Edit worker: reads a repository and proposes a reviewable change set.
-  const isCodeEdit = boxType === "codeedit";
   // Handoff Brief: custom banner with From/To/Generated/Status.
   const isHandoff = boxType === "handoff";
   // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
@@ -335,54 +300,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               />
             ))}
           </div>
-        )}
-      </div>
-    );
-  }
-
-  // ===== Chatbot companion: a stick figure standing on the board =====
-  // Renders as an annotation (no box card, no handles, no Run/Gear) — click
-  // it to open the chat panel (portaled to document.body by ChatbotPanel).
-  if (isChatbot && boxData) {
-    const thinking = boxData.status === "running";
-    const name = chatbotName(data.title as string);
-    const msgs = boxData.chatMessages || [];
-    const lastBot = [...msgs].reverse().find((m) => m.role === "bot");
-    return (
-      <div className={"chatbot-node" + (selected ? " selected" : "")}>
-        <button
-          className="chatbot-delete nodrag"
-          onClick={() => deleteBox(id)}
-          title="Delete companion"
-        >
-          ✕
-        </button>
-        {/* Speech bubble: latest bot line, or thinking dots */}
-        {thinking ? (
-          <div className="chatbot-bubble nodrag">
-            <span className="chatbot-dots"><span /><span /><span /></span>
-          </div>
-        ) : lastBot ? (
-          <div className="chatbot-bubble nodrag" title={lastBot.text}>
-            {lastBot.text.length > 140 ? lastBot.text.slice(0, 140) + "…" : lastBot.text}
-          </div>
-        ) : null}
-        {/* The figure itself — click to chat */}
-        <button
-          className="flex flex-col items-center gap-1 cursor-pointer"
-          onClick={() => setChatPanelOpen(true)}
-          title={`Chat with ${name}`}
-        >
-          <StickFigure size={104} tone={meta.color} busy={thinking} />
-          <span
-            className="chatbot-name"
-            style={{ backgroundColor: meta.color + "14", color: "#334155" }}
-          >
-            {name}
-          </span>
-        </button>
-        {chatPanelOpen && (
-          <ChatbotPanel id={id} onClose={() => setChatPanelOpen(false)} />
         )}
       </div>
     );
@@ -531,34 +448,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   };
 
   // Download this box's ACTUAL outcome as Markdown (see lib/download.ts for the
-  // per-type file names — the SDLC stages use the blueprint's artifact names).
+  // per-type file names).
   const outcome = outcomeText(boxType, boxData);
   const handleDownloadOutcome = () => {
     if (!outcome) return;
     downloadText(outcome, outcomeFilename(boxType, (data.title as string) || meta.label), outcomeMime(boxType));
-  };
-
-  // Audit export: the whole connected stage chain as one document.
-  const handleDownloadAudit = () => {
-    const state = useBoardStore.getState();
-    const doc = buildAuditExport({
-      nodes: state.nodes,
-      edges: state.edges,
-      boxData: state.boxData,
-      boardTitle: state.boardTitle,
-      startId: id,
-    });
-    downloadText(doc, "sdlc-audit-" + outcomeFilename(boxType, "chain").replace(/\.md$/, "") + ".md");
-  };
-
-  /** Copies an SDLC stage's artifact (same feedback pattern as the code box). */
-  const handleCopyOutcome = async () => {
-    if (!outcome) return;
-    const ok = await copyToClipboard(outcome);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
   };
 
   return (
@@ -620,8 +514,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </span>
           )}
           <span className="text-xs text-slate-400 flex-shrink-0">{meta.label}</span>
-          {/* SDLC stage: gate state at a glance (approved / awaiting / stale) */}
-          {isSdlc && <SdlcGateBadge data={boxData} />}
         </div>
         <button
           onClick={() => deleteBox(id)}
@@ -1077,7 +969,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           </div>
         )}
 
-        {/* AI box output — text (research, summarize). Collaboration boxes
+        {/* AI box output — text (research, summarise). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
             block nor its "no output yet" placeholder. Handoff, Alignment, and
             Decision get their own blocks with metadata banners. */}
@@ -1094,46 +986,19 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 ⚠️ {boxData.error}
               </div>
             )}
-            {/* Code Map: which repository this box read, and what came back */}
-            {isCodeMap && (
-              <RepoField
-                boxData={boxData}
-                onChange={(url) => updateBoxData(id, { repoUrl: url })}
-              />
-            )}
 
-            {/* Code Edit: repository + change request + the proposed change set */}
-            {isCodeEdit && <CodeEditPanel id={id} boxType={boxType} />}
-            {isCodeEdit && (boxData.changeSet || []).length > 0 && (
-              <DeployPanel id={id} boxType={boxType} />
-            )}
-
-            {hasTextOutput && !isRunning && !isCodeEdit && (
+            {hasTextOutput && !isRunning && (
               <div className="markdown-output text-slate-700 text-sm">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
             {!hasTextOutput && !isRunning && !hasError && !isUtility && (
               <div className="text-slate-400 text-sm py-4 text-center">
-                {isSdlc ? (
-                  <>
-                    No artifact yet. Connect the previous stage (or an Idea box with the change
-                    request) and click <strong>Run</strong>.
-                  </>
-                ) : isCodeMap ? (
-                  <>
-                    No brief yet. Give the box a GitHub repository above (or connect code /
-                    a Documents box) and click <strong>Run</strong>.
-                  </>
-                ) : isCodeEdit ? null : (
-                  <>
-                    No output yet. Click <strong>Run</strong> to generate.
-                  </>
-                )}
+                <>
+                  No output yet. Click <strong>Run</strong> to generate.
+                </>
               </div>
             )}
-            {/* SDLC stage gate — approvals, cross-checks, versions, audit trail */}
-            {isSdlc && <SdlcGatePanel id={id} boxType={boxType} />}
           </div>
         )}
 
@@ -1477,33 +1342,18 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 {/* Preview tab */}
                 {codeTab === "preview" && (
                   <div className="flex-1 min-h-0 relative rounded-lg overflow-hidden border border-slate-200 bg-white">
-                    {boxType === "code" ? (
-                      <Suspense
-                        fallback={
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
-                            <span className="animate-spin text-2xl">⚙️</span>
-                            <span>Loading preview…</span>
-                          </div>
-                        }
-                      >
-                        <SandpackPreview code={boxData.code || ""} height="100%" />
-                      </Suspense>
-                    ) : (
-                      <>
-                        {previewLoading && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
-                            <span className="animate-spin text-2xl">⚙️</span>
-                            <span>Loading preview...</span>
-                          </div>
-                        )}
-                        <iframe
-                          srcDoc={isStitch ? (boxData.code || "") : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(boxData.code || "")}
-                          className="absolute inset-0 w-full h-full border-0"
-                          sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
-                          title="React Preview"
-                        />
-                      </>
+                    {previewLoading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 text-sm bg-white z-10">
+                        <span className="animate-spin text-2xl">⚙️</span>
+                        <span>Loading preview...</span>
+                      </div>
                     )}
+                    <iframe
+                      srcDoc={isStitch ? (boxData.code || "") : wrapUIInHtml(boxData.code || "")}
+                      className="absolute inset-0 w-full h-full border-0"
+                      sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
+                      title="React Preview"
+                    />
                   </div>
                 )}
               </div>
@@ -1577,7 +1427,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             ⚙
           </button>
           {/* Download this box's actual outcome (Markdown) — every text-output
-              box, including the SDLC stages. */}
+              box. */}
           {!isRunning && hasDownloadableOutcome(boxType) && outcome && (
             <button
               onClick={handleDownloadOutcome}
@@ -1586,27 +1436,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             >
               💾 Save
             </button>
-          )}
-          {/* SDLC stage: copy the artifact, or export the whole gated chain as
-              one audit document (artifacts + versions + approvals + history). */}
-          {isSdlc && !isRunning && (
-            <>
-              <button
-                onClick={handleCopyOutcome}
-                disabled={!outcome}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap disabled:opacity-40"
-                title="Copy the artifact to the clipboard"
-              >
-                {copied ? "✅ Copied" : "📋 Copy"}
-              </button>
-              <button
-                onClick={handleDownloadAudit}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap"
-                title="Download the whole stage chain as one audit document (artifacts, versions, approvals, findings, history)"
-              >
-                🗂 Audit
-              </button>
-            </>
           )}
           {isCode && boxData.code && !isRunning && (
             <>
@@ -1647,51 +1476,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       {/* Settings panel — collapsible (AI boxes only) */}
       {!isInputBox && !isUtility && showSettings && (
         <div className="px-3 py-3 border-t border-slate-100 bg-slate-50 space-y-2">
-          {/* SDLC stage: org rule sets (the pipeline's "skills") — injected into
-              the spec/review prompts, and into the audit record. */}
-          {isSdlc && (sdlcStageMeta(boxType)?.stage === "spec" || sdlcStageMeta(boxType)?.stage === "review") && (
-            <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1">
-                Skills / org rule sets (security, brand, compliance)
-              </label>
-              <textarea
-                className="nodrag nowheel w-full text-xs rounded-lg border border-slate-200 p-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
-                placeholder={"Paste the rules this stage must obey.\ne.g. - Never log PII\n- All public endpoints must be rate limited"}
-                value={boxData.skills || ""}
-                onChange={(e) => updateBoxData(id, { skills: e.target.value })}
-              />
-              <p className="text-[10px] text-slate-400 mt-1">
-                Applied to every run of this stage. You can also connect a Documents box with the
-                full policy text.
-              </p>
-            </div>
-          )}
-
-          {/* SDLC stage: the gate itself. Hard gates and forced conditions can
-              never be switched to auto-advance — the app refuses outright. */}
-          {isSdlc && (() => {
-            const forced = forcedGateReason(boxType, boxData);
-            const required = forced !== null ? true : boxData.sdlcGateRequired !== false;
-            return (
-              <label className={"flex items-start gap-2 text-xs " + (forced ? "text-slate-400" : "text-slate-600 cursor-pointer")}>
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={required}
-                  disabled={!!forced}
-                  onChange={(e) => {
-                    const ok = setSdlcGateRequired(id, e.target.checked);
-                    if (!ok) return;
-                  }}
-                />
-                <span>
-                  Require approval before the next stage can run
-                  {forced && <span className="block text-[10px] text-slate-400">Locked — {forced}</span>}
-                </span>
-              </label>
-            );
-          })()}
-
           {/* System prompt — text AI boxes only (not cartoon) */}
           {!isCartoon && (
             <div>

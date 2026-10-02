@@ -1,6 +1,30 @@
-import type { NamedInput } from "../types.js";
+import type { ArtifactVersion, NamedInput } from "../types.js";
 import { CODE_CHANGE_PROMPT } from "../types.js";
 import { fillPromptTemplate } from "./prompts.js";
+
+/**
+ * Appends a version to a box's append-only code history. The previous array is
+ * never mutated, the new version number is `max + 1`, and every field is always
+ * defined (Firestore rejects `undefined` inside a nested object).
+ */
+export function appendVersion(
+  versions: ArtifactVersion[] | undefined,
+  entry: { content: string; createdBy: string; source: "generated" | "edited"; note?: string; at?: number }
+): ArtifactVersion[] {
+  const existing = versions || [];
+  const nextNumber = existing.reduce((max, v) => Math.max(max, v.version || 0), 0) + 1;
+  return [
+    ...existing,
+    {
+      version: nextNumber,
+      content: entry.content,
+      createdAt: entry.at ?? Date.now(),
+      createdBy: entry.createdBy || "Someone",
+      source: entry.source,
+      note: entry.note || "",
+    },
+  ];
+}
 
 /**
  * Wraps generated React component code in a self-contained HTML file

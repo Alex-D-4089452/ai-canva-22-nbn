@@ -55,8 +55,8 @@
 
   <h2><span class="n">2.</span> Touchpoint 1 — Register your box in <code>types.ts</code></h2>
   <p>Open <code>client/src/types.ts</code>. At the top there's a line listing every box type. <b>Add your box name</b> to that list:</p>
-  <pre><code>export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | <b>"swot"</b>;</code></pre>
-  <p>Now scroll to the big <code>BOX_TYPES</code> object. After the last entry (<code>stitch: {...}</code>), add a comma and your own entry:</p>
+  <pre><code>export type BoxType = "idea" | "agent" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "note" | "label" | "timer" | "checklist" | "custom" | <b>"swot"</b>;</code></pre>
+  <p>Now scroll to the big <code>BOX_TYPES</code> object. After the last entry (<code>custom: {...}</code>), add a comma and your own entry:</p>
   <pre><code>swot: {
   label: "SWOT",            // the name shown in the sidebar
   icon: "⚖️",               // the icon shown
@@ -91,7 +91,7 @@
     <li>calls the AI backend with your <code>defaultPrompt</code> + <code>defaultSystemPrompt</code>,</li>
     <li>runs this branch, saving the AI's reply as the box's <code>output</code> and marking it <code>done</code>.</li>
   </ol>
-  <p><b>No new backend code needed</b> — your box reuses the existing <code>/api/generate</code> (Ollama) endpoint that Research/Summarize already use.</p>
+  <p><b>No new backend code needed</b> — your box reuses the existing <code>/api/generate</code> (Ollama) endpoint that Research/Summarise already use.</p>
 
   <h2><span class="n">4.</span> Touchpoint 3 (optional) — Custom rendering</h2>
   <p>If you want to <i>draw</i> your output nicely (e.g. colour-coded SWOT sections), open <code>BoxNode.tsx</code> and add a render case. Plain Markdown already renders — so <b>start simple</b>. Make a plain-text box work first, then decide if it needs fancy visuals for your demo.</p>

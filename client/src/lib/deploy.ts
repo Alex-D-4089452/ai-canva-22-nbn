@@ -1,6 +1,5 @@
 import type { BoxData, BoxType } from "../types.js";
-import { wrapCodeInHtml, wrapUIInHtml } from "./code.js";
-import { renderChangeSet } from "./codeedit.js";
+import { wrapUIInHtml } from "./code.js";
 
 /**
  * Turning a box's code into a publishable site.
@@ -23,13 +22,12 @@ export const MAX_DEPLOY_TOTAL_BYTES = 25 * 1024 * 1024;
 
 /** Box types whose contents can be published. */
 export function canDeployCode(type: BoxType | string): boolean {
-  return type === "code" || type === "ui" || type === "stitch" || type === "codeedit";
+  return type === "ui" || type === "stitch";
 }
 
 /** True when the box currently holds something publishable. */
 export function hasDeployableCode(type: BoxType | string, data: BoxData | undefined): boolean {
   if (!data || !canDeployCode(type)) return false;
-  if (type === "codeedit") return (data.changeSet || []).length > 0;
   return Boolean((data.code || "").trim());
 }
 
@@ -41,13 +39,11 @@ export function deployBytes(files: DeployFile[]): number {
 /**
  * The files a box publishes.
  *
- * - **Code / UI Design:** a self-contained `index.html` (React + Babel from a CDN,
- *   exactly what the box's own preview uses) plus `App.jsx` holding the source, so
- *   the published site shows the running prototype AND the code that produced it.
+ * - **UI Design:** a self-contained `index.html` (React + Babel from a CDN,
+ *   exactly what the box's own preview uses) plus `App.jsx` holding the source,
+ *   so the published site shows the running prototype AND the code that
+ *   produced it.
  * - **Stitch UI:** its HTML is already a page — published as `index.html` as-is.
- * - **Code Edit:** the changed files at their repository paths (so a change that
- *   touches a static site deploys as that site) plus `CHANGES.md`, the diff
- *   document, so the published site explains itself.
  *
  * Returns [] when there is nothing to publish.
  */
@@ -55,9 +51,9 @@ export function deployFilesFor(type: BoxType | string, data: BoxData | undefined
   if (!data) return [];
   const code = (data.code || "").trim();
 
-  if (type === "code" || type === "ui") {
+  if (type === "ui") {
     if (!code) return [];
-    const html = type === "code" ? wrapCodeInHtml(code) : wrapUIInHtml(code);
+    const html = wrapUIInHtml(code);
     return [
       { path: "index.html", content: html },
       { path: "App.jsx", content: code.endsWith("\n") ? code : code + "\n" },
@@ -67,19 +63,6 @@ export function deployFilesFor(type: BoxType | string, data: BoxData | undefined
   if (type === "stitch") {
     if (!code) return [];
     return [{ path: "index.html", content: data.code as string }];
-  }
-
-  if (type === "codeedit") {
-    const changeSet = data.changeSet || [];
-    if (changeSet.length === 0) return [];
-    const files: DeployFile[] = [];
-    for (const change of changeSet) {
-      if (change.operation === "delete") continue; // a deletion is not a file to publish
-      if (!change.path.trim()) continue;
-      files.push({ path: change.path.replace(/^\.\//, ""), content: change.content });
-    }
-    files.push({ path: "CHANGES.md", content: renderChangeSet(changeSet, changeSet[0]?.reason || "") });
-    return files;
   }
 
   return [];
@@ -92,9 +75,6 @@ export function deployFilesFor(type: BoxType | string, data: BoxData | undefined
 export function deployBlockedReason(type: BoxType | string, data: BoxData | undefined): string {
   if (!canDeployCode(type)) return "This box has no code to publish.";
   if (!data) return "This box has no code to publish.";
-  if (type === "codeedit") {
-    return (data.changeSet || []).length > 0 ? "" : "Run this box first — there is no change set to publish.";
-  }
   return (data.code || "").trim() ? "" : "Generate code first — then it can be published.";
 }
 
@@ -121,7 +101,7 @@ export function deploySiteTitle(
   boxTitle: string,
   boardTitle: string
 ): { displayName: string; displayDescription: string } {
-  const kind = type === "ui" ? "UI Design" : type === "stitch" ? "Stitch UI" : type === "codeedit" ? "Code Edit" : "Code";
+  const kind = type === "stitch" ? "Stitch UI" : "UI Design";
   const request = (data?.content || "").trim().replace(/\s+/g, " ");
   const name = `${boxTitle || `${kind} Box`}`.slice(0, 80);
   const parts = [
