@@ -362,6 +362,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   no-wheel zone — trackpad scroll/pinch over a box never zooms the canvas (it would fight the
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
+- **Alignment Check box (✅, worker) runs only with two connected inputs:** the pure gate is
+  `alignmentRunBlocker` in `client/src/lib/inputs.ts` (unit-tested) — two DISTINCT upstream
+  boxes must be connected AND both must contribute content (text / documents / image ref;
+  the box's own `content` never counts, `skipSelf`). `runBox` applies it **before any model
+  call** (sets `status: "error"` with the reason — same invariant as the SDLC gate), and
+  `BoxNode.tsx` disables **▶ Run** below two connections (tooltip "Connect two upstream boxes
+  first") plus shows an "n of 2 connected" placeholder. The prompt relies on `{{input_1}}` /
+  `{{input_2}}`, which is why an un-run upstream must not slip through.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product`/`sdlc`) in `client/src/types.ts`; the View dropdown in
   `Sidebar.tsx` filters which boxes appear in the "Add Box" palette (the selectable profiles live in
