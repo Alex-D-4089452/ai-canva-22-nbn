@@ -75,3 +75,33 @@ export function collectInputs(
 
   return { namedInputs, inputImage };
 }
+
+/**
+ * Alignment Check compares two artefacts (`{{input_1}}` / `{{input_2}}`), so it
+ * only runs once two DISTINCT upstream boxes are connected and each actually
+ * contributes content (text, documents, or an image reference). Returns null
+ * when the box may run, otherwise the user-facing reason (shown as the box's
+ * error). The box's own `content` never counts (skipSelf). The Run button is
+ * already disabled below two connections in BoxNode — this is the
+ * authoritative check `runBox` applies BEFORE any model call.
+ */
+export function alignmentRunBlocker(
+  nodes: Node[],
+  edges: Edge[],
+  boxData: Record<string, BoxData>,
+  id: string
+): string | null {
+  const sources = new Set(
+    edges.filter((e) => e.target === id).map((e) => e.source)
+  );
+  if (sources.size < 2) {
+    return `Alignment Check needs two connected input boxes (found ${sources.size}) — connect a second artefact to compare.`;
+  }
+  const { namedInputs } = collectInputs(nodes, edges, boxData, id, {
+    skipSelf: true,
+  });
+  if (namedInputs.length < 2) {
+    return "Alignment Check needs two artefacts with content — run the connected boxes first so both contribute output.";
+  }
+  return null;
+}
