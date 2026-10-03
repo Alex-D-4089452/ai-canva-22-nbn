@@ -29,6 +29,25 @@ current state).
 
 ---
 
+## 2026-10-03 — Double-click on empty canvas zooms in toward the pointer
+
+- **Done:** `Canvas.tsx` adds an app-level `onDoubleClick` on `<ReactFlow>`: on empty canvas it
+  zooms **×1.6 toward the cursor** (`setViewport`, 200ms, the flow point under the pointer held
+  fixed), clamped to React Flow's `minZoom`/`maxZoom` (defaults 0.5/**2** — v12's `maxZoom` is 2,
+  not 4, so repeated double-clicks stop there, same as the Controls + button). Target checks keep
+  everything else untouched: any `.react-flow__node` except `.react-flow__node-area` (areas are
+  background, so they zoom like empty canvas), `button/input/textarea/select/a`, the
+  Controls/Minimap/`.react-flow__panel`, and anything while the Area tool is active. React Flow's
+  built-in `zoomOnDoubleClick` stays `false` — its d3 listener sits on the renderer (would fire
+  from inside boxes) and on touch screens it bypasses the event filter (the original reason it
+  was disabled); browsers' synthesized double-tap reaches our handler instead. **Verified in a
+  real browser** (playwright-core + system Edge against the running dev server): a box
+  double-click below max zoom leaves the viewport byte-identical (1.3475 → 1.3475), empty-canvas
+  double-click goes 1.3475 → 2 (= ×1.6 clamped) with the anchor stable to <0.1 flow units,
+  area-node double-click zooms; plus `tsc -b` 0 and 299/299 unit tests.
+- **In flight:** none — uncommitted (`Canvas.tsx`, AGENTS, this entry).
+- **Next steps:** commit when asked.
+
 ## 2026-10-03 — Readability pass: larger default boxes + larger body/input/output text
 
 - **Done:** every box type's `defaultWidth`/`defaultHeight` in `client/src/types.ts` scaled
