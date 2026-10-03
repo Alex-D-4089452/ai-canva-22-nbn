@@ -28,7 +28,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 | Path | Purpose |
 |------|---------|
 | `client/` | React + Vite frontend. Entry `client/src/`, store at `client/src/store/boardStore.ts`. |
-| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/repo-digest`, `/api/storage/sign`, `/api/health`). |
+| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
 | `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
@@ -58,9 +58,16 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 - **Single Zustand store** (`client/src/store/boardStore.ts`) owns the whole board: `nodes`/`edges`
   (React Flow graph), `boxData` (per-box content/prompts/status/output — kept separate from the
   graph objects so it serializes cleanly to Firestore), and board/collaboration metadata.
+- **Box definitions live one file per box** under `client/src/types/`: `core.ts` (the `BoxType`
+  union, `BoxData`, `BoxTypeMeta`, shared shapes, `AREA_COLORS`), `boxes/<type>.ts` (each box's
+  metadata — box-specific constants ride along: `AGENT_CONTROLLER_SYSTEM_PROMPT` in `agent.ts`,
+  `CODE_CHANGE_PROMPT` in `ui.ts`, `LABEL_COLORS` in `label.ts`), `boxTypes.ts` (the `BOX_TYPES`
+  record — **insertion order is the palette order**), and `index.ts` (the public surface; modules
+  import `../types/index.js`). The `Record<BoxType, BoxTypeMeta>` keeps union and table in
+  lockstep, so adding a box touches `core.ts` + a new `boxes/<type>.ts` + `boxTypes.ts`.
 - **`runBox(id)`** is the orchestrator: gathers upstream inputs from incoming edges, builds
   `NamedInput[]` for prompt templating, then branches by box type (cartoon → fal.ai, stitch →
-  Google Stitch, slides → Ollama + JSON parsing, code/ui → Ollama + code extraction, else Ollama
+  Google Stitch, slides → Ollama + JSON parsing, ui → Ollama + code extraction, else Ollama
   text).
 - **Stitch is asynchronous.** Stitch generation is slow (40s+) and exceeded the ~60s Firebase
   Hosting rewrite timeout, so the deployed box previously reported "Request failed" even though the
@@ -83,8 +90,8 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), the
   Agent box action protocol (`agent.ts`), input gathering (`inputs.ts` — `collectInputs`
   walks edges into `NamedInput[]` + first `inputImage`; **image-only sources contribute a
-  labeled named input** so `{{inputs}}` resolves), and the Chatbot companion prompt building
-  (`chatbot.ts`).
+  labeled named input** so `{{inputs}}` resolves), the line-diff engine (`diff.ts`), and
+  here.now deploy payloads (`deploy.ts`).
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
@@ -111,13 +118,13 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   Google sign-in) or Export/Import JSON. A dead `currentBoardId` (wrong project / deleted board)
   is cleared by `loadBoardFromFirestore` (returns false); App then recovers the local canvas via
   `createNewBoard(…, { preserveContent: true })` so saves don’t loop on `not-found`.
-- **26 built-in box types** plus user-created custom boxes: Agent, Chatbot, Idea, Image,
-  Documents, Research, Summarize, PRD, Dev Plan, **Code Map**, **Code Edit**, Cartoon Profile,
-  Slides, Code, UI Design,
-  Stitch UI, four collaboration boxes (Note, Label, Timer, **Checklist**), the six **SDLC pipeline
-  stages** (Intent, Spec, Plan, Implementation, Review, Merge), and the `custom` runtime type (see
-  "Custom boxes" below). Categories: `input`, `sdlc` (the six gated stages), `worker`,
-  `companion` (the Chatbot), `collab` (standalone team tools: no AI, no Run, no handles),
+- **18 built-in box types** plus user-created custom boxes: Agent, Idea, Image,
+  Documents, Research, Summarise, PRD, Cartoon Profile,
+  Slides, UI Design,
+  Stitch UI, Handoff Brief, Alignment Check, Jargon Translator, four collaboration boxes (Note, Label,
+  Timer, **Checklist**), and the `custom` runtime type (see
+  "Custom boxes" below). Categories: `input`, `worker`,
+  `collab` (standalone team tools: no AI, no Run, no handles),
   and `custom` (the user's saved templates). See `docs/BOX_TYPES.md`.
 
 ## UI design system
@@ -254,19 +261,15 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (75 base + 5 "TD" Documents-box tests + 13 "TC" Checklist tests + 9 "T15" shared-checklist
   cross-user tests added since).
 - **UI smoke test:** `client/ui-smoke.mjs` (playwright-core + system Chrome, same pattern as
-  `e2e.mjs`) drives the **real dev app** on `localhost:5173` with `/api/generate` **and**
-  `/api/repo-digest` mocked at the page level (deterministic artifacts, so it needs no Ollama, no
-  GitHub and no Firebase). It covers the SDLC pipeline (palette section/View profile, the gate
-  refusing to run before approval **and making no model call**, approve/request-changes/
-  edit-as-new-version, all four app-side cross-checks, downstream `stale` invalidation, dismissing
-  a blocking finding, `💾 Save` + `🗂 Audit` asserted by reading the downloaded files, persistence
-  across a reload) **and** the Code Map worker (repository field, the digest and its provenance
-  reaching the prompt, what-was-read shown on the box, `code-map.md` download, the honest
-  "repository not read" fallback, a repo link in a connected box). Run `node ui-smoke.mjs` from
+  `e2e.mjs`) drives the **real dev app** on `localhost:5173` with `/api/generate` mocked at the
+  page level (deterministic artifacts, so it needs no Ollama, no GitHub and no Firebase). It covers
+  AI change requests in the UI Design box (build → versioned change → diff + revert → incomplete
+  and unchanged replies refused) **and** here.now box deploys (UI publish/redeploy/conflict
+  refusal, expiry + claim-link toggle, Stitch HTML-only publish). Run `node ui-smoke.mjs` from
   `client/` while `npm run dev` is up (the fake-user Firestore "Missing or insufficient
-  permissions" console error is expected noise and filtered; mocks must be re-installed after the
-  reload check, which is why they live in `installMocks()`). Keep its assertion strings in sync when
-  renaming gate labels/buttons.
+  permissions" console error is expected noise and filtered; mocks must be re-installed after a
+  reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
+  renaming buttons.
 - **E2E environment gotchas:** (1) The firebase-tools access token
   (`~/.config/configstore/firebase-tools.json`) **expires ~hourly**; a stale token makes the
   facilitator PATCH silently 401 → the "TF facilitator button appears after grant" check FAILS.
@@ -296,25 +299,6 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
-- **Chatbot companion (🧍, Companions palette section):** a stick figure that LIVES on the board
-  and holds a continuous, shared conversation — unlike the Agent box it never "finishes" and never
-  touches boxes; it only talks. Category `"companion"`; renders via a custom early-return branch
-  in `BoxNode.tsx` (annotation pattern like note/label: no card/handles/Run; hover ✕ delete;
-  SVG figure in `components/StickFigure.tsx`, idle-bob/thinking animations in `index.css`).
-  Clicking the figure opens `ChatbotPanel.tsx` — **portaled to document.body** (CodeModal
-  pattern) — with the transcript, an editable name (`data.title`, default "Chat Pal"), the
-  🧠 **personality** editor (`boxData.personality`, free text; default in
-  `lib/chatbot.ts DEFAULT_PERSONALITY`), clear-chat, and Retry (strips the failed trailing
-  exchange, re-sends). Sending = store `sendChatMessage(id, text)`: appends the user message
-  (with `by` attribution — the conversation is SHARED, last-write-wins between simultaneous
-  users), builds context client-side each turn (compiled persona + `buildChatSystemPrompt` +
-  last 16 messages via `buildConversationTurn` + a board snapshot reusing `buildBoardInventory`
-  with chatbot/agent/area nodes filtered out) and calls `/api/generate`; no backend changes.
-  `runBox` early-returns for `chatbot` (talking is never a Run); tokens accrue cumulatively with
-  `boxType: "chatbot"`. History is capped (`MAX_CHAT_MESSAGES` 60 stored / 16 replayed). The node
-  seeds a greeting in `addBox` and carries `data.autoPlace`, which `Canvas.tsx`'s effect resolves
-  to the **bottom-center of the current viewport** (offset per extra chatbot) — it's then a
-  normal draggable node. E2E-verified live: board-aware answers, persona + rename round-trips.
 - **Agent box (🤖, first worker in the palette):** users type a task and Run — the LLM acts as an
   autonomous controller that manipulates the BOARD: each controller turn returns exactly ONE JSON
   action (`add_box` / `connect` / `run_box` / `finish`), executed with the regular store actions,
@@ -322,8 +306,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `boardStore.ts` (`runAgentLoop`, invoked from the `boxType === "agent"` branch of `runBox` — it
   manages its own status/inputs and bypasses the shared gathering); protocol/inventory/layout in
   `client/src/lib/agent.ts` (pure, unit-tested; `AGENT_CREATABLE_TYPES` whitelist = idea research
-  summarize prd devplan codemap codeedit slides code ui — never image/documents/cartoon/stitch/agent, and
-  never the `sdlc-*` stages); UI (task
+  summarise prd slides ui — never image/documents/cartoon/stitch/agent); UI (task
   textarea + live `agentSteps` timeline + ⏹ Stop so the loop halts between turns) in `BoxNode.tsx`.
   Running a box from the agent is a plain `await runBox(boxId)` — the target box's status/output is
   read back after. Budget: `MAX_AGENT_TURNS` (12) with a forced wrap-up on the last turn; 2
@@ -373,106 +356,45 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   scrollable surfaces inside nodes.
 - **Run input gates (refuse before the model call):** `runInputBlocker(boxType, nodes, edges,
   boxData, id)` in `client/src/lib/inputs.ts` returns `null` (may run) or a user-facing reason,
-  and `runBox` applies it BEFORE any model call — same invariant as the SDLC gate (sets
-  `status: "error"` with the reason and returns; no token spent, the box never flips to
-  "running"). Rules: **Alignment Check** needs two distinct connected upstream boxes that both
-  contribute content (`alignmentRunBlocker`, `skipSelf` — the box's own `content` never
-  counts); **Cartoon Profile, Handoff Brief, Decision Log, Slides** need ≥1 connected upstream
-  box with content (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the
-  message); **Code, UI Design, Stitch UI** need a typed description (`content`) or one
-  connected upstream box with content (their own text counts — no `skipSelf`); **Agent**
-  needs a typed task (`boxData.content`); every other box is ungated
-  (stock prompts are designed to run standalone). `BoxNode.tsx` mirrors the rules
-  (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two upstream boxes
-  first" / "Connect an upstream box first" / "Type a description or connect an input" /
-  "Type a task first"; alignment body shows "n of 2 connected", agent body shows the store
-  error) but only counts connections — the
-  store stays authoritative because a box UI never subscribes to other boxes' data. Documents
-  and Image boxes are deliberately ungated: they have no Run button at all (their upload
-  already gates downstream use). Unit-tested in `inputs.test.ts` (`alignmentRunBlocker` +
-  `runInputBlocker`).
+  and `runBox` applies it BEFORE any model call (sets `status: "error"` with the reason and
+  returns; no token spent, the box never flips to "running"). Rules: **Alignment Check** needs
+  two distinct connected upstream boxes that both contribute content (`alignmentRunBlocker`,
+  `skipSelf` — the box's own `content` never counts; its prompt relies on `{{input_1}}` /
+  `{{input_2}}`, which is why an un-run upstream must not slip through); **Cartoon Profile,
+  Handoff Brief, Jargon Translator, Slides** need ≥1 connected upstream box with content
+  (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the message); **UI Design,
+  Stitch UI** need a typed description (`content`) or one connected upstream box with content
+  (their own text counts — no `skipSelf`); **Agent** needs a typed task (`boxData.content`);
+  every other box is ungated (stock prompts are designed to run standalone). `BoxNode.tsx`
+  mirrors the rules (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two
+  upstream boxes first" / "Connect an upstream box first" / "Type a description or connect an
+  input" / "Type a task first"; alignment body shows "n of 2 connected", agent body shows the
+  store error) but only counts connections — the store stays authoritative because a box UI
+  never subscribes to other boxes' data. Documents and Image boxes are deliberately ungated:
+  they have no Run button at all (their upload already gates downstream use). Unit-tested in
+  `inputs.test.ts` (`alignmentRunBlocker` + `runInputBlocker`).
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
-  (`everyone`/`designer`/`developer`/`product`/`sdlc`) in `client/src/types.ts`; the View dropdown in
+  (`everyone`/`designer`/`developer`/`product` — `BoxRole` in `types/core.ts`, the tags on each
+  box in `types/boxes/`); the View dropdown in
   `Sidebar.tsx` filters which boxes appear in the "Add Box" palette (the selectable profiles live in
   the `ROLES` list there — extend it AND the `localStorage` whitelist check when adding one, or the
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
   a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
-- **SDLC pipeline boxes (🎯📐🧭🛠️🔎🚀, palette section "SDLC", `roles: ["sdlc"]`):** the app's
-  translation of its SDLC blueprint — six gated stages (Intent → Spec → Plan → Implementation →
-  Review → Merge, box types `sdlc-intent`…`sdlc-merge`, category `sdlc`), each producing exactly one
-  artifact with a human gate before the next stage may run. **All pure logic lives in
-  `client/src/lib/sdlc.ts`** (stage metadata, `buildStagePrompt`, append-only
-  `appendVersion`/`appendEvent`, the parsers `parseOpenItems`/`parseDecisions`/`parseDeviation`/
-  `parseFindings`, `gateState`/`forcedGateReason`, `upstreamBlockReason`, `downstreamIds`, and
-  `buildAuditExport`) — unit-tested, so the store only orchestrates. The run path is
-  `runSdlcStage(id)` in `boardStore.ts` (reached from the `isSdlcBox` branch of `runBox`), and its
-  invariants are load-bearing: **the gate is checked BEFORE any model call** (a blocked stage sets
-  `status: "error"` with the reason and never touches the model); the artifact is **appended as a new
-  immutable version** (never overwritten — `output` merely mirrors the latest one so `{{inputs}}` and
-  the download keep working); the **app itself derives the cross-checks** (spec open items, spec
-  decisions with no named test in the plan, implementation deviations, parsed review findings) rather
-  than trusting the model; a **failed run appends nothing and leaves the gate untouched**; and
-  regenerating/editing/rejecting/sending back a stage marks every downstream **approved** stage
-  `stale` (`invalidateSdlcDownstream`). Gate state lives in `boxData` (`sdlcGate`, plus
-  `sdlcVersions`/`sdlcHistory`/`sdlcFindings`/`sdlcOpenItems`/`sdlcGaps`/`sdlcDeviation`/
-  `sdlcGateRequired`/`sdlcApproved*`/`sdlcFeedback`/`skills`) and every object stored in those nested
-  arrays has ALL keys defined (`""`/`0`/`false`) — Firestore rejects nested `undefined`. Gate actions
-  are store actions (`approveArtifact`/`requestChanges`/`rejectArtifact`/`editArtifact`/
-  `dismissFinding`/`setSdlcGateRequired`); `setSdlcGateRequired` **refuses** (returns false) for the
-  hard gates (Intent, Merge) and for any stage with a forced condition instead of silently allowing
-  it. UI: `components/SdlcGatePanel.tsx` (gate bar, findings, version history + audit trail, header
-  `SdlcGateBadge`) rendered from BoxNode's generic text branch; the ⚙ panel carries the Skills field
-  (spec/review) and the gate toggle. `sdlc-*` types are **deliberately absent from
-  `AGENT_CREATABLE_TYPES`** (an agent must not create/approve its own stages — locked by a unit
-  test). The whiteboard cannot run tests or merge: Implementation produces the diff + evidence and
-  Merge produces the record a human merges (approving Merge IS the ship decision).
-- **Code Map worker (🔭, Workers section, `roles: ["developer", "sdlc"]`):** reads a **GitHub
-  repository** and writes an orientation brief (what the code is, stack, structure, entry points,
-  main flows, key abstractions, tests, risks, where to start reading, open questions). Two halves,
-  both unit-tested: **`server/src/repo.ts`** (+ duplicate `functions/src/repo.ts`) does the GitHub
-  access and digest building, and **`client/src/lib/repo.ts`** does URL parsing/resolution and
-  prompt assembly. The run path is `runCodeMap(id)` in `boardStore.ts` (reached from the
-  `boxType === "codemap"` branch of `runBox`); it fetches the digest through
-  `POST /api/repo-digest` (the browser NEVER calls GitHub, which is what makes a server-side
-  `GITHUB_TOKEN` able to unlock private repos) and then calls the model. Rules that matter:
-  only **github.com owner/repo** references are accepted (the endpoint must not become a request
-  proxy); the tree is ONE API call and file contents come from `raw.githubusercontent.com` (not
-  rate-limited); the digest is built by `scorePath`/`selectFiles` — README + dependency manifests,
-  then entry points, then central modules, with per-directory and per-category caps, so a monorepo's
-  config cluster cannot crowd out the code that explains the system; the **file budget is spent in
-  value order** (not alphabetically) while the digest renders in path order; files over 400 KB are
-  never downloaded and larger files are **clipped, not skipped**; a failed fetch with connected
-  context still produces a brief, but the prompt is told the repository was NOT read. The box stores
-  `repoMeta` (repo/branch/files/treeEntries/chars/truncated/fetchedAt/error/notes — all fields
-  always defined) and shows it with the digest notes. `resolveRepoRef` deliberately ignores the
-  box's **stock** prompt (its placeholder `github.com/owner/repo` example is documentation), and the
-  resolved `#branch` is carried into the request URL so `owner/repo#release-2.0` doesn't silently
-  read the default branch.
-- **Code Edit worker (✍️, Workers section, `roles: ["developer", "sdlc"]`):** applies a change
-  request to an existing repository and returns a **reviewable change set + a `git apply`-able
-  patch** — it never writes to the repository (no token, no branch, no PR). All logic is in
-  **`client/src/lib/codeedit.ts`** (path safety, target selection, change-set validation, LCS line
-  diff, unified patch) and the run path is `runCodeEdit` in `boardStore.ts`; UI in
-  `components/CodeEditPanel.tsx` + the shared `components/RepoField.tsx` (also used by Code Map).
-  The flow, and the invariants that matter:
-  1. **target files** = the box's `filesToEdit` list → else a file list parsed out of an upstream
-     **SDLC Plan** artifact (`parsePlanFiles` → `editMeta.source: "plan"`) → else ONE triage call
-     (`TRIAGE_SYSTEM_PROMPT`) that names paths from the repo tree;
-  2. read those paths **in full** via `/api/repo-digest`'s `paths` mode (whole-file caps, `clipped`
-     flag) — a file the model could not fully see is never editable;
-  3. ask for a change set of **WHOLE files** (`CODE_EDIT_PROMPT`); the APP validates it
-     (`validateChangeSet`: safe paths only, read files only, no clipped files, no no-op updates,
-     size + count caps) and computes the diff/`+added −removed`/patch itself;
-  4. store the Markdown diff document in `output` (so the SDLC **Review** stage, which consumes a
-     diff, gets it through `{{inputs}}`), the structured `changeSet` + `editMeta` on the box.
-  **Never let the model author the diff** — `src/lib/codeedit.patch.test.ts` applies generated
-  patches with real `git apply` (including a file with no trailing newline and a large-file
-  single-line change) so the patch format cannot drift; `setChangeSetFile` recomputes the diff on a
-  hand edit, so the `.patch` can never disagree with what the panel shows. A non-JSON model reply is
-  an error, never a guessed edit; a failed run keeps the previous change set but labels it stale.
-  Note `computeLineDiff` treats a missing final newline as part of the last line (a sentinel) —
-  without that, `git apply` rejects hunks that git itself considers different.
-- **AI change requests in the Code / UI boxes:** once `boxData.code` exists, the box shows a
+- **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🔁 Jargon Translator —
+  types `handoff`/`alignment`/`jargon`, palette section
+  "Workers", `category: "worker"`):** generic text-AI boxes (they fall through `runBox`'s else
+  branch) that each render a **metadata banner** above the markdown output via their own block in
+  `BoxNode.tsx` (each excluded from the generic text block's guard). Shared pieces: the
+  banner's **`Source:`** label is `connectedSourceLabel()` (module-level in `BoxNode.tsx`) —
+  first connected upstream box, or the uploaded filename when that box is a Documents box; run-time
+  metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`jargonTerms`)
+  written by the text branch of `runBox`. Handoff's From/To are editable inputs
+  (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
+  never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
+  heading** so a numbered source list copied into the translated artefact can't inflate it. None
+  of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier and was
+  removed — don't reintroduce `"decision"`/`decisionCount` references.)
+- **AI change requests in the UI Design box:** once `boxData.code` exists, the box shows a
   **"Request a change…"** field + **✏️ Apply change** (`CodeChangePanel.tsx`), backed by the
   `applyChangeRequest` store action. The model rewrites the WHOLE component (the only reliable way to
   ask for a code edit) under the non-editable `CODE_CHANGE_PROMPT` rules (return the complete file,
@@ -481,21 +403,20 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `isCompletePrototype` (must still define App **and** mount it) and "no change" detection, so an
   incomplete or identical reply never replaces working code (`setBoxStatus(id, "error", …)` keeps the
   old code). Versions: **every** build and change appends to `boxData.codeVersions` via the shared
-  `appendVersion` (the `ArtifactVersion` record, same shape the SDLC stages use — `SdlcVersion` is now
-  a type alias of it), with `codeVersion` pointing at the current one; `revertCodeVersion` restores an
-  old version **as a new version**, so history stays append-only. The panel shows `vN · +added
-  −removed vs vN-1`, a 🔀 diff (reusing `computeLineDiff`/`lineDiff` from `lib/codeedit.ts`) and a 🕘
-  history with 👁 view + ↩ Revert. Upstream boxes may supply the request (a Review box's findings, a
-  Code Edit change set) — with `skipSelf: true` so the box's own build description is not mistaken for
-  a change request. Stitch boxes are excluded: their `code` is HTML from another provider.
-- **Box deploys to here.now (🚀 Deploy):** **Code**, **UI Design**, **Stitch UI** and **Code Edit**
-  boxes can publish their code to a live `https://{slug}.here.now/` Site. The browser never holds a
+  `appendVersion` (`lib/code.ts`, the `ArtifactVersion` record), with `codeVersion` pointing at the
+  current one; `revertCodeVersion` restores an old version **as a new version**, so history stays
+  append-only. The panel shows `vN · +added −removed vs vN-1`, a 🔀 diff (reusing
+  `computeLineDiff`/`lineDiff` from `lib/diff.ts`) and a 🕘 history with 👁 view + ↩ Revert. An
+  upstream box's output may supply the request — read with `skipSelf: true` so the box's own build
+  description is not mistaken for a change request. Stitch boxes are excluded: their `code` is HTML
+  from another provider.
+- **Box deploys to here.now (🚀 Deploy):** **UI Design** and **Stitch UI** boxes can publish their
+  code to a live `https://{slug}.here.now/` Site. The browser never holds a
   credential — `POST /api/herenow-deploy` (route in both backends, logic in the duplicated
   `server/src/herenow.ts` + `functions/src/herenow.ts`) runs here.now's three-step flow
   (**create → PUT to presigned targets → finalize**; a Site is NOT live until finalize succeeds).
-  What each box publishes comes from **`client/src/lib/deploy.ts`** (`deployFilesFor`): Code/UI →
-  `index.html` (the CDN-wrapped page the box previews) + `App.jsx`; Stitch → its HTML as-is; Code
-  Edit → the changed files at their repository paths + `CHANGES.md` (deletions skipped). The run path
+  What each box publishes comes from **`client/src/lib/deploy.ts`** (`deployFilesFor`): UI →
+  `index.html` (the CDN-wrapped page the box previews) + `App.jsx`; Stitch → its HTML as-is. The run path
   is the `deployBox` store action; UI is `components/DeployPanel.tsx` (the 🌐 Live site strip with the
   live link, expiry, 🔑 claim toggle, warnings and errors) plus a footer button. Invariants:
   site-relative paths only and **`.herenow/` refused** (those are here.now config manifests — a
@@ -511,14 +432,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   is why the real contract came from `https://here.now/openapi.json`.
 - **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
   `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
-  text-output box (research, summarize, prd, devplan, codemap, codeedit, custom, agent, slides, all
-  six `sdlc-*`).
-  Filenames: the blueprint's artifact names for the SDLC stages (`intent.md`, `spec.md`, `plan.md`,
-  `implementation.md`, `review.md`, `merge.md`), the type otherwise, and the slugified label for
-  custom boxes. Slides download as a Markdown deck built from `slides[]`. The file is the artifact
-  text only — versions/approvals live in the SDLC `🗂 Audit` export. Code/UI/Stitch keep their own
-  💾 Save (HTML) and Cartoon its image download; Idea/Image/Documents/Note/Label/Timer/Checklist
-  have no text outcome.
+  text-output box (research, summarise, prd, custom, agent, slides).
+  Filenames: the type's name otherwise (`research.md`, `summary.md`, `prd.md`, …), and the
+  slugified label for custom boxes. Slides download as a Markdown deck built from `slides[]`. The
+  file is the artifact text only — version history lives in the box's own 🕘 panel (where present).
+  UI/Stitch keep their own 💾 Save (HTML) and Cartoon its image download;
+  Idea/Image/Documents/Note/Label/Timer/Checklist have no text outcome.
 - **Documents box (📎, input category):** multi-file upload (click or drag & drop) whose extracted
   text becomes the box's output for downstream prompts. All logic lives in
   `client/src/lib/documents.ts` (unit-tested): txt/md/csv/json are read as text directly; **PDF**
@@ -546,7 +465,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `LandingFooter`). It reuses `BOX_TYPES` for the box showcase, uses a `Reveal` scroll-fade wrapper
   (`useReveal.ts`), and keeps the dark indigo/cyan theme from `index.css` (`.landing-bg`,
   `.gradient-text`, `.glass-card`). `App.tsx` renders it when `!user`.
-- **Code editor:** the Code / UI / Stitch boxes use an editable CodeMirror 6 editor
+- **Code editor:** the UI Design / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
   + `@uiw/codemirror-theme-vscode`). It is **lazy-loaded** via `React.lazy` in `BoxNode.tsx` so
   CodeMirror (~500KB) is only fetched when a code box's Code tab opens. Edits call
@@ -555,56 +474,27 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   opens `client/src/components/CodeModal.tsx` — a full-screen split view (editable code left, live
   preview right) rendered via `createPortal` to `document.body` so it escapes React Flow's
   transformed node container. Both `CodeEditor` and `CodeModal` are lazy-loaded.
-- **Real-project preview (Code box):** the `code` box type previews generated code as a **real
-  React project** via Sandpack (`@codesandbox/sandpack-react`, `client/src/components/SandpackPreview.tsx`,
-  lazy-loaded) using the lightweight **`react` template** (runtime environment — the heavier
-  `vite-react` template fails to connect its bundler on localhost). `client/src/lib/project.ts`
-  transforms the single generated JSX into a multi-file project: `toSandpackFiles` (for Sandpack:
-  `/App.js`, `/index.js`, `/public/index.html`, `/package.json`, `/styles.css`) and `toReactProject`
-  (a Vite project for StackBlitz). Both strip the `ReactDOM.createRoot` render call and add a React
-  import. The `ui`/`stitch` boxes still use the lightweight CDN iframe preview. An **⚡ Open in
-  StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project in a full IDE.
-  `project.ts` is unit-tested in `client/src/lib/project.test.ts`. Note: Sandpack only sizes its
-  inner preview to the provider wrapper's height — pass `style={{ height }}` to `SandpackProvider`
-  in `SandpackPreview.tsx` (not just to `SandpackPreviewView`), or the preview collapses to a small
-  default and the app is clipped to the top of the box. StackBlitz note: `toReactProject` (used by
-  `toStackBlitzProject`) must use **non-leading-slash** file paths (`"App.jsx"`, `"index.jsx"`, …)
-  because WebContainers throws `path should be a path.relative()'d string, but got "/"` on leading-slash
-  keys, which made StackBlitz open blank (code never imported). Sandpack's `toSandpackFiles` still uses
-  leading slashes (`/App.js`) — keep the two transforms' path conventions separate.
-  **Sandpack stability contract:** `SandpackPreview.tsx` must stay `React.memo`-ized with
-  `useMemo`-derived `files`/`options` (keyed on the code string) plus `key={code}` on
-  `SandpackProvider`. BoxNode's parents re-render on every store update (presence/cursor snapshots
-  ~5/s while the mouse moves, board snapshot echoes, token badges); recreating `files`/`options`
-  objects per render made Sandpack restart its bundler in an endless loop under dev StrictMode
-  ("preview forever loading", box unstable). Conversely, under StrictMode Sandpack's in-place
-  update-on-files-change is broken (after the double effect mount, later updates never reach the
-  live sandbox and the preview goes stale), hence `key={code}` remounts the sandbox only when the
-  code actually changed. Keep both: the memo for stability, the key for update correctness.
+- **Real-project preview (UI box):** the `ui` box previews its generated code in a lightweight
+  CDN iframe — `wrapUIInHtml` (`lib/code.ts`) wraps the JSX with React 18 UMD + Babel standalone +
+  Tailwind CDN and posts `preview-ready` when it boots (stitch boxes render their raw HTML as-is);
+  BoxNode/CodeModal's `srcDoc` renders it directly. `client/src/lib/project.ts` turns the single
+  generated JSX into a multi-file Vite React project for **StackBlitz**: `toReactProject` (used by
+  `toStackBlitzProject`) strips the `ReactDOM.createRoot` render call and adds a React import, and
+  an **⚡ Open in StackBlitz** button (`@stackblitz/sdk`, `sdk.openProject`) opens the same project
+  in a full IDE. `project.ts` is unit-tested in `client/src/lib/project.test.ts`. StackBlitz note:
+  `toReactProject` must use **non-leading-slash** file paths (`"App.jsx"`, `"index.jsx"`, …)
+  because WebContainers throws `path should be a path.relative()'d string, but got "/"` on
+  leading-slash keys, which made StackBlitz open blank (code never imported).
   `CodeModal` additionally debounces the code it feeds the preview (~400ms) so typing doesn't
-  re-bundle per keystroke. The preview-loading overlay in BoxNode only applies to the iframe-based
-  ui/stitch previews (they post "preview-ready"); Sandpack shows its own loading state.
-- **Code box: generated code MUST end up with a default export.** The box's system prompt makes the
-  model "define a component called App" but never ask for an `export`. If the generated `App.js`
-  has no default export, the Sandpack/StackBlitz entry's `import App from "./App"` resolves to
-  `undefined`, and the preview iframe shows Sandpack's overlay **"Element type is invalid ...
-  got: object ... mixed up default and named imports"**. `ensureDefaultExport()` in
-  `client/src/lib/project.ts` appends `export default App;` (deduped) in both `toSandpackFiles` and
-  `toReactProject` so the preview always resolves. Keep that guarantee when changing the transforms.
-- **Lazy-load gotcha (shared chunks):** `SandpackPreview.tsx` is lazy-imported from **two** places
-  (`BoxNode.tsx` and `CodeModal.tsx`), so Vite bundles it as a **shared chunk** whose module-namespace
-  object is re-exported and picked up by the lazy transform as
-  `import("./SandpackPreview-<hash>.js").then(c => c.k)` where `c.k` is `{ default: SandpackPreview }`.
-  React 19 **always evaluates a lazy to the resolved value's `.default`** (`React.lazy` returns
-  `payload._result.default`), so the **bare form is the correct one**:
-  `lazy(() => import("./SandpackPreview.js"))`. It resolves to `{ default: Component }` and React
-  unwraps the component fine. **Do NOT** wrap the import in `.then((m) => m.default)` — that resolves
-  to the *bare component*, and React then reads `{Component}.default` → `undefined`, crashing with
-  `"Element type is invalid. Received a promise that resolves to: undefined."` and a white/render-broken
-  screen. This `.then()` "fix" regresses BOTH dev and prod even though the pre-fix bundle looked broken
-  for other reasons. When a lazy import misbehaves, verify the resolved chunk export (`c.<named>` is
-  `{ default: Comp }`) before assuming you must unwrap by hand — a bare `lazy(() => import("..."))`
-  is the safe default.
+  re-bundle per keystroke. The preview-loading overlay in BoxNode applies to the iframe-based
+  ui/stitch previews (they post "preview-ready").
+- **UI box: generated code MUST end up with a default export.** The box's system prompt makes the
+  model "define a component called App" but never asks for an `export`. If the generated App file
+  has no default export, the StackBlitz entry's `import App from "./App"` resolves to `undefined`,
+  and React reports **"Element type is invalid ... mixed up default and named imports"**.
+  `ensureDefaultExport()` in `client/src/lib/project.ts` appends `export default App;` (deduped)
+  in `toReactProject` so the project always resolves. Keep that guarantee when changing the
+  transform.
 - **Areas (drawn rectangles):** the "▭ Area" tool (floating top-left in `Canvas.tsx`) lets users
   drag a rectangle on empty canvas to create a background grouping region. Areas are React Flow
   nodes of type `"area"` (`AreaNode.tsx`, registered in `Canvas.tsx` nodeTypes) with **`zIndex: -1`
@@ -614,14 +504,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   board save/snapshot; `deleteBox(id)` deletes them (no boxData entry). While the tool is active,
   `panOnDrag`/`nodesDraggable` are off and drags on `.react-flow__pane` become a draft rectangle
   (`lib/areas.ts` `normalizeRect`/`isValidAreaSize`, unit-tested; drags <24 units are ignored).
-  The palette (`AREA_COLORS` in `types.ts`) is intentionally **very light** (Tailwind -100 fills,
+  The palette (`AREA_COLORS` in `types/core.ts`) is intentionally **very light** (Tailwind -100 fills,
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
 - **Touch / tablet (iPad) support:** everything touch-related is scoped to `@media (pointer: coarse)`
   in `client/src/index.css` — desktop is byte-for-byte unchanged. When adding UI, keep it that way:
   - **Hover-gated controls need `.touch-visible`** (opacity forced to 1 on coarse pointers) — used by
-    the Documents-file ✕ (BoxNode) and the Sidebar custom-template ✕. Note/label/chatbot/box delete
+    the Documents-file ✕ (BoxNode) and the Sidebar custom-template ✕. Note/label/box delete
     ✕s are always visible + 30px on touch via their own classes.
   - **Touch-target classes:** `.box-footer button`, `.slide-nav`, `.timer-controls button`,
     `.checklist-check` / `.checklist-row-actions button` / `.checklist-assign` /

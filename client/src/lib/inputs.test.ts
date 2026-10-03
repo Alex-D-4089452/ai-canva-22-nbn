@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 import {
   alignmentRunBlocker,
   collectInputs,
@@ -200,7 +200,7 @@ describe("runInputBlocker", () => {
     source,
     target,
   });
-  const upstreamBoxes = ["cartoon", "handoff", "decision", "slides"] as const;
+  const upstreamBoxes = ["cartoon", "handoff", "jargon", "slides"] as const;
 
   it("gates each upstream box when nothing is connected", () => {
     for (const t of upstreamBoxes) {
@@ -237,8 +237,8 @@ describe("runInputBlocker", () => {
     ).toBeNull();
   });
 
-  it("code/ui/stitch need a typed description or a connected input with content", () => {
-    for (const t of ["code", "ui", "stitch"] as const) {
+  it("ui/stitch need a typed description or a connected input with content", () => {
+    for (const t of ["ui", "stitch"] as const) {
       // nothing at all → blocked
       expect(runInputBlocker(t, nodes, [], {}, "box")).toContain("needs a description");
       // typed description alone → allowed
@@ -291,10 +291,10 @@ describe("runInputBlocker", () => {
   });
 
   it("leaves ungated boxes alone (stock prompts run standalone)", () => {
-    for (const t of ["research", "prd", "summarize"] as const) {
+    for (const t of ["research", "prd", "summarise"] as const) {
       expect(runInputBlocker(t, nodes, [], {}, "box")).toBeNull();
     }
     expect(runInputBlocker("custom", nodes, [], {}, "box")).toBeNull();
-    expect(runInputBlocker("sdlc-spec", nodes, [], {}, "box")).toBeNull();
   });
 });
+

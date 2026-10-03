@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 import { cleanBoxDataForFirestore } from "./serialization.js";
 
 describe("cleanBoxDataForFirestore", () => {
@@ -35,35 +35,29 @@ describe("cleanBoxDataForFirestore", () => {
     expect(cleaned.b).toEqual(data.b);
   });
 
-  it("keeps a full SDLC stage record intact with no nested undefined", () => {
-    const stage = {
-      content: "context",
+  it("keeps a full code-version record intact with no nested undefined", () => {
+    const box = {
+      content: "make the header sticky",
       prompt: "p",
       systemPrompt: "s",
-      output: "# Intent v2",
+      output: "```jsx\nconst App = …\n```",
       status: "done",
-      sdlcGate: "approved",
-      sdlcGateRequired: true,
-      sdlcApprovedVersion: 2,
-      sdlcApprovedBy: "Ada",
-      sdlcApprovedAt: 1700000005000,
-      sdlcFeedback: "",
-      skills: "No PII in logs.",
-      sdlcVersions: [
-        { version: 1, content: "# Intent", createdAt: 1, createdBy: "Ada", source: "generated", note: "" },
-        { version: 2, content: "# Intent v2", createdAt: 2, createdBy: "Bo", source: "edited", note: "tightened" },
+      code: "const App = () => <header />;",
+      codeVersion: 2,
+      codeVersions: [
+        { version: 1, content: "const App = () => <div />;", createdAt: 1, createdBy: "Ada", source: "generated", note: "initial build" },
+        { version: 2, content: "const App = () => <header />;", createdAt: 2, createdBy: "Bo", source: "edited", note: "sticky header" },
       ],
-      sdlcHistory: [{ at: 2, actor: "Bo", action: "edited intent v2", note: "" }],
-      sdlcFindings: [
-        { id: "f1", severity: "blocking", description: "No auth check", location: "api.ts:42", dismissed: false, dismissedBy: "" },
-      ],
-      sdlcOpenItems: [],
-      sdlcGaps: [],
-      sdlcDeviation: false,
+      changePrompt: "",
+      deploy: {
+        slug: "my-site", url: "https://my-site.here.now/", versionId: "v1", claimToken: "", claimUrl: "",
+        anonymous: true, expiresAt: "", deployedAt: 1700000005000, fileCount: 2, bytes: 1234,
+        warnings: [], error: "",
+      },
     } as unknown as BoxData;
 
-    const cleaned = cleanBoxDataForFirestore({ i: stage });
-    expect(cleaned.i).toEqual(stage);
+    const cleaned = cleanBoxDataForFirestore({ i: box });
+    expect(cleaned.i).toEqual(box);
 
     // Firestore rejects undefined ANYWHERE in a nested value — walk the whole
     // record the way the SDK would.

@@ -40,7 +40,7 @@ export default function Toolbar() {
               </>,
               <>
                 Click <span className="font-medium text-slate-700">▶ Run</span> on any AI box
-                (Research, PRD, Summarize, Cartoon, Slides, Code) to generate output.
+                (Research, PRD, Summarise, Cartoon, Slides, UI Design) to generate output.
               </>,
               <>
                 Click <span className="font-medium text-slate-700">⚙</span> to edit the AI prompt —

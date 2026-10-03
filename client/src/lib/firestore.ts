@@ -18,7 +18,7 @@ import {
   increment,
   setDoc as setDocPresence,
 } from "firebase/firestore";
-import type { PresenceUser } from "../types.js";
+import type { PresenceUser } from "../types/index.js";
 import type { CustomBoxDef } from "./customBoxes.js";
 
 export interface BoardDoc {

@@ -1,4 +1,4 @@
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 
 /**
  * Pure logic for Timer boxes. The timer is a small collaborative state

@@ -9,7 +9,7 @@ has changed." If you change a model, **update the table and append to the change
 
 | Concern | Used by | Provider | Model | Override | Defined in |
 |---------|---------|----------|-------|----------|------------|
-| **All text generation** | Research, Summarize, PRD, Dev Plan, Slides, Code, UI Design, Agent, Chatbot, custom boxes, agent run-box calls | Ollama (Cloud **or** local daemon) | `deepseek-v4.1-flash` *(default — no override set)* | `OLLAMA_MODEL` | `server/src/ollama.ts` + `functions/src/ollama.ts` |
+| **All text generation** | Research, Summarise, PRD, Slides, UI Design, Agent, custom boxes, agent run-box calls | Ollama (Cloud **or** local daemon) | `deepseek-v4.1-flash` *(default — no override set)* | `OLLAMA_MODEL` | `server/src/ollama.ts` + `functions/src/ollama.ts` |
 | **UI screens** | Stitch UI box | Google Stitch (Gemini under the hood) | `GEMINI_3_FLASH` *(default)* | `STITCH_MODEL` — enum: `GEMINI_3_PRO` \| `GEMINI_3_FLASH` | `server/src/stitch.ts` + `functions/src/stitch.ts` |
 | **Image, image→image** | Cartoon Profile box (when an Image box is connected) | fal.ai | `fal-ai/qwen-image-edit` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |
 | **Image, text→image** | Cartoon Profile box (no Image box connected) | fal.ai | `fal-ai/flux/schnell` | none — hardcoded | `server/src/fal.ts` + `functions/src/fal.ts` |

@@ -1,4 +1,4 @@
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 
 /**
  * Cleans per-box data before persisting to Firestore.

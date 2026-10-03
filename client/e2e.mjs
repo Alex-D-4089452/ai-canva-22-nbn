@@ -442,14 +442,14 @@ await safe("TD documents flow", async () => {
   });
   await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll("button")).find((b) =>
-      (b.textContent || "").trim().endsWith("Summarize")
+      (b.textContent || "").trim().endsWith("Summarise")
     );
     btn && btn.click();
   });
   await page.waitForTimeout(500);
   await page.evaluate((srcId) => {
     const s = window.__dsh.useBoardStore.getState();
-    const target = s.nodes.find((x) => (x.data.boxType || x.type) === "summarize");
+    const target = s.nodes.find((x) => (x.data.boxType || x.type) === "summarise");
     s.onConnect({ source: srcId, target: target.id, sourceHandle: null, targetHandle: null });
   }, docsBoxId);
   await page.waitForTimeout(400);
@@ -470,7 +470,7 @@ await safe("TD documents flow", async () => {
   });
   await page.evaluate(() => {
     const s = window.__dsh.useBoardStore.getState();
-    const target = s.nodes.find((x) => (x.data.boxType || x.type) === "summarize");
+    const target = s.nodes.find((x) => (x.data.boxType || x.type) === "summarise");
     const btn = Array.from(document.querySelectorAll("button")).find(
       (b) => /▶ Run/.test(b.textContent || "") && b.closest(`.react-flow__node[data-id="${target.id}"]`)
     );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxData, FileChange } from "../types.js";
+import type { BoxData } from "../types/index.js";
 import {
   MAX_DEPLOY_FILE_BYTES,
   canDeployCode,
@@ -19,32 +19,29 @@ const CODE = "function App() {\n  return <h1>Hi</h1>;\n}\nReactDOM.createRoot(do
 
 describe("canDeployCode / hasDeployableCode / deployBlockedReason", () => {
   it("covers the code-bearing boxes only", () => {
-    for (const type of ["code", "ui", "stitch", "codeedit"]) expect(canDeployCode(type), type).toBe(true);
-    for (const type of ["idea", "research", "prd", "slides", "cartoon", "note", "checklist", "agent"]) {
+    for (const type of ["ui", "stitch"]) expect(canDeployCode(type), type).toBe(true);
+    for (const type of ["idea", "research", "prd", "slides", "cartoon", "note", "checklist", "agent", "code", "codeedit"]) {
       expect(canDeployCode(type), type).toBe(false);
     }
   });
 
-  it("needs code (or a change set) before anything can be published", () => {
-    expect(hasDeployableCode("code", data({ code: CODE }))).toBe(true);
-    expect(hasDeployableCode("code", data())).toBe(false);
+  it("needs code before anything can be published", () => {
+    expect(hasDeployableCode("ui", data({ code: CODE }))).toBe(true);
+    expect(hasDeployableCode("ui", data())).toBe(false);
     expect(hasDeployableCode("stitch", data({ code: "<h1>ui</h1>" }))).toBe(true);
-    expect(hasDeployableCode("codeedit", data({ changeSet: [] }))).toBe(false);
-    expect(hasDeployableCode("codeedit", data({ changeSet: [{ path: "a.ts", operation: "update", content: "x", original: "y", added: 1, removed: 1, reason: "" }] }))).toBe(true);
+    expect(hasDeployableCode("codeedit", data({ code: CODE }))).toBe(false);
 
     expect(deployBlockedReason("idea", data())).toMatch(/no code/);
-    expect(deployBlockedReason("code", data())).toMatch(/Generate code first/);
-    expect(deployBlockedReason("codeedit", data({ changeSet: [] }))).toMatch(/no change set/);
-    expect(deployBlockedReason("code", data({ code: CODE }))).toBe("");
+    expect(deployBlockedReason("ui", data())).toMatch(/Generate code first/);
+    expect(deployBlockedReason("ui", data({ code: CODE }))).toBe("");
   });
 });
 
 describe("deployFilesFor", () => {
-  it("publishes a Code box as a self-contained index.html plus its source", () => {
-    const files = deployFilesFor("code", data({ code: CODE }));
+  it("publishes a UI Design box as a self-contained index.html plus its source", () => {
+    const files = deployFilesFor("ui", data({ code: CODE }));
     expect(files.map((f) => f.path)).toEqual(["index.html", "App.jsx"]);
     expect(files[0].content).toContain("<!DOCTYPE html>");
-    expect(files[0].content).toContain("ReactDOM.createRoot");
     expect(files[1].content).toBe(CODE + "\n");
   });
 
@@ -57,24 +54,10 @@ describe("deployFilesFor", () => {
   });
 
   it("publishes an empty set when there is no code", () => {
-    expect(deployFilesFor("code", data())).toEqual([]);
-    expect(deployFilesFor("code", data({ code: "   " }))).toEqual([]);
+    expect(deployFilesFor("ui", data())).toEqual([]);
+    expect(deployFilesFor("ui", data({ code: "   " }))).toEqual([]);
     expect(deployFilesFor("idea", data({ code: CODE }))).toEqual([]);
-    expect(deployFilesFor("code", undefined)).toEqual([]);
-  });
-
-  it("publishes a Code Edit change set at its repository paths, plus the diff document", () => {
-    const changeSet: FileChange[] = [
-      { path: "./src/app.ts", operation: "update", content: "export const x = 2;\n", original: "export const x = 1;\n", added: 1, removed: 1, reason: "bump" },
-      { path: "index.html", operation: "create", content: "<h1>site</h1>\n", original: "", added: 1, removed: 0, reason: "new page" },
-      { path: "src/gone.ts", operation: "delete", content: "", original: "bye\n", added: 0, removed: 1, reason: "dead" },
-    ];
-    const files = deployFilesFor("codeedit", data({ changeSet }));
-    // The leading ./ is normalized; a deleted file is not published.
-    expect(files.map((f) => f.path)).toEqual(["src/app.ts", "index.html", "CHANGES.md"]);
-    expect(files[0].content).toBe("export const x = 2;\n");
-    expect(files[2].content).toContain("# Change set");
-    expect(files[2].content).toContain("```diff");
+    expect(deployFilesFor("ui", undefined)).toEqual([]);
   });
 });
 
@@ -94,18 +77,18 @@ describe("validateDeploySet / deployBytes", () => {
 
 describe("deploySiteTitle", () => {
   it("names the site after the box and describes where it came from", () => {
-    const title = deploySiteTitle("code", data({ content: "a counter with   big buttons" }), "Counter Box", "Demo board");
+    const title = deploySiteTitle("ui", data({ content: "a counter with   big buttons" }), "Counter Box", "Demo board");
     expect(title.displayName).toBe("Counter Box");
-    expect(title.displayDescription).toContain("AI Canva (Code box)");
+    expect(title.displayDescription).toContain("AI Canva (UI Design box)");
     expect(title.displayDescription).toContain("Demo board");
     expect(title.displayDescription).toContain("a counter with big buttons"); // whitespace collapsed
     expect(deploySiteTitle("ui", data(), "", "").displayName).toBe("UI Design Box");
-    expect(deploySiteTitle("codeedit", data(), "Edits", "b").displayDescription).toContain("Code Edit");
+    expect(deploySiteTitle("stitch", data(), "Screens", "b").displayDescription).toContain("Stitch UI");
   });
 
   it("caps the fields to here.now's limits", () => {
     const long = "x".repeat(200);
-    const title = deploySiteTitle("code", data({ content: long }), long, long);
+    const title = deploySiteTitle("ui", data({ content: long }), long, long);
     expect(title.displayName.length).toBeLessThanOrEqual(80);
     expect(title.displayDescription.length).toBeLessThanOrEqual(280);
   });

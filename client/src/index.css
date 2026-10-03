@@ -240,94 +240,8 @@ select,
 .note-node:hover .note-delete,
 .note-node.selected .note-delete,
 .label-row:hover .label-delete,
-.label-node.selected .label-delete,
-.chatbot-node:hover .chatbot-delete,
-.chatbot-node.selected .chatbot-delete {
+.label-node.selected .label-delete {
   opacity: 1;
-}
-
-/* ===== Chatbot companion: a stick figure standing on the board ===== */
-.chatbot-node {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
-}
-.chatbot-node.selected {
-  outline: 2px solid #e11d48;
-  outline-offset: 4px;
-  border-radius: 10px;
-}
-.chatbot-delete {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 5;
-  @apply w-5 h-5 flex items-center justify-center rounded-full text-xs bg-white/80 text-slate-500 hover:text-red-500 shadow;
-}
-.chatbot-name {
-  @apply px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* Speech bubble above the figure's head */
-.chatbot-bubble {
-  @apply absolute top-0 left-1/2 -translate-x-1/2 bg-white rounded-xl px-2.5 py-1.5 text-[11px] leading-snug text-slate-600;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-  max-width: 150px;
-  max-height: 64px;
-  overflow: hidden;
-  z-index: 3;
-  word-break: break-word;
-}
-.chatbot-bubble::after {
-  content: "";
-  position: absolute;
-  bottom: -7px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 7px solid transparent;
-  border-top-color: #ffffff;
-  border-bottom: 0;
-}
-/* Gentle breathing idle / faster thinking bob (origin: the feet). */
-.chatbot-fig-idle {
-  transform-origin: 32px 88px;
-  animation: chatbot-bob 3.4s ease-in-out infinite;
-}
-.chatbot-fig-busy {
-  transform-origin: 32px 88px;
-  animation: chatbot-bob 1.1s ease-in-out infinite;
-}
-@keyframes chatbot-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-/* Thinking dots (bubble + transcript) */
-.chatbot-dots {
-  @apply inline-flex items-center gap-1;
-}
-.chatbot-dots span {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 9999px;
-  background: #e11d48;
-  animation: chatbot-dot 1s ease-in-out infinite;
-}
-.chatbot-dots span:nth-child(2) { animation-delay: 0.15s; }
-.chatbot-dots span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes chatbot-dot {
-  0%, 100% { opacity: 0.25; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-2px); }
 }
 
 /* NodeResizer handle styling */
@@ -531,8 +445,7 @@ html {
     opacity: 1 !important;
   }
   .note-delete,
-  .label-delete,
-  .chatbot-delete {
+  .label-delete {
     opacity: 1;
     width: 30px;
     height: 30px;

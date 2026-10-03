@@ -1,4 +1,4 @@
-import type { ChecklistItem } from "../types.js";
+import type { ChecklistItem } from "../types/index.js";
 
 /**
  * Pure logic for Checklist boxes — the team's shared to-do list.

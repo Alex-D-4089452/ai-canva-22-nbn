@@ -20,12 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stitch UI box** — Google Stitch SDK integration for production-quality UI generation.
 - **UI Design box** — generates polished React UIs with Tailwind CSS + Google Fonts
   (production-quality, Google Stitch style).
-- **Dev Plan box** — transforms a PRD into a short, prototype-focused development plan
-  (components, state, functions, build order) to feed the Code box.
 - **Named box inputs** — editable box names in the header, `{{Box Name}}` prompt variables,
   and click-to-insert in settings. Backward compatible with `{{input_N}}`.
-- **Streamlined Dev Plan prompt** — shorter and prototype-focused.
 - **Firebase Cloud Functions** backend (`functions/`) mirroring the local Express server.
+
+### Removed
+
+- **SDLC, Chatbot and legacy code boxes** — the six gated SDLC stages (Intent, Spec, Plan,
+  Implementation, Review, Merge), Code Map, Code Edit, Dev Plan, Code, and the Chatbot companion
+  box were removed from the palette and the codebase. The **UI Design** box is the code
+  generation/editing surface (AI change requests, version history, here.now deploy) and the
+  **Stitch UI** box remains the HTML variant. Along with them: the `POST /api/repo-digest`
+  endpoint, `server/`+`functions/` `repo.ts`, and the optional `GITHUB_TOKEN` config.
 
 ### Changed
 

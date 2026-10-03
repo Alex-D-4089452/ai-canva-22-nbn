@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, BoxType, NamedInput } from "../types.js";
-import { BOX_TYPES } from "../types.js";
+import type { BoxData, BoxType, NamedInput } from "../types/index.js";
+import { BOX_TYPES } from "../types/index.js";
 import { buildDocumentsOutput } from "./documents.js";
 import { getBoxOutput } from "./prompts.js";
 
@@ -82,7 +82,9 @@ export function collectInputs(
  * only runs once two DISTINCT upstream boxes are connected and each actually
  * contributes content (text, documents, or an image reference). Returns null
  * when the box may run, otherwise the user-facing reason (shown as the box's
- * error). The box's own `content` never counts (skipSelf).
+ * error). The box's own `content` never counts (skipSelf). The Run button is
+ * already disabled below two connections in BoxNode — this is the
+ * authoritative check `runBox` applies BEFORE any model call.
  */
 export function alignmentRunBlocker(
   nodes: Node[],
@@ -109,7 +111,7 @@ export function alignmentRunBlocker(
 const UPSTREAM_INPUT_BOXES: readonly BoxType[] = [
   "cartoon",
   "handoff",
-  "decision",
+  "jargon",
   "slides",
 ];
 
@@ -117,7 +119,7 @@ const UPSTREAM_INPUT_BOXES: readonly BoxType[] = [
 const UPSTREAM_INPUT_HINT: Partial<Record<BoxType, string>> = {
   cartoon: "an Image or Idea box",
   handoff: "a box with source material (Research, PRD, …)",
-  decision: "a box with meeting notes",
+  jargon: "an artefact to translate (Research, PRD, …)",
   slides: "a Research or Idea box",
 };
 
@@ -126,9 +128,9 @@ const UPSTREAM_INPUT_HINT: Partial<Record<BoxType, string>> = {
  * when the box may run, otherwise the user-facing reason (shown as the box's
  * error). Rules:
  * - `alignment`: two distinct upstream boxes, both contributing content;
- * - `cartoon` / `handoff` / `decision` / `slides`: at least one connected
+ * - `cartoon` / `handoff` / `jargon` / `slides`: at least one connected
  *   upstream box that actually contributes content;
- * - `code` / `ui` / `stitch`: a typed description (`content`) or one connected
+ * - `ui` / `stitch`: a typed description (`content`) or one connected
  *   upstream box with content — the build-description field accepts either;
  * - `agent`: a typed task (its own `content`);
  * - every other box: no gate — stock prompts are designed to run standalone.
@@ -166,7 +168,7 @@ export function runInputBlocker(
 
   // Build boxes: their own typed description counts as the input (no
   // skipSelf), so "description OR connected upstream with content".
-  if (boxType === "code" || boxType === "ui" || boxType === "stitch") {
+  if (boxType === "ui" || boxType === "stitch") {
     const { namedInputs } = collectInputs(nodes, edges, boxData, id);
     if (namedInputs.length < 1) {
       return `${BOX_TYPES[boxType].label} needs a description — type what you want to build, or connect an upstream box.`;

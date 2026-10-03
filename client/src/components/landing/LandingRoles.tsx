@@ -31,16 +31,6 @@ const ROLES = [
       "Share one board across the whole team",
     ],
   },
-  {
-    icon: "🔁",
-    title: "For SDLC teams",
-    color: "#4f46e5",
-    points: [
-      "Intent → spec → plan → implementation → review → merge, gated",
-      "Approve, send back or edit every artifact — versions are never lost",
-      "Export the whole chain as one audit document",
-    ],
-  },
 ];
 
 export default function LandingRoles() {

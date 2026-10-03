@@ -7,7 +7,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import { generateContent } from "./ollama.js";
 import { generateCartoonImage } from "./fal.js";
 import { enqueueStitchJob } from "./stitchJobs.js";
-import { RepoError, fetchRepoDigest, parseRepoRef } from "./repo.js";
 import { DeployError, deploySite, type DeployFile } from "./herenow.js";
 import {
   R2ConfigError,
@@ -169,40 +168,6 @@ app.get("/api/stitch-status/:jobId", async (req, res) => {
 });
 
 /**
- * POST /api/repo-digest
- * Body: { repoUrl: string }   e.g. "https://github.com/owner/repo" or "owner/repo#branch"
- * Returns: { repo, branch, digest, files, treeEntries, chars, truncated, notes }
- *
- * Read-only GitHub access for the Code Map box (see ./repo.ts — keep it in sync
- * with server/src/repo.ts). Only github.com owner/repo references are accepted,
- * so this cannot be used as a general request proxy. `GITHUB_TOKEN` is optional
- * (public repos work without it; a token unlocks private repos + 5,000 req/hr).
- */
-app.post("/api/repo-digest", async (req, res) => {
-  const { repoUrl, paths } = req.body as { repoUrl?: string; paths?: unknown };
-  const ref = parseRepoRef(repoUrl);
-  if (!ref) {
-    return res.status(400).json({
-      error:
-        "Provide a GitHub repository like https://github.com/owner/repo (or owner/repo, optionally owner/repo#branch).",
-    });
-  }
-  try {
-    // `paths` switches the endpoint into whole-file mode: the Code Edit box pins
-    // the files it needs in full instead of asking for a ranked digest.
-    const digest = await fetchRepoDigest(ref, {
-      token: process.env.GITHUB_TOKEN,
-      paths: Array.isArray(paths) ? (paths as string[]) : undefined,
-    });
-    res.json({ ok: true, ...digest });
-  } catch (err: any) {
-    const status = err instanceof RepoError ? 502 : 500;
-    console.error("[/api/repo-digest] Error:", err.message);
-    res.status(status).json({ error: err.message || "Failed to read the repository" });
-  }
-});
-
-/**
  * POST /api/herenow-deploy
  * Body: { files: [{ path, content }], slug?, claimToken?, baseVersionId?, displayName?, displayDescription? }
  * Returns: { slug, siteUrl, versionId, unchanged, anonymous, expiresAt, claimToken, claimUrl, warnings, ... }
@@ -284,8 +249,6 @@ app.get("/api/health", (_req, res) => {
     ollamaKey: process.env.OLLAMA_API_KEY ? "configured" : "missing",
     falKey: process.env.FAL_KEY ? "configured" : "missing",
     stitchKey: process.env.STITCH_API_KEY ? "configured" : "missing",
-    // Optional: public repositories are read without it.
-    githubToken: process.env.GITHUB_TOKEN ? "configured" : "optional",
     // Optional: without it, here.now deploys are anonymous (24h) Sites.
     herenowKey: process.env.HERENOW_API_KEY ? "configured" : "anonymous",
     // Board image/document uploads need the full R2_* set.
