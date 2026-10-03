@@ -162,6 +162,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         id: e.source,
       };
     });
+  // Distinct upstream boxes connected to this node — input-gated boxes need
+  // these counts before Run becomes usable (the store re-checks, including
+  // that upstream boxes actually contribute content: lib/inputs.ts
+  // runInputBlocker).
+  const upstreamCount = new Set(connectedInputs.map((c) => c.id)).size;
 
   // Insert a variable into the prompt at cursor position
   const insertVariable = (varName: string) => {
@@ -236,6 +241,21 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isAlignment = boxType === "alignment";
   // Decision Log: custom banner with Source/Decisions captured.
   const isDecision = boxType === "decision";
+  // Input gates (mirrors runInputBlocker in lib/inputs.ts): Alignment Check
+  // needs two connected upstream boxes; Cartoon/Handoff/Decision/Slides one;
+  // Agent a typed task. The store additionally requires the upstream box to
+  // actually contribute content (the button can't see other boxes' data).
+  const needsUpstreamInput =
+    (isCartoon || isHandoff || isDecision || isSlides) && upstreamCount < 1;
+  const agentNeedsTask = isAgent && !(boxData.content || "").trim();
+  const runGateReason =
+    isAlignment && upstreamCount < 2
+      ? "Connect two upstream boxes first"
+      : needsUpstreamInput
+        ? "Connect an upstream box first"
+        : agentNeedsTask
+          ? "Type a task first"
+          : null;
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -825,6 +845,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 value={boxData.content}
                 onChange={(e) => updateBoxData(id, { content: e.target.value })}
               />
+              {hasError && boxData.error && (
+                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                  ⚠️ {boxData.error}
+                </div>
+              )}
               {isRunning && stepsList.length === 0 && (
                 <div className="flex items-center gap-2 text-indigo-500 text-sm py-2 justify-center">
                   <span className="animate-spin">🤖</span>
@@ -1258,8 +1283,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               )}
               {!hasTextOutput && !isRunning && !hasError && (
                 <div className="text-slate-400 text-sm py-4 text-center">
-                  No output yet. Connect two artefacts and click <strong>Run</strong> to
-                  compare them.
+                  {upstreamCount < 2 ? (
+                    <>
+                      Connect two artefact boxes to compare ({upstreamCount} of 2
+                      connected).
+                    </>
+                  ) : (
+                    <>
+                      No output yet. Click <strong>Run</strong> to compare the two
+                      artefacts.
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1554,7 +1588,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
           <button
             onClick={() => runBox(id)}
-            disabled={isRunning}
+            disabled={isRunning || runGateReason !== null}
+            title={runGateReason ?? undefined}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
             style={{ backgroundColor: meta.color }}
           >
