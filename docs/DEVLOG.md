@@ -29,6 +29,24 @@ current state).
 
 ---
 
+## 2026-10-03 — Readability pass: larger default boxes + larger body/input/output text
+
+- **Done:** every box type's `defaultWidth`/`defaultHeight` in `client/src/types.ts` scaled
+  **×1.25** (rounded to 10: Idea 320×200 → 400×250, Agent 400×480 → 500×600, SDLC stages
+  420×460 → 520×580, Note 260×240 → 320×300, Label 200×64 → 250×80, …). Only NEW boxes get
+  the bigger default — persisted nodes keep their stored `style` width/height, so existing
+  boards don't jump. Body text in `index.css`: `.box-node` base 14 → 15px; new scoped
+  `.box-body .markdown-output` (16px / 1.6 — (0,2,0) specificity beats the `text-sm`
+  utility) and `.box-body textarea` (15px); markdown headings h1/h2/h3 → 20/18/16 and
+  code/pre/table → 14; `.note-textarea` 13 → 16; `.label-pill` 13 → 15. Class bumps in
+  `BoxNode.tsx`: five markdown outputs + idea/agent/build-description textareas
+  `text-sm` → `text-base`, the three ⚙ settings textareas `text-xs` → `text-sm`, slide
+  bullets `text-xs` → `text-sm`; `ChecklistPanel.tsx` item text / add-input / edit input
+  `text-[12px]` → `text-[14px]`. Verified: `tsc -b` 0, full suite 298/298 (server + client),
+  `vite build` OK.
+- **In flight:** none — uncommitted, together with the input-gates work.
+- **Next steps:** commit when asked.
+
 ## 2026-10-03 — Run input gates: input-hungry boxes refuse to run empty
 
 - **Done:** `runInputBlocker(boxType, nodes, edges, boxData, id)` in `client/src/lib/inputs.ts`
