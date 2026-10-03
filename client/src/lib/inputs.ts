@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, NamedInput } from "../types.js";
+import type { BoxData, BoxType, NamedInput } from "../types.js";
+import { BOX_TYPES } from "../types.js";
 import { buildDocumentsOutput } from "./documents.js";
 import { getBoxOutput } from "./prompts.js";
 
@@ -74,4 +75,99 @@ export function collectInputs(
   }
 
   return { namedInputs, inputImage };
+}
+
+/**
+ * Alignment Check compares two artefacts (`{{input_1}}` / `{{input_2}}`), so it
+ * only runs once two DISTINCT upstream boxes are connected and each actually
+ * contributes content (text, documents, or an image reference). Returns null
+ * when the box may run, otherwise the user-facing reason (shown as the box's
+ * error). The box's own `content` never counts (skipSelf).
+ */
+export function alignmentRunBlocker(
+  nodes: Node[],
+  edges: Edge[],
+  boxData: Record<string, BoxData>,
+  id: string
+): string | null {
+  const sources = new Set(
+    edges.filter((e) => e.target === id).map((e) => e.source)
+  );
+  if (sources.size < 2) {
+    return `Alignment Check needs two connected input boxes (found ${sources.size}) — connect a second artefact to compare.`;
+  }
+  const { namedInputs } = collectInputs(nodes, edges, boxData, id, {
+    skipSelf: true,
+  });
+  if (namedInputs.length < 2) {
+    return "Alignment Check needs two artefacts with content — run the connected boxes first so both contribute output.";
+  }
+  return null;
+}
+
+/** Boxes whose Run needs at least one connected upstream box (see runInputBlocker). */
+const UPSTREAM_INPUT_BOXES: readonly BoxType[] = [
+  "cartoon",
+  "handoff",
+  "decision",
+  "slides",
+];
+
+/** What each upstream-gated box asks the user to connect (its placeholder says the same). */
+const UPSTREAM_INPUT_HINT: Partial<Record<BoxType, string>> = {
+  cartoon: "an Image or Idea box",
+  handoff: "a box with source material (Research, PRD, …)",
+  decision: "a box with meeting notes",
+  slides: "a Research or Idea box",
+};
+
+/**
+ * Run-time input gates: the input a box needs before it may run. Returns null
+ * when the box may run, otherwise the user-facing reason (shown as the box's
+ * error). Rules:
+ * - `alignment`: two distinct upstream boxes, both contributing content;
+ * - `cartoon` / `handoff` / `decision` / `slides`: at least one connected
+ *   upstream box that actually contributes content;
+ * - `agent`: a typed task (its own `content`);
+ * - every other box: no gate — stock prompts are designed to run standalone.
+ * `runBox` applies this BEFORE any model call (and before the box flips to
+ * "running"); BoxNode mirrors it by disabling ▶ Run with a tooltip naming
+ * what's missing. Documents/Image boxes have no Run at all — their upload
+ * already gates downstream use.
+ */
+export function runInputBlocker(
+  boxType: BoxType,
+  nodes: Node[],
+  edges: Edge[],
+  boxData: Record<string, BoxData>,
+  id: string
+): string | null {
+  if (boxType === "alignment") {
+    return alignmentRunBlocker(nodes, edges, boxData, id);
+  }
+
+  if (UPSTREAM_INPUT_BOXES.includes(boxType)) {
+    const label = BOX_TYPES[boxType].label;
+    if (!edges.some((e) => e.target === id)) {
+      return `${label} needs an input — connect ${
+        UPSTREAM_INPUT_HINT[boxType] || "an upstream box"
+      }.`;
+    }
+    const { namedInputs } = collectInputs(nodes, edges, boxData, id, {
+      skipSelf: true,
+    });
+    if (namedInputs.length < 1) {
+      return `${label} needs an input with content: run/give input to the connected box first.`;
+    }
+    return null;
+  }
+
+  if (boxType === "agent") {
+    if (!(boxData[id]?.content || "").trim()) {
+      return "Agent needs a task — type what you want it to do, then click Run.";
+    }
+    return null;
+  }
+
+  return null;
 }
