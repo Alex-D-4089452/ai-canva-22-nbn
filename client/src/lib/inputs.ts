@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, NamedInput } from "../types/index.js";
+import type { BoxData, BoxType, NamedInput } from "../types/index.js";
+import { BOX_TYPES } from "../types/index.js";
 import { buildDocumentsOutput } from "./documents.js";
 import { getBoxOutput } from "./prompts.js";
 
@@ -103,5 +104,84 @@ export function alignmentRunBlocker(
   if (namedInputs.length < 2) {
     return "Alignment Check needs two artefacts with content — run the connected boxes first so both contribute output.";
   }
+  return null;
+}
+
+/** Boxes whose Run needs at least one connected upstream box (see runInputBlocker). */
+const UPSTREAM_INPUT_BOXES: readonly BoxType[] = [
+  "cartoon",
+  "handoff",
+  "jargon",
+  "slides",
+];
+
+/** What each upstream-gated box asks the user to connect (its placeholder says the same). */
+const UPSTREAM_INPUT_HINT: Partial<Record<BoxType, string>> = {
+  cartoon: "an Image or Idea box",
+  handoff: "a box with source material (Research, PRD, …)",
+  jargon: "an artefact to translate (Research, PRD, …)",
+  slides: "a Research or Idea box",
+};
+
+/**
+ * Run-time input gates: the input a box needs before it may run. Returns null
+ * when the box may run, otherwise the user-facing reason (shown as the box's
+ * error). Rules:
+ * - `alignment`: two distinct upstream boxes, both contributing content;
+ * - `cartoon` / `handoff` / `jargon` / `slides`: at least one connected
+ *   upstream box that actually contributes content;
+ * - `ui` / `stitch`: a typed description (`content`) or one connected
+ *   upstream box with content — the build-description field accepts either;
+ * - `agent`: a typed task (its own `content`);
+ * - every other box: no gate — stock prompts are designed to run standalone.
+ * `runBox` applies this BEFORE any model call (and before the box flips to
+ * "running"); BoxNode mirrors it by disabling ▶ Run with a tooltip naming
+ * what's missing. Documents/Image boxes have no Run at all — their upload
+ * already gates downstream use.
+ */
+export function runInputBlocker(
+  boxType: BoxType,
+  nodes: Node[],
+  edges: Edge[],
+  boxData: Record<string, BoxData>,
+  id: string
+): string | null {
+  if (boxType === "alignment") {
+    return alignmentRunBlocker(nodes, edges, boxData, id);
+  }
+
+  if (UPSTREAM_INPUT_BOXES.includes(boxType)) {
+    const label = BOX_TYPES[boxType].label;
+    if (!edges.some((e) => e.target === id)) {
+      return `${label} needs an input — connect ${
+        UPSTREAM_INPUT_HINT[boxType] || "an upstream box"
+      }.`;
+    }
+    const { namedInputs } = collectInputs(nodes, edges, boxData, id, {
+      skipSelf: true,
+    });
+    if (namedInputs.length < 1) {
+      return `${label} needs an input with content: run/give input to the connected box first.`;
+    }
+    return null;
+  }
+
+  // Build boxes: their own typed description counts as the input (no
+  // skipSelf), so "description OR connected upstream with content".
+  if (boxType === "ui" || boxType === "stitch") {
+    const { namedInputs } = collectInputs(nodes, edges, boxData, id);
+    if (namedInputs.length < 1) {
+      return `${BOX_TYPES[boxType].label} needs a description — type what you want to build, or connect an upstream box.`;
+    }
+    return null;
+  }
+
+  if (boxType === "agent") {
+    if (!(boxData[id]?.content || "").trim()) {
+      return "Agent needs a task — type what you want it to do, then click Run.";
+    }
+    return null;
+  }
+
   return null;
 }

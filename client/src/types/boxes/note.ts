@@ -10,6 +10,6 @@ export const noteBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 260,
-  defaultHeight: 240,
+  defaultWidth: 320,
+  defaultHeight: 300,
 };

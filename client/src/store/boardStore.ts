@@ -14,7 +14,7 @@ import type { BoxData, BoxType, BoxStatus, AgentStep, DeployInfo, ArtifactVersio
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types/index.js";
 import { generate, generateImage, generateStitchUI, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
-import { collectInputs, alignmentRunBlocker } from "../lib/inputs.js";
+import { collectInputs, runInputBlocker } from "../lib/inputs.js";
 import {
   MAX_AGENT_TURNS,
   MAX_PARSE_RETRIES,
@@ -987,6 +987,24 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // Input gates: refuse BEFORE any model call and before the box flips
+        // to "running". Alignment Check needs two artefacts;
+        // Cartoon/Handoff/Jargon/Slides one connected box with content;
+        // UI Design/Stitch a typed description; Agent a typed task. BoxNode
+        // mirrors these rules by disabling ▶ Run with a tooltip naming what's
+        // missing.
+        const blocked = runInputBlocker(
+          boxType,
+          state.nodes,
+          state.edges,
+          state.boxData,
+          id
+        );
+        if (blocked) {
+          get().setBoxStatus(id, "error", blocked);
+          return;
+        }
+
         // The Agent box runs its own multi-turn loop (create/connect/run
         // boxes on the board) — it manages its own status and inputs.
         if (boxType === "agent") {
@@ -1001,22 +1019,6 @@ export const useBoardStore = create<BoardState>()(
           state.boxData,
           id
         );
-
-        // Alignment Check compares two artefacts — refuse BEFORE any model
-        // call unless two connected boxes actually contribute content (the
-        // Run button is already disabled below two connections in BoxNode).
-        if (boxType === "alignment") {
-          const blocked = alignmentRunBlocker(
-            state.nodes,
-            state.edges,
-            state.boxData,
-            id
-          );
-          if (blocked) {
-            get().setBoxStatus(id, "error", blocked);
-            return;
-          }
-        }
 
         // Set running state
         get().setBoxStatus(id, "running");

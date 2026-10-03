@@ -12,6 +12,6 @@ export const summariseBox: BoxTypeMeta = {
     "Synthesise the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
   defaultSystemPrompt:
     "You are a synthesis expert. Combine multiple inputs into a clear, concise summary in Markdown format. Highlight key insights.",
-  defaultWidth: 320,
-  defaultHeight: 320,
+  defaultWidth: 400,
+  defaultHeight: 400,
 };

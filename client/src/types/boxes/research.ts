@@ -12,6 +12,6 @@ export const researchBox: BoxTypeMeta = {
     "Research the following topic thoroughly. Provide key findings, relevant context, market landscape, and potential risks. Format as Markdown with clear headings.\n\nTopic:\n{{input_1}}",
   defaultSystemPrompt:
     "You are a thorough research assistant. Provide well-structured, factual findings in Markdown format. Be concise but comprehensive.",
-  defaultWidth: 320,
-  defaultHeight: 320,
+  defaultWidth: 400,
+  defaultHeight: 400,
 };

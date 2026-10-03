@@ -43,7 +43,7 @@ select,
   @apply bg-white rounded-xl border;
   width: 100%;
   height: 100%;
-  font-size: 14px;
+  font-size: 15px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -58,6 +58,18 @@ select,
     0 0 0 1.5px #4f46e5,
     0 1px 2px rgba(15, 23, 42, 0.05),
     0 14px 30px -8px rgba(79, 70, 229, 0.28);
+}
+
+/* ===== Box readability pass: larger input/output text =====
+   These selectors are deliberately more specific than the Tailwind
+   `text-sm` / `text-xs` utilities, so they win regardless of stylesheet
+   order: output (markdown) renders at 16px, typed content at 15px. */
+.box-body .markdown-output {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.box-body textarea {
+  font-size: 15px;
 }
 
 /* ===== App chrome (header / tools) ===== */
@@ -171,8 +183,8 @@ select,
   outline: none;
   resize: none;
   padding: 12px 14px 4px;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.5;
   color: #422006;
 }
 .note-textarea::placeholder {
@@ -205,7 +217,7 @@ select,
   max-width: 100%;
 }
 .label-pill {
-  @apply rounded-full px-4 py-1.5 text-[13px] font-bold text-slate-700 shadow-md border border-black/5;
+  @apply rounded-full px-4 py-1.5 text-[15px] font-bold text-slate-700 shadow-md border border-black/5;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -253,15 +265,15 @@ select,
   cursor: grabbing;
 }
 
-/* Markdown output styling */
+/* Markdown output styling (sized for the 16px box body — see the readability pass) */
 .markdown-output h1 {
-  @apply text-lg font-bold mt-3 mb-2;
+  @apply text-xl font-bold mt-3 mb-2;
 }
 .markdown-output h2 {
-  @apply text-base font-bold mt-3 mb-1;
+  @apply text-lg font-bold mt-3 mb-1;
 }
 .markdown-output h3 {
-  @apply text-sm font-semibold mt-2 mb-1;
+  @apply text-base font-semibold mt-2 mb-1;
 }
 .markdown-output p {
   @apply my-1.5 leading-relaxed;
@@ -279,10 +291,10 @@ select,
   @apply font-semibold;
 }
 .markdown-output code {
-  @apply bg-slate-100 px-1 py-0.5 rounded text-xs font-mono;
+  @apply bg-slate-100 px-1 py-0.5 rounded text-sm font-mono;
 }
 .markdown-output pre {
-  @apply bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto my-2 text-xs;
+  @apply bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto my-2 text-sm;
 }
 .markdown-output pre code {
   @apply bg-transparent p-0 text-slate-100;
@@ -297,7 +309,7 @@ select,
   @apply my-3 border-slate-200;
 }
 .markdown-output table {
-  @apply w-full border-collapse my-2 text-xs;
+  @apply w-full border-collapse my-2 text-sm;
 }
 .markdown-output th,
 .markdown-output td {

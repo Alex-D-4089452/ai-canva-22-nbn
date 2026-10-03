@@ -11,6 +11,6 @@ export const stitchBox: BoxTypeMeta = {
   defaultPrompt:
     "Generate a beautiful, modern UI screen for the following. Make it polished and production-ready with good spacing, typography, and visual design.\n\nDescription:\n{{inputs}}",
   defaultSystemPrompt: "",
-  defaultWidth: 440,
-  defaultHeight: 420,
+  defaultWidth: 550,
+  defaultHeight: 520,
 };

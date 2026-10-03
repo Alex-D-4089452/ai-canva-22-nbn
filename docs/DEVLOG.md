@@ -29,6 +29,71 @@ current state).
 
 ---
 
+## 2026-10-03 — Double-click on empty canvas zooms in toward the pointer
+
+- **Done:** `Canvas.tsx` adds an app-level `onDoubleClick` on `<ReactFlow>`: on empty canvas it
+  zooms **×1.6 toward the cursor** (`setViewport`, 200ms, the flow point under the pointer held
+  fixed), clamped to React Flow's `minZoom`/`maxZoom` (defaults 0.5/**2** — v12's `maxZoom` is 2,
+  not 4, so repeated double-clicks stop there, same as the Controls + button). Target checks keep
+  everything else untouched: any `.react-flow__node` except `.react-flow__node-area` (areas are
+  background, so they zoom like empty canvas), `button/input/textarea/select/a`, the
+  Controls/Minimap/`.react-flow__panel`, and anything while the Area tool is active. React Flow's
+  built-in `zoomOnDoubleClick` stays `false` — its d3 listener sits on the renderer (would fire
+  from inside boxes) and on touch screens it bypasses the event filter (the original reason it
+  was disabled); browsers' synthesized double-tap reaches our handler instead. **Verified in a
+  real browser** (playwright-core + system Edge against the running dev server): a box
+  double-click below max zoom leaves the viewport byte-identical (1.3475 → 1.3475), empty-canvas
+  double-click goes 1.3475 → 2 (= ×1.6 clamped) with the anchor stable to <0.1 flow units,
+  area-node double-click zooms; plus `tsc -b` 0 and 299/299 unit tests.
+- **In flight:** none — uncommitted (`Canvas.tsx`, AGENTS, this entry).
+- **Next steps:** commit when asked.
+
+## 2026-10-03 — Readability pass: larger default boxes + larger body/input/output text
+
+- **Done:** every box type's `defaultWidth`/`defaultHeight` in `client/src/types.ts` scaled
+  **×1.25** (rounded to 10: Idea 320×200 → 400×250, Agent 400×480 → 500×600, SDLC stages
+  420×460 → 520×580, Note 260×240 → 320×300, Label 200×64 → 250×80, …). Only NEW boxes get
+  the bigger default — persisted nodes keep their stored `style` width/height, so existing
+  boards don't jump. Body text in `index.css`: `.box-node` base 14 → 15px; new scoped
+  `.box-body .markdown-output` (16px / 1.6 — (0,2,0) specificity beats the `text-sm`
+  utility) and `.box-body textarea` (15px); markdown headings h1/h2/h3 → 20/18/16 and
+  code/pre/table → 14; `.note-textarea` 13 → 16; `.label-pill` 13 → 15. Class bumps in
+  `BoxNode.tsx`: five markdown outputs + idea/agent/build-description textareas
+  `text-sm` → `text-base`, the three ⚙ settings textareas `text-xs` → `text-sm`, slide
+  bullets `text-xs` → `text-sm`; `ChecklistPanel.tsx` item text / add-input / edit input
+  `text-[12px]` → `text-[14px]`. Verified: `tsc -b` 0, full suite 298/298 (server + client),
+  `vite build` OK.
+- **In flight:** none — uncommitted, together with the input-gates work.
+- **Next steps:** commit when asked.
+
+## 2026-10-03 — Run input gates: input-hungry boxes refuse to run empty
+
+- **Done:** `runInputBlocker(boxType, nodes, edges, boxData, id)` in `client/src/lib/inputs.ts`
+  now gates Run BEFORE any model call (same invariant as the SDLC gate: `runBox` sets
+  `status: "error"` with the reason and returns — no token spent, no "running" flicker).
+  Rules: **Alignment Check** needs two distinct connected upstream boxes that both contribute
+  content (`alignmentRunBlocker`, `skipSelf` — the box's own `content` never counts);
+  **Cartoon Profile / Handoff Brief / Decision Log / Slides** need ≥1 connected upstream box
+  with content (`UPSTREAM_INPUT_BOXES` + per-type connect hint); **Code / UI Design /
+  Stitch UI** need a typed description or one connected upstream box with content (their own
+  `content` counts — added after a review found them still runnable empty); **Agent** needs
+  a typed task (`boxData.content`); all other boxes stay ungated (stock prompts run
+  standalone).
+  `BoxNode.tsx` mirrors the rules — `runGateReason` disables ▶ Run with a tooltip
+  ("Connect two upstream boxes first" / "Connect an upstream box first" / "Type a
+  description or connect an input" / "Type a task first"), the alignment body shows
+  "n of 2 connected", and the agent body got a missing
+  error-display block. Store stays authoritative: the box UI only counts connections (it never
+  subscribes to other boxes' data). Documents/Image deliberately skipped — no Run button, the
+  upload already gates downstream use. Verified: `tsc -b` 0, client **298/298** (11 new tests
+  in `inputs.test.ts`).
+- **In flight:** none — uncommitted on `feature/fix-known-defects`.
+- **Next steps:** commit when asked. This branch is cut from `main` (`a4853c0`), so it carries
+  the alignment rule as part of the unified dispatcher — a superset of
+  `feature/alignment-check-run-validation` (whose own copy of the gate is already committed
+  there); at merge time keep this branch's `runInputBlocker` and drop the other's inline
+  alignment blocker + gate block. The removal-branch dry run still shows 3 conflicts to
+  resolve at final merge (`inputs.test.ts`, `boardStore.ts`, `DEVLOG.md`).
 ## 2026-10-02 — Alignment Check now requires two connected inputs
 
 - **Done:** The ✅ Alignment Check box only runs with **two distinct upstream boxes that both

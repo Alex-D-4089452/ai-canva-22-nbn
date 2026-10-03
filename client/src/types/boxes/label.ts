@@ -10,8 +10,8 @@ export const labelBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 200,
-  defaultHeight: 64,
+  defaultWidth: 250,
+  defaultHeight: 80,
 };
 
 /** Preset pill colors for Label boxes (index 0 = default). */

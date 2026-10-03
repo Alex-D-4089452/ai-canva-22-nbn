@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
 import type { BoxData } from "../types/index.js";
-import { alignmentRunBlocker, collectInputs, imageReferenceText } from "./inputs.js";
+import {
+  alignmentRunBlocker,
+  collectInputs,
+  imageReferenceText,
+  runInputBlocker,
+} from "./inputs.js";
 
 function node(id: string, title: string): Node {
   return { id, position: { x: 0, y: 0 }, data: { title } } as Node;
@@ -182,3 +187,114 @@ describe("alignmentRunBlocker", () => {
     ).toBeNull();
   });
 });
+
+describe("runInputBlocker", () => {
+  const nodes = [
+    node("src", "Research"),
+    node("box", "Any Box"),
+    node("agent", "Agent"),
+    node("align", "Alignment Check"),
+  ];
+  const edge = (source: string, target: string): Edge => ({
+    id: `${source}-${target}`,
+    source,
+    target,
+  });
+  const upstreamBoxes = ["cartoon", "handoff", "jargon", "slides"] as const;
+
+  it("gates each upstream box when nothing is connected", () => {
+    for (const t of upstreamBoxes) {
+      expect(runInputBlocker(t, nodes, [], {}, "box")).toContain(
+        "needs an input — connect"
+      );
+    }
+  });
+
+  it("tells the user to run the connected box when it has no content yet", () => {
+    const boxData: Record<string, BoxData> = { src: { output: "", content: "" } as BoxData };
+    for (const t of upstreamBoxes) {
+      expect(
+        runInputBlocker(t, nodes, [edge("src", "box")], boxData, "box")
+      ).toContain("needs an input with content");
+    }
+  });
+
+  it("allows each upstream box once a connected box contributes content", () => {
+    const boxData: Record<string, BoxData> = { src: { output: "findings" } as BoxData };
+    for (const t of upstreamBoxes) {
+      expect(
+        runInputBlocker(t, nodes, [edge("src", "box")], boxData, "box")
+      ).toBeNull();
+    }
+  });
+
+  it("agent needs a typed task", () => {
+    expect(
+      runInputBlocker("agent", nodes, [], { agent: { content: "   " } as BoxData }, "agent")
+    ).toContain("needs a task");
+    expect(
+      runInputBlocker("agent", nodes, [], { agent: { content: "do it" } as BoxData }, "agent")
+    ).toBeNull();
+  });
+
+  it("ui/stitch need a typed description or a connected input with content", () => {
+    for (const t of ["ui", "stitch"] as const) {
+      // nothing at all → blocked
+      expect(runInputBlocker(t, nodes, [], {}, "box")).toContain("needs a description");
+      // typed description alone → allowed
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [],
+          { box: { content: "a page with a counter" } as BoxData },
+          "box"
+        )
+      ).toBeNull();
+      // connected upstream with content → allowed
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [edge("src", "box")],
+          { src: { output: "findings" } as BoxData },
+          "box"
+        )
+      ).toBeNull();
+      // connected upstream without content → still blocked
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [edge("src", "box")],
+          { src: { output: "", content: "" } as BoxData },
+          "box"
+        )
+      ).toContain("needs a description");
+    }
+  });
+
+  it("alignment still requires two inputs (delegates to the alignment rule)", () => {
+    const boxData: Record<string, BoxData> = { src: { output: "x" } as BoxData };
+    expect(
+      runInputBlocker("alignment", nodes, [edge("src", "align")], boxData, "align")
+    ).toContain("two connected input boxes (found 1)");
+    expect(
+      runInputBlocker(
+        "alignment",
+        nodes,
+        [edge("src", "align"), edge("box", "align")],
+        { ...boxData, box: { output: "y" } as BoxData },
+        "align"
+      )
+    ).toBeNull();
+  });
+
+  it("leaves ungated boxes alone (stock prompts run standalone)", () => {
+    for (const t of ["research", "prd", "summarise"] as const) {
+      expect(runInputBlocker(t, nodes, [], {}, "box")).toBeNull();
+    }
+    expect(runInputBlocker("custom", nodes, [], {}, "box")).toBeNull();
+  });
+});
+

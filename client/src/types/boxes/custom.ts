@@ -10,6 +10,6 @@ export const customBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 320,
-  defaultHeight: 320,
+  defaultWidth: 400,
+  defaultHeight: 400,
 };

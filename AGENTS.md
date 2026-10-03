@@ -152,6 +152,15 @@ selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
 in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
 color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
 
+**Box sizing & body text:** a new box's size comes from `BOX_TYPES[<type>]
+.defaultWidth/defaultHeight` in `client/src/types.ts` (all types scaled ×1.25 on 2026-10-03 —
+e.g. Idea 400×250, Agent 500×600, SDLC stages 520×580); **persisted nodes keep their stored
+style**, so existing boards only grow when a box is added. Box text is sized centrally in
+`index.css`: `.box-node` base 15px, plus the scoped rules `.box-body .markdown-output`
+(16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it
+wins) and `.box-body textarea` (15px), with markdown headings at 20/18/16 (h1/h2/h3). Prefer
+extending those scoped rules over sprinkling `text-xs`/`text-sm` onto body content.
+
 **`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
 boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
 slices — otherwise every keystroke in the board-title input re-renders the whole
@@ -345,14 +354,25 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   no-wheel zone — trackpad scroll/pinch over a box never zooms the canvas (it would fight the
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
-- **Alignment Check box (✅, worker) runs only with two connected inputs:** the pure gate is
-  `alignmentRunBlocker` in `client/src/lib/inputs.ts` (unit-tested) — two DISTINCT upstream
-  boxes must be connected AND both must contribute content (text / documents / image ref;
-  the box's own `content` never counts, `skipSelf`). `runBox` applies it **before any model
-  call** (sets `status: "error"` with the reason — same invariant as the SDLC gate), and
-  `BoxNode.tsx` disables **▶ Run** below two connections (tooltip "Connect two upstream boxes
-  first") plus shows an "n of 2 connected" placeholder. The prompt relies on `{{input_1}}` /
-  `{{input_2}}`, which is why an un-run upstream must not slip through.
+- **Run input gates (refuse before the model call):** `runInputBlocker(boxType, nodes, edges,
+  boxData, id)` in `client/src/lib/inputs.ts` returns `null` (may run) or a user-facing reason,
+  and `runBox` applies it BEFORE any model call (sets `status: "error"` with the reason and
+  returns; no token spent, the box never flips to "running"). Rules: **Alignment Check** needs
+  two distinct connected upstream boxes that both contribute content (`alignmentRunBlocker`,
+  `skipSelf` — the box's own `content` never counts; its prompt relies on `{{input_1}}` /
+  `{{input_2}}`, which is why an un-run upstream must not slip through); **Cartoon Profile,
+  Handoff Brief, Jargon Translator, Slides** need ≥1 connected upstream box with content
+  (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the message); **UI Design,
+  Stitch UI** need a typed description (`content`) or one connected upstream box with content
+  (their own text counts — no `skipSelf`); **Agent** needs a typed task (`boxData.content`);
+  every other box is ungated (stock prompts are designed to run standalone). `BoxNode.tsx`
+  mirrors the rules (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two
+  upstream boxes first" / "Connect an upstream box first" / "Type a description or connect an
+  input" / "Type a task first"; alignment body shows "n of 2 connected", agent body shows the
+  store error) but only counts connections — the store stays authoritative because a box UI
+  never subscribes to other boxes' data. Documents and Image boxes are deliberately ungated:
+  they have no Run button at all (their upload already gates downstream use). Unit-tested in
+  `inputs.test.ts` (`alignmentRunBlocker` + `runInputBlocker`).
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product` — `BoxRole` in `types/core.ts`, the tags on each
   box in `types/boxes/`); the View dropdown in
@@ -502,9 +522,16 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     `touch-action: pan-y` (coarse only) so a finger scrolls long output instead of dragging the
     node. Side effect on desktop too: boxes are dragged by their header strip (consistent with the
     idea-textarea `nodrag` convention).
-  - **Canvas:** `zoomOnDoubleClick={false}`; the Area tool has a native `touchstart`/`touchmove`/
-    `touchend` mirror on `.react-flow__pane` (iPads never fire the synthesized mousedown — React
-    Flow's touch handlers suppress it); presence cursors update via ReactFlow `onTouchMove`.
+  - **Canvas:** empty-canvas **double-click / double-tap zooms in** ×1.6 toward the pointer via
+    the app's own `onDoubleClick` on `<ReactFlow>` (`Canvas.tsx`) — target checks exclude every
+    node except an Area, `button/input/textarea/select/a`, and the Controls/Minimap/panels; it is
+    also inert while the Area tool is active. React Flow's `zoomOnDoubleClick` deliberately stays
+    `false`: its d3 listener is attached to the renderer (so it fires from inside boxes) and on
+    touch screens it bypasses the event filter entirely. Note React Flow v12's default
+    `maxZoom` is **2** (not 4), so the step clamps there. The Area tool has a native
+    `touchstart`/`touchmove`/`touchend` mirror on `.react-flow__pane` (iPads never fire the
+    synthesized mousedown — React Flow's touch handlers suppress it); presence cursors update via
+    ReactFlow `onTouchMove`.
   - **Page level:** `index.html` viewport is `viewport-fit=cover, maximum-scale=1, user-scalable=no`
     plus apple/web-app metas (Add-to-Home-Screen = chrome-less kiosk); `.app-bar` pads with
     `env(safe-area-inset-*)`; root uses `100dvh`; `overscroll-behavior: none`; global

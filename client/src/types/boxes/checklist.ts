@@ -10,6 +10,6 @@ export const checklistBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 320,
-  defaultHeight: 340,
+  defaultWidth: 400,
+  defaultHeight: 420,
 };

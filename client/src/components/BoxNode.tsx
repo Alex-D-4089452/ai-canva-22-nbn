@@ -170,9 +170,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         id: e.source,
       };
     });
-  // Distinct upstream boxes connected to this node — the Alignment Check
-  // needs two before Run becomes usable (the store re-checks, including
-  // that both contribute content: lib/inputs.ts alignmentRunBlocker).
+  // Distinct upstream boxes connected to this node — input-gated boxes need
+  // these counts before Run becomes usable (the store re-checks, including
+  // that upstream boxes actually contribute content: lib/inputs.ts
+  // runInputBlocker).
   const upstreamCount = new Set(connectedInputs.map((c) => c.id)).size;
 
   // Insert a variable into the prompt at cursor position
@@ -231,8 +232,24 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isJargon = boxType === "jargon";
   // Banner source label (Jargon Translator).
   const sourceLabel = connectedSourceLabel(edges, allNodes, id);
-  // Alignment Check: Run is disabled until two upstream boxes are connected.
-  const alignmentNeedsInputs = isAlignment && upstreamCount < 2;
+  // Input gates (mirrors runInputBlocker in lib/inputs.ts): Alignment Check
+  // needs two connected upstream boxes; Cartoon/Handoff/Jargon/Slides one;
+  // UI/Stitch a typed description or an upstream box; Agent a typed task.
+  // The store additionally requires the upstream box to actually contribute
+  // content (the button can't see other boxes' data).
+  const needsUpstreamInput =
+    (isCartoon || isHandoff || isJargon || isSlides) && upstreamCount < 1;
+  const agentNeedsTask = isAgent && !(boxData.content || "").trim();
+  const runGateReason =
+    isAlignment && upstreamCount < 2
+      ? "Connect two upstream boxes first"
+      : needsUpstreamInput
+        ? "Connect an upstream box first"
+        : isCode && !(boxData.content || "").trim() && upstreamCount < 1
+          ? "Type a description or connect an input"
+          : agentNeedsTask
+            ? "Type a task first"
+            : null;
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -715,7 +732,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* Idea box — editable textarea */}
         {isIdea && (
           <textarea
-            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
             placeholder="Write your idea here..."
             value={boxData.content}
             onChange={(e) =>
@@ -744,11 +761,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           return (
             <div className="flex flex-col gap-2 min-h-[140px]">
               <textarea
-                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 placeholder="Describe the task for the agent, e.g. “Turn this idea into a full pitch: research it, write a PRD, and build a landing page prototype”"
                 value={boxData.content}
                 onChange={(e) => updateBoxData(id, { content: e.target.value })}
               />
+              {hasError && boxData.error && (
+                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                  ⚠️ {boxData.error}
+                </div>
+              )}
               {isRunning && stepsList.length === 0 && (
                 <div className="flex items-center gap-2 text-indigo-500 text-sm py-2 justify-center">
                   <span className="animate-spin">🤖</span>
@@ -779,7 +801,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && (
-                <div className="markdown-output text-slate-700 text-sm">
+                <div className="markdown-output text-slate-700 text-base">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 mb-0.5">
                     Agent answer
                   </div>
@@ -1020,7 +1042,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
 
             {hasTextOutput && !isRunning && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-slate-700 text-base">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
@@ -1087,7 +1109,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
             )}
             {hasTextOutput && !isRunning && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-slate-700 text-base">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
@@ -1149,7 +1171,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && !isRunning && (
-                <div className="markdown-output text-slate-700 text-sm">
+                <div className="markdown-output text-slate-700 text-base">
                   <ReactMarkdown>{boxData.output}</ReactMarkdown>
                 </div>
               )}
@@ -1205,7 +1227,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
             )}
             {hasTextOutput && !isRunning && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-slate-700 text-base">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
@@ -1249,7 +1271,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                       {slide.bullets.map((bullet, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-700 flex gap-1.5 leading-relaxed"
+                          className="                           text-sm text-slate-700 flex gap-1.5 leading-relaxed"
                         >
                           <span
                             className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
@@ -1399,7 +1421,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   placeholder="Describe what you want to build... (e.g. a counter app with increment/decrement buttons)"
                   value={boxData.content}
                   onChange={(e) => updateBoxData(id, { content: e.target.value })}
-                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
                 />
                 <p className="text-xs text-slate-400">
                   Type a description above and click Run, or connect a Research/PRD/Idea box.
@@ -1427,8 +1449,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
           <button
             onClick={() => runBox(id)}
-            disabled={isRunning || alignmentNeedsInputs}
-            title={alignmentNeedsInputs ? "Connect two upstream boxes first" : undefined}
+            disabled={isRunning || runGateReason !== null}
+            title={runGateReason ?? undefined}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
             style={{ backgroundColor: meta.color }}
           >
@@ -1509,7 +1531,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   : "System Prompt (role / behavior)"}
               </label>
               <textarea
-                className="w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
+                className="w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
                 value={boxData.systemPrompt}
                 onChange={(e) =>
                   updateBoxData(id, { systemPrompt: e.target.value })
@@ -1527,7 +1549,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </label>
             <textarea
               ref={promptRef}
-              className={"w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
+              className={"w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
               value={boxData.prompt}
               onChange={(e) =>
                 updateBoxData(id, { prompt: e.target.value })

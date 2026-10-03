@@ -10,6 +10,6 @@ export const timerBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 260,
-  defaultHeight: 190,
+  defaultWidth: 320,
+  defaultHeight: 240,
 };

@@ -10,6 +10,6 @@ export const imageBox: BoxTypeMeta = {
   roles: ["designer"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 320,
-  defaultHeight: 320,
+  defaultWidth: 400,
+  defaultHeight: 400,
 };

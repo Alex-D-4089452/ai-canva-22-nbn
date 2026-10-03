@@ -42,6 +42,6 @@ export const agentBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: AGENT_CONTROLLER_SYSTEM_PROMPT,
-  defaultWidth: 400,
-  defaultHeight: 480,
+  defaultWidth: 500,
+  defaultHeight: 600,
 };

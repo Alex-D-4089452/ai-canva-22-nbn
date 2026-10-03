@@ -145,7 +145,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <input
           ref={inputRef}
-          className="checklist-add-input nodrag min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-700 transition placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50"
+          className="checklist-add-input nodrag min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[14px] text-slate-700 transition placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50"
           placeholder={full ? "List is full" : "Add a task…"}
           value={draft}
           disabled={full}
@@ -167,7 +167,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
           }}
         />
         <button
-          className="checklist-add-btn flex-shrink-0 rounded-lg px-2 py-1 text-[12px] font-medium text-white transition disabled:opacity-40"
+          className="checklist-add-btn flex-shrink-0 rounded-lg px-2 py-1 text-[14px] font-medium text-white transition disabled:opacity-40"
           style={{ backgroundColor: "#059669" }}
           disabled={!draft.trim() || full}
           onClick={submitDraft}
@@ -209,7 +209,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
               {editingId === item.id ? (
                 <input
                   autoFocus
-                  className="nodrag w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-[12px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="nodrag w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
                   onBlur={commitEdit}
@@ -221,7 +221,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
               ) : (
                 <span
                   className={
-                    "checklist-text block cursor-text break-words text-[12px] leading-snug " +
+                    "checklist-text block cursor-text break-words text-[14px] leading-snug " +
                     (item.done ? "text-slate-400 line-through" : "text-slate-700")
                   }
                   title={`Added by ${checklistDisplayName(item.createdBy) || "someone"} — click to edit`}

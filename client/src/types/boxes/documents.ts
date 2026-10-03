@@ -11,6 +11,6 @@ export const documentsBox: BoxTypeMeta = {
   roles: ["everyone"],
   defaultPrompt: "",
   defaultSystemPrompt: "",
-  defaultWidth: 340,
-  defaultHeight: 380,
+  defaultWidth: 420,
+  defaultHeight: 480,
 };

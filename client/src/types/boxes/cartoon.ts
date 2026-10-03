@@ -11,6 +11,6 @@ export const cartoonBox: BoxTypeMeta = {
   defaultPrompt:
     "Cartoon style 3D profile picture of {{input_1}}, colorful, fun, stylized cartoon character, clean simple background, professional avatar",
   defaultSystemPrompt: "",
-  defaultWidth: 320,
-  defaultHeight: 380,
+  defaultWidth: 400,
+  defaultHeight: 480,
 };
