@@ -379,10 +379,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   contribute content (`alignmentRunBlocker`, `skipSelf` — the box's own `content` never
   counts); **Cartoon Profile, Handoff Brief, Decision Log, Slides** need ≥1 connected upstream
   box with content (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the
-  message); **Agent** needs a typed task (`boxData.content`); every other box is ungated
+  message); **Code, UI Design, Stitch UI** need a typed description (`content`) or one
+  connected upstream box with content (their own text counts — no `skipSelf`); **Agent**
+  needs a typed task (`boxData.content`); every other box is ungated
   (stock prompts are designed to run standalone). `BoxNode.tsx` mirrors the rules
-  (`runGateReason` → `disabled` + `title` tooltip on ▶ Run, alignment body shows
-  "n of 2 connected", agent body shows the store error) but only counts connections — the
+  (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two upstream boxes
+  first" / "Connect an upstream box first" / "Type a description or connect an input" /
+  "Type a task first"; alignment body shows "n of 2 connected", agent body shows the store
+  error) but only counts connections — the
   store stays authoritative because a box UI never subscribes to other boxes' data. Documents
   and Image boxes are deliberately ungated: they have no Run button at all (their upload
   already gates downstream use). Unit-tested in `inputs.test.ts` (`alignmentRunBlocker` +
