@@ -46,7 +46,7 @@ import {
 } from "../lib/sdlc.js";
 import { generate, generateImage, generateStitchUI, fetchRepoDigest, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
-import { collectInputs } from "../lib/inputs.js";
+import { collectInputs, runInputBlocker } from "../lib/inputs.js";
 import { buildChatSystemPrompt, buildConversationTurn, chatbotName, greetingMessage, trimChatMessages } from "../lib/chatbot.js";
 import {
   MAX_AGENT_TURNS,
@@ -1351,6 +1351,23 @@ export const useBoardStore = create<BoardState>()(
           boxType === "checklist" ||
           boxType === "chatbot"
         ) {
+          return;
+        }
+
+        // Input gates: refuse BEFORE any model call and before the box flips
+        // to "running" (same invariant as the SDLC gate). Alignment Check
+        // needs two artefacts; Cartoon/Handoff/Decision/Slides one connected
+        // box with content; Agent a typed task. BoxNode mirrors these rules
+        // by disabling ▶ Run with a tooltip naming what's missing.
+        const blocked = runInputBlocker(
+          boxType,
+          state.nodes,
+          state.edges,
+          state.boxData,
+          id
+        );
+        if (blocked) {
+          get().setBoxStatus(id, "error", blocked);
           return;
         }
 
