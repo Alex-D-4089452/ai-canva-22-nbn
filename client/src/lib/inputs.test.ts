@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
 import type { BoxData } from "../types/index.js";
-import { collectInputs, imageReferenceText } from "./inputs.js";
+import { alignmentRunBlocker, collectInputs, imageReferenceText } from "./inputs.js";
 
 function node(id: string, title: string): Node {
   return { id, position: { x: 0, y: 0 }, data: { title } } as Node;
@@ -109,5 +109,76 @@ describe("collectInputs", () => {
     };
     const { namedInputs } = collectInputs(nodes, [edge("idea1", "run1")], boxData, "run1");
     expect(namedInputs[0].output).toContain("spec.md");
+  });
+});
+
+describe("alignmentRunBlocker", () => {
+  const nodes = [
+    node("prd", "PRD"),
+    node("spec", "Spec"),
+    node("align", "Alignment Check"),
+  ];
+  const edge = (source: string, target: string, suffix = ""): Edge => ({
+    id: `${source}-${target}${suffix}`,
+    source,
+    target,
+  });
+
+  it("blocks when nothing is connected (the box's own content does not count)", () => {
+    const boxData: Record<string, BoxData> = {
+      align: { content: "my own notes" } as BoxData,
+    };
+    expect(alignmentRunBlocker(nodes, [], boxData, "align")).toContain(
+      "two connected input boxes (found 0)"
+    );
+  });
+
+  it("blocks with only one connected box", () => {
+    const boxData: Record<string, BoxData> = { prd: { output: "PRD text" } as BoxData };
+    expect(
+      alignmentRunBlocker(nodes, [edge("prd", "align")], boxData, "align")
+    ).toContain("two connected input boxes (found 1)");
+  });
+
+  it("counts two edges from the same box as one input", () => {
+    const boxData: Record<string, BoxData> = { prd: { output: "PRD text" } as BoxData };
+    expect(
+      alignmentRunBlocker(
+        nodes,
+        [edge("prd", "align"), edge("prd", "align", "-dup")],
+        boxData,
+        "align"
+      )
+    ).toContain("two connected input boxes (found 1)");
+  });
+
+  it("blocks when a connected box has no content yet", () => {
+    const boxData: Record<string, BoxData> = {
+      prd: { output: "PRD text" } as BoxData,
+      spec: { output: "", content: "" } as BoxData,
+    };
+    expect(
+      alignmentRunBlocker(
+        nodes,
+        [edge("prd", "align"), edge("spec", "align")],
+        boxData,
+        "align"
+      )
+    ).toContain("run the connected boxes first");
+  });
+
+  it("passes once two connected boxes contribute content", () => {
+    const boxData: Record<string, BoxData> = {
+      prd: { output: "PRD text" } as BoxData,
+      spec: { content: "typed spec" } as BoxData,
+    };
+    expect(
+      alignmentRunBlocker(
+        nodes,
+        [edge("prd", "align"), edge("spec", "align")],
+        boxData,
+        "align"
+      )
+    ).toBeNull();
   });
 });

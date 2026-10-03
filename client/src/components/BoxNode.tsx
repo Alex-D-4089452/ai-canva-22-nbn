@@ -170,6 +170,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         id: e.source,
       };
     });
+  // Distinct upstream boxes connected to this node — the Alignment Check
+  // needs two before Run becomes usable (the store re-checks, including
+  // that both contribute content: lib/inputs.ts alignmentRunBlocker).
+  const upstreamCount = new Set(connectedInputs.map((c) => c.id)).size;
 
   // Insert a variable into the prompt at cursor position
   const insertVariable = (varName: string) => {
@@ -227,6 +231,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isJargon = boxType === "jargon";
   // Banner source label (Jargon Translator).
   const sourceLabel = connectedSourceLabel(edges, allNodes, id);
+  // Alignment Check: Run is disabled until two upstream boxes are connected.
+  const alignmentNeedsInputs = isAlignment && upstreamCount < 2;
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1149,8 +1155,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               )}
               {!hasTextOutput && !isRunning && !hasError && (
                 <div className="text-slate-400 text-sm py-4 text-center">
-                  No output yet. Connect two artefacts and click <strong>Run</strong> to
-                  compare them.
+                  {upstreamCount < 2 ? (
+                    <>
+                      Connect two artefact boxes to compare ({upstreamCount} of 2
+                      connected).
+                    </>
+                  ) : (
+                    <>
+                      No output yet. Click <strong>Run</strong> to compare the two
+                      artefacts.
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1412,7 +1427,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
           <button
             onClick={() => runBox(id)}
-            disabled={isRunning}
+            disabled={isRunning || alignmentNeedsInputs}
+            title={alignmentNeedsInputs ? "Connect two upstream boxes first" : undefined}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
             style={{ backgroundColor: meta.color }}
           >

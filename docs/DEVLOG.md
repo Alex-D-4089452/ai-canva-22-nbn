@@ -29,6 +29,24 @@ current state).
 
 ---
 
+## 2026-10-02 — Alignment Check now requires two connected inputs
+
+- **Done:** The ✅ Alignment Check box only runs with **two distinct upstream boxes that both
+  contribute content**. Pure gate `alignmentRunBlocker` in `client/src/lib/inputs.ts`
+  (unit-tested in `inputs.test.ts`): <2 distinct connected sources → "connect a second
+  artefact"; connected but a source has no output/content yet → "run the connected boxes
+  first"; the box's own `content` never counts (`skipSelf`). `runBox` enforces it BEFORE any
+  model call (`setBoxStatus(id, "error", reason)` — mirrors the SDLC gate invariant), and
+  `BoxNode.tsx` disables **▶ Run** below two connections (tooltip "Connect two upstream boxes
+  first") with an "n of 2 connected" placeholder. No type changes — nothing touches
+  `types.ts`.
+- **In flight:** uncommitted, 4 files (`lib/inputs.ts`, `lib/inputs.test.ts`,
+  `store/boardStore.ts`, `components/BoxNode.tsx`) + AGENTS bullet. Branch
+  `feature/alignment-check-run-validation`, cut from pre-removal code — intentionally
+  independent of the box-removal + `types/` split work on `feature/remove-unecessary-boxes`
+  (this change never touches `types.ts`, so the split branch's deletion of that file will
+  merge cleanly).
+- **Next steps:** commit here; merge both branches back into main when ready.
 ## 2026-10-02 — Split `client/src/types.ts` into a `types/` directory (one file per box)
 
 - **Done:** `client/src/types.ts` (583 lines) replaced by `client/src/types/`:
