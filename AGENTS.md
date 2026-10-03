@@ -632,9 +632,16 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     `touch-action: pan-y` (coarse only) so a finger scrolls long output instead of dragging the
     node. Side effect on desktop too: boxes are dragged by their header strip (consistent with the
     idea-textarea `nodrag` convention).
-  - **Canvas:** `zoomOnDoubleClick={false}`; the Area tool has a native `touchstart`/`touchmove`/
-    `touchend` mirror on `.react-flow__pane` (iPads never fire the synthesized mousedown — React
-    Flow's touch handlers suppress it); presence cursors update via ReactFlow `onTouchMove`.
+  - **Canvas:** empty-canvas **double-click / double-tap zooms in** ×1.6 toward the pointer via
+    the app's own `onDoubleClick` on `<ReactFlow>` (`Canvas.tsx`) — target checks exclude every
+    node except an Area, `button/input/textarea/select/a`, and the Controls/Minimap/panels; it is
+    also inert while the Area tool is active. React Flow's `zoomOnDoubleClick` deliberately stays
+    `false`: its d3 listener is attached to the renderer (so it fires from inside boxes) and on
+    touch screens it bypasses the event filter entirely. Note React Flow v12's default
+    `maxZoom` is **2** (not 4), so the step clamps there. The Area tool has a native
+    `touchstart`/`touchmove`/`touchend` mirror on `.react-flow__pane` (iPads never fire the
+    synthesized mousedown — React Flow's touch handlers suppress it); presence cursors update via
+    ReactFlow `onTouchMove`.
   - **Page level:** `index.html` viewport is `viewport-fit=cover, maximum-scale=1, user-scalable=no`
     plus apple/web-app metas (Add-to-Home-Screen = chrome-less kiosk); `.app-bar` pads with
     `env(safe-area-inset-*)`; root uses `100dvh`; `overscroll-behavior: none`; global
