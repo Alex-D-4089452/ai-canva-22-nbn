@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CODE_CHANGE_PROMPT } from "../types.js";
+import { CODE_CHANGE_PROMPT } from "../types/index.js";
 import {
   buildCodeChangePrompt,
   extractCode,

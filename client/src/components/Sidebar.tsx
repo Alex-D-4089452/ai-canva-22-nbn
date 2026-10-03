@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import { useUserBoxesStore } from "../store/userBoxesStore.js";
-import { BOX_TYPES } from "../types.js";
-import type { BoxType, BoxCategory, BoxRole } from "../types.js";
+import { BOX_TYPES } from "../types/index.js";
+import type { BoxType, BoxCategory, BoxRole } from "../types/index.js";
 import CustomBoxModal from "./CustomBoxModal.js";
 
 interface SidebarProps {
@@ -12,11 +12,7 @@ interface SidebarProps {
 
 const SECTIONS: { title: string; category: BoxCategory }[] = [
   { title: "Inputs", category: "input" },
-  // The gated SDLC pipeline (stages 1-6, in order). Kept next to Inputs because
-  // an Idea box is the usual seed for stage 1.
-  { title: "SDLC", category: "sdlc" },
   { title: "Workers", category: "worker" },
-  { title: "Companions", category: "companion" },
   { title: "Collaboration", category: "collab" },
   { title: "Custom", category: "custom" },
 ];
@@ -25,14 +21,13 @@ const SECTIONS: { title: string; category: BoxCategory }[] = [
 const ROLE_STORAGE_KEY = "ai-canva:sidebar-role";
 
 /** The selectable role profiles (must stay in sync with the <option> list). */
-const ROLES: BoxRole[] = ["designer", "developer", "product", "sdlc"];
+const ROLES: BoxRole[] = ["designer", "developer", "product"];
 
 const ROLE_LABELS: Record<BoxRole, string> = {
   everyone: "Everyone",
   designer: "🎨 Designer",
   developer: "💻 Developer",
   product: "📊 Product",
-  sdlc: "🔁 SDLC",
 };
 
 export default function Sidebar({ open, onToggle }: SidebarProps) {

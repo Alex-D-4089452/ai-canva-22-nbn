@@ -98,11 +98,18 @@ App.tsx                     Shell: header, board actions, sign-in, modals
 3. `{{input_N}}` — Nth input, positional (backward compat).
 4. `{{Box Name}}` — any remaining `{{...}}` matched (case-insensitive) against connected box names.
 
-### Box definitions — `types.ts`
+### Box definitions — `types/`
 
-`BOX_TYPES: Record<BoxType, BoxTypeMeta>` is the single source of truth for every box's label,
-icon, color, category (`input` / `worker`), default prompt, default system prompt, and default
-size. Adding a box type means adding an entry here, registering it in `Canvas.tsx`'s
+Each box type's metadata (label, icon, color, category, role tags, default prompts, default size)
+lives in **its own file** under `client/src/types/boxes/` (`idea.ts`, `agent.ts`, …, `custom.ts`).
+`BOX_TYPES: Record<BoxType, BoxTypeMeta>` in `client/src/types/boxTypes.ts` is the single source of
+truth for every box; the `BoxType` union it is keyed by lives in `client/src/types/core.ts` (with
+`BoxData` and the other shared shapes). The `Record` keeps union and table in lockstep — a member
+with no entry, or an entry that is not in the union, is a compile error. Insertion order in
+`boxTypes.ts` is the palette order. `client/src/types/index.ts` re-exports everything (including
+box-specific constants like `AGENT_CONTROLLER_SYSTEM_PROMPT`, `CODE_CHANGE_PROMPT` and
+`LABEL_COLORS`), and modules import it as `../types/index.js`. Adding a box type means adding a
+union member, a `boxes/<type>.ts` file and its `BOX_TYPES` entry, registering it in `Canvas.tsx`'s
 `nodeTypes`, and adding a render branch in `BoxNode.tsx`.
 
 ### Code rendering — `lib/code.ts`

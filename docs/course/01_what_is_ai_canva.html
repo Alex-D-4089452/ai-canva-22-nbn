@@ -41,12 +41,12 @@
 
   <h2><span class="n">1.</span> The big idea</h2>
   <p>Most AI apps are single-purpose chat boxes — you type a prompt, get an answer. AI Canva turns AI into a <b>visual, modular pipeline</b>. Think of it as a flowchart where each node is a tool:</p>
-  <pre>💡 Idea ──▶ 🔍 Research ──▶ 📄 PRD ──▶ 🗺️ Dev Plan ──▶ 💻 Code</pre>
+  <pre>💡 Idea ──▶ 🔍 Research ──▶ 📄 PRD ──▶ ✨ UI Design</pre>
   <ul>
     <li>You write an <b>idea</b>.</li>
     <li>A <b>Research</b> box turns it into findings.</li>
     <li>A <b>PRD</b> box structures those findings into a product spec.</li>
-    <li>A <b>Code</b> box turns the spec into a working React app you can preview.</li>
+    <li>A <b>UI Design</b> box turns the spec into a working UI prototype you can preview.</li>
   </ul>
   <p>Instead of writing one giant prompt, you <b>compose smaller steps</b> and pass each output to the next box. This teaches a core AI principle: <b>breaking a hard problem into smaller steps and chaining them</b> (often called "pipelining" or "agentic workflows").</p>
 
@@ -64,16 +64,14 @@
     <tr><td>Idea</td><td>💡</td><td>Input</td><td>Free text. The seed of a pipeline.</td></tr>
     <tr><td>Image</td><td>🖼️</td><td>Input</td><td>Upload an image for downstream boxes.</td></tr>
     <tr><td>Research</td><td>🔍</td><td>Worker</td><td>Turns inputs into structured findings.</td></tr>
-    <tr><td>Summarize</td><td>📋</td><td>Worker</td><td>Squeezes many inputs into a concise summary.</td></tr>
+    <tr><td>Summarise</td><td>📋</td><td>Worker</td><td>Squeezes many inputs into a concise summary.</td></tr>
     <tr><td>PRD</td><td>📄</td><td>Worker</td><td>Writes a Product Requirements Document.</td></tr>
-    <tr><td>Dev Plan</td><td>🗺️</td><td>Worker</td><td>Turns a PRD into a build plan (components, state, steps).</td></tr>
     <tr><td>Cartoon Profile</td><td>🎨</td><td>Worker</td><td>Generates a cartoon avatar from an image or text.</td></tr>
     <tr><td>Slides</td><td>📊</td><td>Worker</td><td>Generates a navigable pitch deck.</td></tr>
-    <tr><td>Code</td><td>💻</td><td>Worker</td><td>Generates a working React prototype with a live preview.</td></tr>
     <tr><td>UI Design</td><td>✨</td><td>Worker</td><td>Generates polished React UIs with Tailwind CSS.</td></tr>
     <tr><td>Stitch UI</td><td>🧵</td><td>Worker</td><td>Generates UI screens via Google Stitch.</td></tr>
   </table>
-  <div class="golden"><b>Two kinds of boxes:</b> <b>Input boxes</b> (no AI) start the data — like an Idea or an Image. <b>Worker boxes</b> (AI) transform it — like Research or Code. Boxes are defined in <code>client/src/types.ts</code> and rendered by <code>client/src/components/BoxNode.tsx</code>.</div>
+  <div class="golden"><b>Two kinds of boxes:</b> <b>Input boxes</b> (no AI) start the data — like an Idea or an Image. <b>Worker boxes</b> (AI) transform it — like Research or UI Design. Boxes are defined in <code>client/src/types.ts</code> and rendered by <code>client/src/components/BoxNode.tsx</code>.</div>
 
   <h2><span class="n">4.</span> How it works (high level)</h2>
   <ol>
@@ -122,7 +120,7 @@
   <h2><span class="n">7.</span> AI providers (important for running it)</h2>
   <table>
     <tr><th>Provider</th><th>Used by</th><th>Cost</th></tr>
-    <tr><td><b>Ollama (DeepSeek)</b></td><td>All text boxes (Research, PRD, Code, …)</td><td><b>Free locally</b> (run on your machine) or paid cloud</td></tr>
+    <tr><td><b>Ollama (DeepSeek)</b></td><td>All text boxes (Research, PRD, UI Design, …)</td><td><b>Free locally</b> (run on your machine) or paid cloud</td></tr>
     <tr><td><b>fal.ai</b></td><td>Cartoon Profile box</td><td>Paid API key</td></tr>
     <tr><td><b>Google Stitch</b></td><td>Stitch UI box</td><td>Free to try (API key)</td></tr>
   </table>

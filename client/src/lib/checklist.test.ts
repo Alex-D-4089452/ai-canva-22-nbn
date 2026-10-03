@@ -17,7 +17,7 @@ import {
   setChecklistItemText,
   toggleChecklistItem,
 } from "./checklist.js";
-import type { ChecklistItem } from "../types.js";
+import type { ChecklistItem } from "../types/index.js";
 
 /** Deterministic factory: item ids/clock are injected so tests never flake. */
 const item = (text: string, done = false, id = text) =>

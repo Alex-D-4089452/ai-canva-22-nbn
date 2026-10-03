@@ -22,8 +22,6 @@ services:
         sync: false
       - key: STITCH_API_KEY
         sync: false
-      - key: GITHUB_TOKEN
-        sync: false
       - key: HERENOW_API_KEY
         sync: false
       # Cloudflare R2 — board image/document storage (POST /api/storage/sign)

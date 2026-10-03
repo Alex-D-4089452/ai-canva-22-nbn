@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupRoster } from "./presence.js";
-import type { PresenceUser } from "../types.js";
+import type { PresenceUser } from "../types/index.js";
 
 const u = (over: Partial<PresenceUser> = {}): PresenceUser => ({
   userId: "uid",

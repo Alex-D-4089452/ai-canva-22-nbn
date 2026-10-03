@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
-import { AREA_COLORS } from "../types.js";
+import { AREA_COLORS } from "../types/index.js";
 
 /**
  * A drawn rectangular area — a background grouping region that sits UNDER
