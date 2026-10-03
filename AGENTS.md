@@ -362,6 +362,22 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   no-wheel zone — trackpad scroll/pinch over a box never zooms the canvas (it would fight the
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
+- **Run input gates (refuse before the model call):** `runInputBlocker(boxType, nodes, edges,
+  boxData, id)` in `client/src/lib/inputs.ts` returns `null` (may run) or a user-facing reason,
+  and `runBox` applies it BEFORE any model call — same invariant as the SDLC gate (sets
+  `status: "error"` with the reason and returns; no token spent, the box never flips to
+  "running"). Rules: **Alignment Check** needs two distinct connected upstream boxes that both
+  contribute content (`alignmentRunBlocker`, `skipSelf` — the box's own `content` never
+  counts); **Cartoon Profile, Handoff Brief, Decision Log, Slides** need ≥1 connected upstream
+  box with content (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the
+  message); **Agent** needs a typed task (`boxData.content`); every other box is ungated
+  (stock prompts are designed to run standalone). `BoxNode.tsx` mirrors the rules
+  (`runGateReason` → `disabled` + `title` tooltip on ▶ Run, alignment body shows
+  "n of 2 connected", agent body shows the store error) but only counts connections — the
+  store stays authoritative because a box UI never subscribes to other boxes' data. Documents
+  and Image boxes are deliberately ungated: they have no Run button at all (their upload
+  already gates downstream use). Unit-tested in `inputs.test.ts` (`alignmentRunBlocker` +
+  `runInputBlocker`).
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product`/`sdlc`) in `client/src/types.ts`; the View dropdown in
   `Sidebar.tsx` filters which boxes appear in the "Add Box" palette (the selectable profiles live in
