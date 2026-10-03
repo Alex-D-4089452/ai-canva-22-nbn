@@ -152,9 +152,10 @@ selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
 in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
 color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
 
-**Box sizing & body text:** a new box's size comes from `BOX_TYPES[<type>]
-.defaultWidth/defaultHeight` in `client/src/types.ts` (all types scaled ×1.25 on 2026-10-03 —
-e.g. Idea 400×250, Agent 500×600, SDLC stages 520×580); **persisted nodes keep their stored
+**Box sizing & body text:** a new box's size comes from `defaultWidth`/`defaultHeight` in its
+`client/src/types/boxes/<type>.ts` file (surfaced through `BOX_TYPES[<type>]` in
+`types/boxTypes.ts`; all types scaled ×1.25 rounded-to-10 on 2026-10-03 —
+e.g. Idea 400×250, Agent 500×600, Jargon Translator 450×480); **persisted nodes keep their stored
 style**, so existing boards only grow when a box is added. Box text is sized centrally in
 `index.css`: `.box-node` base 15px, plus the scoped rules `.box-body .markdown-output`
 (16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it

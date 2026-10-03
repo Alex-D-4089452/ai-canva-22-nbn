@@ -29,6 +29,24 @@ current state).
 
 ---
 
+## 2026-10-03 — Merged all four feature PRs into main (squash, dependency order)
+
+- **Done:** squash-merged #11 jargon translator → #12 box removal + `types/` split → #13
+  alignment run gate → #14 fix-known-defects (base `a4853c0` → `main` `9cf8db1`); all four
+  branches kept on origin as requested. Conflicts resolved per PR; #14's merge folded the
+  jargon-gate integration in: `UPSTREAM_INPUT_BOXES` decision→jargon (hint "an artefact to
+  translate…"), `code` dropped from the UI/Stitch build gate, #13's inline
+  `alignmentRunBlocker` block dropped in favour of #14's single `runInputBlocker` dispatcher,
+  `client/src/types.ts` deleted with the ×1.25 size scaling (round-half-to-even at 10)
+  re-applied across `client/src/types/boxes/*.ts` (Jargon 360×380 → 450×480), AGENTS gate
+  bullets merged and its stale `types.ts` sizing path fixed. Verified on the merged tree:
+  server 36/36 + client **201/201**, `tsc -b` 0 (client + server), `vite build` OK, squash
+  tree ≡ tested merge tree (0-line diff).
+- **In flight:** — (the branch-time entries below are superseded — their "uncommitted / commit
+  when asked" notes referred to `feature/fix-known-defects`, now merged as `9cf8db1`).
+- **Next steps:** — ; the four feature branches still exist on origin (kept on request —
+  delete when convenient).
+
 ## 2026-10-03 — Double-click on empty canvas zooms in toward the pointer
 
 - **Done:** `Canvas.tsx` adds an app-level `onDoubleClick` on `<ReactFlow>`: on empty canvas it
