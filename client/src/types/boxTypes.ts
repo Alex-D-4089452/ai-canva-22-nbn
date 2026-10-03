@@ -12,7 +12,7 @@ import { uiBox } from "./boxes/ui.js";
 import { stitchBox } from "./boxes/stitch.js";
 import { handoffBox } from "./boxes/handoff.js";
 import { alignmentBox } from "./boxes/alignment.js";
-import { decisionBox } from "./boxes/decision.js";
+import { jargonBox } from "./boxes/jargon.js";
 import { noteBox } from "./boxes/note.js";
 import { labelBox } from "./boxes/label.js";
 import { timerBox } from "./boxes/timer.js";
@@ -39,7 +39,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
   stitch: stitchBox,
   handoff: handoffBox,
   alignment: alignmentBox,
-  decision: decisionBox,
+  jargon: jargonBox,
   note: noteBox,
   label: labelBox,
   timer: timerBox,

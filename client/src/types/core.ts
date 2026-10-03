@@ -4,7 +4,7 @@
 // file under `./boxes/`; `./boxTypes.ts` assembles them into BOX_TYPES and
 // `./index.ts` re-exports the whole public surface.
 
-export type BoxType = "agent" | "idea" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "note" | "label" | "timer" | "checklist" | "custom";
+export type BoxType = "agent" | "idea" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "jargon" | "note" | "label" | "timer" | "checklist" | "custom";
 
 /**
  * One task in a Checklist box — the team's shared to-do list. Every field is
@@ -209,8 +209,8 @@ export interface BoxData {
   handoffGeneratedAt?: number;
   /** Alignment Check boxes: run timestamp. */
   alignmentRanAt?: number;
-  /** Decision Log boxes: number of decisions extracted from the output. */
-  decisionCount?: number;
+  /** Jargon Translator boxes: number of jargon terms explained in the output. */
+  jargonTerms?: number;
 }
 
 /** Metadata for each box type. */

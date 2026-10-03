@@ -49,7 +49,7 @@ Course materials for using AI Canva as a teaching/learning project. A complete s
 
 - **Visual pipelines** — drag boxes onto a canvas and connect them; content flows box to box.
 - **18 box types** — Agent, Idea, Image, Documents, Research, Summarise, PRD,
-  Cartoon Profile, Slides, UI Design, Stitch UI, Handoff Brief, Alignment Check, Decision Log,
+  Cartoon Profile, Slides, UI Design, Stitch UI, Handoff Brief, Alignment Check, Jargon Translator,
   plus Notes / Labels / Timers / the shared team **Checklist** and your own custom boxes.
 - **Download any box's outcome** — `💾 Save` writes a box's real output to a Markdown file
   (`research.md`, `summary.md`, `prd.md`, …), ready to paste into a repo or a PR.

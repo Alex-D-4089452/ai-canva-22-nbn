@@ -1,5 +1,5 @@
 import { memo, useState, useRef, useEffect, lazy, Suspense } from "react";
-import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
+import { Handle, Position, NodeResizer, type NodeProps, type Edge, type Node } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
@@ -76,6 +76,30 @@ function resizeImage(file: File, maxSize = 1024): Promise<string> {
     reader.onerror = () => reject(new Error("Could not read file"));
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Label for the first box connected into `id` — the "Source:" field on the
+ * Jargon Translator banner. A Documents box upstream shows its uploaded
+ * filename (without the extension) instead of the box name.
+ */
+function connectedSourceLabel(
+  edges: Edge[],
+  nodes: Node[],
+  id: string
+): string {
+  const src = edges
+    .filter((e) => e.target === id)
+    .map((e) => nodes.find((n) => n.id === e.source))
+    .find(Boolean);
+  if (!src) return "";
+  if (src.type === "documents") {
+    const docs = useBoardStore.getState().boxData[src.id]?.documents;
+    if (docs?.length) {
+      return docs[0].name.replace(/\.[^.]+$/, "") + " (via Documents Box)";
+    }
+  }
+  return (src.data?.title as string) || "";
 }
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
@@ -199,8 +223,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isHandoff = boxType === "handoff";
   // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
   const isAlignment = boxType === "alignment";
-  // Decision Log: custom banner with Source/Decisions captured.
-  const isDecision = boxType === "decision";
+  // Jargon Translator: custom banner with Source/Terms simplified.
+  const isJargon = boxType === "jargon";
+  // Banner source label (Jargon Translator).
+  const sourceLabel = connectedSourceLabel(edges, allNodes, id);
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -972,8 +998,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* AI box output — text (research, summarise). Collaboration boxes
             (timer/checklist) never produce an output, so they get neither the
             block nor its "no output yet" placeholder. Handoff, Alignment, and
-            Decision get their own blocks with metadata banners. */}
-        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && !isDecision && (
+            Jargon get their own blocks with metadata banners. */}
+        {!isInputBox && !isCartoon && !isSlides && !isCode && !isAgent && !isUtility && !isHandoff && !isAlignment && !isJargon && (
           <div className="min-h-[80px]">
             {isRunning && (
               <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
@@ -1131,69 +1157,51 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           );
         })()}
 
-        {/* AI box output — decision log (banner + text) */}
-        {!isInputBox && isDecision && (() => {
-          const srcNode = edges
-            .filter((e) => e.target === id)
-            .map((e) => allNodes.find((n) => n.id === e.source))
-            .find(Boolean);
-          const srcData = srcNode
-            ? useBoardStore.getState().boxData[srcNode.id]
-            : undefined;
-          let sourceLabel = (srcNode?.data?.title as string) || "";
-          if (
-            srcNode?.type === "documents" &&
-            srcData?.documents?.length
-          ) {
-            const docName = srcData.documents[0].name;
-            sourceLabel =
-              docName.replace(/\.[^.]+$/, "") + " (via Documents Box)";
-          }
-          return (
-            <div className="min-h-[80px]">
-              {/* Banner: Source / Decisions captured */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
-                {sourceLabel ? (
-                  <span>
-                    <span className="font-semibold text-slate-600">Source:</span>{" "}
-                    <span className="text-slate-700">{sourceLabel}</span>
-                  </span>
-                ) : (
-                  <span className="text-slate-400 italic">Connect an input to label the source</span>
-                )}
-                {(boxData.decisionCount ?? 0) > 0 && (
-                  <span>
-                    <span className="font-semibold text-slate-600">Decisions captured:</span>{" "}
-                    <span className="text-slate-700">{boxData.decisionCount}</span>
-                  </span>
-                )}
-              </div>
-
-              {isRunning && (
-                <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
-                  <span className="animate-spin">⏳</span>
-                  <span>Extracting decisions...</span>
-                </div>
+        {/* AI box output — jargon translator (banner + text) */}
+        {!isInputBox && isJargon && (
+          <div className="min-h-[80px]">
+            {/* Banner: Source / Terms simplified */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
+              {sourceLabel ? (
+                <span>
+                  <span className="font-semibold text-slate-600">Source:</span>{" "}
+                  <span className="text-slate-700">{sourceLabel}</span>
+                </span>
+              ) : (
+                <span className="text-slate-400 italic">Connect an input to label the source</span>
               )}
-              {hasError && !isRunning && (
-                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                  ⚠️ {boxData.error}
-                </div>
-              )}
-              {hasTextOutput && !isRunning && (
-                <div className="markdown-output text-slate-700 text-sm">
-                  <ReactMarkdown>{boxData.output}</ReactMarkdown>
-                </div>
-              )}
-              {!hasTextOutput && !isRunning && !hasError && (
-                <div className="text-slate-400 text-sm py-4 text-center">
-                  No output yet. Connect meeting notes and click <strong>Run</strong> to
-                  extract decisions.
-                </div>
+              {(boxData.jargonTerms ?? 0) > 0 && (
+                <span>
+                  <span className="font-semibold text-slate-600">Terms simplified:</span>{" "}
+                  <span className="text-slate-700">{boxData.jargonTerms}</span>
+                </span>
               )}
             </div>
-          );
-        })()}
+
+            {isRunning && (
+              <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
+                <span className="animate-spin">⏳</span>
+                <span>Translating jargon...</span>
+              </div>
+            )}
+            {hasError && !isRunning && (
+              <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
+                ⚠️ {boxData.error}
+              </div>
+            )}
+            {hasTextOutput && !isRunning && (
+              <div className="markdown-output text-slate-700 text-sm">
+                <ReactMarkdown>{boxData.output}</ReactMarkdown>
+              </div>
+            )}
+            {!hasTextOutput && !isRunning && !hasError && (
+              <div className="text-slate-400 text-sm py-4 text-center">
+                No output yet. Connect an artefact and click <strong>Run</strong> to
+                translate it.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* AI box output — slides (pitch deck) */}
         {!isInputBox && isSlides && (

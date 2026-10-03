@@ -121,7 +121,7 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 - **18 built-in box types** plus user-created custom boxes: Agent, Idea, Image,
   Documents, Research, Summarise, PRD, Cartoon Profile,
   Slides, UI Design,
-  Stitch UI, Handoff Brief, Alignment Check, Decision Log, four collaboration boxes (Note, Label,
+  Stitch UI, Handoff Brief, Alignment Check, Jargon Translator, four collaboration boxes (Note, Label,
   Timer, **Checklist**), and the `custom` runtime type (see
   "Custom boxes" below). Categories: `input`, `worker`,
   `collab` (standalone team tools: no AI, no Run, no handles),
@@ -352,6 +352,20 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   the `ROLES` list there — extend it AND the `localStorage` whitelist check when adding one, or the
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
   a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
+- **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🔁 Jargon Translator —
+  types `handoff`/`alignment`/`jargon`, palette section
+  "Workers", `category: "worker"`):** generic text-AI boxes (they fall through `runBox`'s else
+  branch) that each render a **metadata banner** above the markdown output via their own block in
+  `BoxNode.tsx` (each excluded from the generic text block's guard). Shared pieces: the
+  banner's **`Source:`** label is `connectedSourceLabel()` (module-level in `BoxNode.tsx`) —
+  first connected upstream box, or the uploaded filename when that box is a Documents box; run-time
+  metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`jargonTerms`)
+  written by the text branch of `runBox`. Handoff's From/To are editable inputs
+  (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
+  never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
+  heading** so a numbered source list copied into the translated artefact can't inflate it. None
+  of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier and was
+  removed — don't reintroduce `"decision"`/`decisionCount` references.)
 - **AI change requests in the UI Design box:** once `boxData.code` exists, the box shows a
   **"Request a change…"** field + **✏️ Apply change** (`CodeChangePanel.tsx`), backed by the
   `applyChangeRequest` store action. The model rewrites the WHOLE component (the only reliable way to
