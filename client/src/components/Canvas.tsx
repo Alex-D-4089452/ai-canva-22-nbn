@@ -6,6 +6,7 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  useStoreApi,
   useViewport,
   type Node,
   type Edge,
@@ -65,7 +66,8 @@ export default function Canvas() {
   const updateCursorPosition = useBoardStore((s) => s.updateCursorPosition);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getViewport, setViewport } = useReactFlow();
+  const rfStore = useStoreApi();
 
   // Track mouse movement and update presence
   const onMouseMove = useCallback(
@@ -148,6 +150,43 @@ export default function Canvas() {
       e.preventDefault();
     },
     [areaTool, screenToFlowPosition]
+  );
+
+  // Double-click (and the double-tap browsers synthesize from it) on EMPTY
+  // canvas zooms in ×1.6 toward the pointer. This is the app-level replacement
+  // for React Flow's zoomOnDoubleClick, which stays off: its d3 handler sits on
+  // the renderer (so it would fire from inside boxes too, and on touch screens
+  // it bypasses the event filter entirely). Targets are checked here instead:
+  // boxes keep their own double-click behaviour (textareas, editors), while
+  // edges and Area nodes — background, not boxes — still zoom. The zoom anchors
+  // on the cursor: flow = (pointer − translate) / zoom, so the point under the
+  // pointer does not move.
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (areaTool) return;
+      const target = e.target as HTMLElement;
+      const node = target.closest(".react-flow__node");
+      if (node && !node.classList.contains("react-flow__node-area")) return;
+      if (target.closest("button, input, textarea, select, a")) return;
+      if (target.closest(".react-flow__controls, .react-flow__minimap, .react-flow__panel"))
+        return;
+
+      const container = e.currentTarget as HTMLElement;
+      const rect = container.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const { x, y, zoom } = getViewport();
+      const { minZoom, maxZoom } = rfStore.getState();
+      const nextZoom = Math.min(Math.max(zoom * 1.6, minZoom), maxZoom);
+      if (nextZoom <= zoom) return; // already at max zoom
+      const fx = (px - x) / zoom;
+      const fy = (py - y) / zoom;
+      setViewport(
+        { x: px - fx * nextZoom, y: py - fy * nextZoom, zoom: nextZoom },
+        { duration: 200 }
+      );
+    },
+    [areaTool, getViewport, setViewport, rfStore]
   );
 
   useEffect(() => {
@@ -234,8 +273,12 @@ export default function Canvas() {
       onMouseMove={onMouseMove}
       onMouseDown={onCanvasMouseDown}
       onTouchMove={onTouchMove}
-      // Double-tap / double-click zoom is surprising on touch — the pinch
-      // gesture already covers zooming.
+      // Empty-canvas double-click / double-tap zooms toward the pointer — the
+      // app's own handler (boxes, the Area tool and canvas controls are
+      // excluded). React Flow's built-in zoomOnDoubleClick stays off: its d3
+      // listener is attached to the renderer (fires from inside boxes) and on
+      // touch screens it bypasses the event filter.
+      onDoubleClick={onDoubleClick}
       zoomOnDoubleClick={false}
       // While the area tool is active, dragging draws a rectangle instead of
       // panning the canvas or moving nodes.
