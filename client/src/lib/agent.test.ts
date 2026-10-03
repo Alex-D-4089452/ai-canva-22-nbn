@@ -12,8 +12,8 @@ import {
   nextAgentChildPosition,
   parseAgentAction,
 } from "./agent.js";
-import type { BoxData, BoxType, NamedInput } from "../types.js";
-import { BOX_TYPES } from "../types.js";
+import type { BoxData, BoxType, NamedInput } from "../types/index.js";
+import { BOX_TYPES } from "../types/index.js";
 import type { Edge, Node } from "@xyflow/react";
 
 function node(id: string, type: string, title: string, extra: Partial<Node> = {}): Node {
@@ -77,7 +77,7 @@ describe("parseAgentAction", () => {
   });
 
   it("tolerates a missing ref on add_box", () => {
-    const parsed = parseAgentAction('{"action":"add_box","boxType":"code"}');
+    const parsed = parseAgentAction('{"action":"add_box","boxType":"ui"}');
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
       expect(parsed.action.action).toBe("add_box");
@@ -239,7 +239,7 @@ describe("clip + constants sanity", () => {
 
   it("every creatable box type exists in BOX_TYPES", () => {
     const types = [
-      "idea", "research", "summarize", "prd", "devplan", "slides", "code", "ui",
+      "idea", "research", "summarise", "prd", "slides", "ui",
     ] as BoxType[];
     for (const t of types) {
       expect(isAgentCreatableType(t)).toBe(true);
@@ -247,12 +247,14 @@ describe("clip + constants sanity", () => {
     }
   });
 
-  it("never lets the agent create an SDLC stage box", () => {
-    // The pipeline is human-gated by design: an agent that could create (and
-    // then approve) its own stages would defeat every gate.
-    for (const t of ["sdlc-intent", "sdlc-spec", "sdlc-plan", "sdlc-implement", "sdlc-review", "sdlc-merge"]) {
+  it("never lets the agent create a removed or gated box type", () => {
+    // The pipeline stages are human-gated by design, and the retired box
+    // types no longer exist at all — neither may appear in the whitelist.
+    for (const t of [
+      "sdlc-intent", "sdlc-spec", "sdlc-plan", "sdlc-implement", "sdlc-review", "sdlc-merge",
+      "code", "codeedit", "codemap", "devplan",
+    ]) {
       expect(isAgentCreatableType(t)).toBe(false);
-      expect(BOX_TYPES[t as BoxType]).toBeDefined();
     }
   });
 
@@ -260,7 +262,7 @@ describe("clip + constants sanity", () => {
     // Note/label/timer/checklist are the TEAM's tools, not the agent's: they
     // have no AI, produce no output, and a checklist an agent "completes" on
     // its own would be a shared list nobody agreed to.
-    for (const t of ["note", "label", "timer", "checklist", "chatbot"]) {
+    for (const t of ["note", "label", "timer", "checklist"]) {
       expect(isAgentCreatableType(t)).toBe(false);
       expect(BOX_TYPES[t as BoxType]).toBeDefined();
     }

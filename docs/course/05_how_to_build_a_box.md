@@ -29,16 +29,16 @@ A box is made of **three small pieces** of code. If you add all three, your box 
 Open `client/src/types.ts`. Scroll to the top. You'll see a line listing every box type:
 
 ```ts
-export type BoxType = "idea" | "research" | "summarize" | "image" | ...;
+export type BoxType = "idea" | "research" | "summarise" | "image" | ...;
 ```
 
 **Add your box name** to that list (add it at the end):
 
 ```ts
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch" | "swot";
+export type BoxType = "idea" | "agent" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "decision" | "note" | "label" | "timer" | "checklist" | "custom" | "swot";
 ```
 
-Now scroll down to the big `BOX_TYPES` object. **Each box has an entry that describes it.** After the last entry (`stitch: {...}`), add a comma and your own entry:
+Now scroll down to the big `BOX_TYPES` object. **Each box has an entry that describes it.** After the last entry (`custom: {...}`), add a comma and your own entry:
 
 ```ts
 swot: {
@@ -71,13 +71,13 @@ Open `client/src/store/boardStore.ts`. Scroll down until you find the function c
 if (boxType === "cartoon") { ... }
 else if (boxType === "stitch") { ... }
 else {
-  // this handles research, summarize, slides, prd, etc.
+  // this handles research, summarise, slides, prd, etc.
 }
 ```
 
 For a simple *text* box, you want to use the existing "else" text path — you don't need to write a whole new branch. **But** you still need to tell it how to handle your output. Add your box to the final `else` block's logic.
 
-Actually, the simplest approach: since a SWOT box just produces text (like research/summarize), you don't add a new branch at all — your box falls into the generic text path automatically and stores its output. **But** to make sure your box is recognised and to give you a place to add custom post-processing later, add one `else if` line *before* the `slides` check:
+Actually, the simplest approach: since a SWOT box just produces text (like research/summarise), you don't add a new branch at all — your box falls into the generic text path automatically and stores its output. **But** to make sure your box is recognised and to give you a place to add custom post-processing later, add one `else if` line *before* the `slides` check:
 
 ```ts
 } else if (boxType === "swot") {
@@ -95,7 +95,7 @@ Actually, the simplest approach: since a SWOT box just produces text (like resea
 > 2. calls the AI backend with your `defaultPrompt` + `defaultSystemPrompt`,
 > 3. runs this `else if` branch, which saves the AI's reply as the box's `output` and marks it `done`.
 
-**No new backend code is needed** — your box reuses the existing `/api/generate` (Ollama) endpoint that Research/Summarize already use.
+**No new backend code is needed** — your box reuses the existing `/api/generate` (Ollama) endpoint that Research/Summarise already use.
 
 ---
 

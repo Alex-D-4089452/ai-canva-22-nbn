@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toReactProject, toStackBlitzProject, toSandpackFiles } from "./project.js";
+import { toReactProject, toStackBlitzProject } from "./project.js";
 
 const SAMPLE_CODE = `function App() {
   const [count, setCount] = React.useState(0);
@@ -59,27 +59,5 @@ describe("toStackBlitzProject", () => {
     expect(project.template).toBe("node");
     expect(project.files).toHaveProperty("App.jsx");
     expect(project.files).toHaveProperty("package.json");
-  });
-});
-
-describe("toSandpackFiles", () => {
-  it("produces the lightweight react-template file tree", () => {
-    const files = toSandpackFiles(SAMPLE_CODE);
-    expect(Object.keys(files)).toEqual(
-      expect.arrayContaining(["/App.js", "/index.js", "/public/index.html", "/package.json", "/styles.css"])
-    );
-  });
-
-  it("strips the render call and adds a React import to App.js", () => {
-    const app = toSandpackFiles(SAMPLE_CODE)["/App.js"];
-    expect(app).toContain('import React from "react"');
-    expect(app).not.toContain("ReactDOM.createRoot");
-  });
-
-  it("adds a default export so the entry's import App resolves (Sandpack)", () => {
-    const app = toSandpackFiles(SAMPLE_CODE)["/App.js"];
-    expect(app).toContain("export default App;");
-    // no duplicate default export
-    expect((app.match(/export default/g) || []).length).toBe(1);
   });
 });

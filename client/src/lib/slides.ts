@@ -1,4 +1,4 @@
-import type { Slide } from "../types.js";
+import type { Slide } from "../types/index.js";
 
 /**
  * Parses the LLM's text response into a Slide[] array.

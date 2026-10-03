@@ -34,7 +34,7 @@ Each box connects to the AI Canva scaffold through **three touchpoints** you con
 **Optional extras:** a custom render in `BoxNode.tsx` (e.g. score bars, cards, a warning banner) and/or a backend endpoint if your box needs a non-text provider.
 
 ### Demo
-Deliver a **working box + a small sample pipeline** (e.g. `Idea → [your box] → Summarize`) that shows it: (1) reads inputs correctly, (2) produces a useful, well-formed output, and (3) composes with other boxes.
+Deliver a **working box + a small sample pipeline** (e.g. `Idea → [your box] → Summarise`) that shows it: (1) reads inputs correctly, (2) produces a useful, well-formed output, and (3) composes with other boxes.
 
 ---
 

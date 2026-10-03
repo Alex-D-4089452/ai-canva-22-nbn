@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData, NamedInput } from "../types.js";
+import type { BoxData, NamedInput } from "../types/index.js";
 
 /**
  * Pure helpers for the Agent box (client/src/store/boardStore.ts runs the loop).
@@ -16,13 +16,9 @@ import type { BoxData, NamedInput } from "../types.js";
 export const AGENT_CREATABLE_TYPES = [
   "idea",
   "research",
-  "summarize",
+  "summarise",
   "prd",
-  "devplan",
-  "codemap",
   "slides",
-  "code",
-  "codeedit",
   "ui",
 ] as const;
 export type AgentCreatableType = (typeof AGENT_CREATABLE_TYPES)[number];
@@ -194,9 +190,9 @@ export function buildBoardInventory(
   const titleOf = (n: Node) => (n.data?.title as string) || "Unnamed";
 
   for (const n of nodes) {
-    // Areas aren't boxes; agents/chatbots are off-limits (and would only
-    // tempt the model to run or mention themselves) — leave all out.
-    if (n.type === "area" || n.type === "agent" || n.type === "chatbot") continue;
+    // Areas aren't boxes; agents are off-limits (and would only tempt the
+    // model to run or mention themselves) — leave them out.
+    if (n.type === "area" || n.type === "agent") continue;
     const d = boxData[n.id];
     if (!d) continue;
     const out = clip(d.output || d.content, AGENT_INVENTORY_CLIP);
@@ -212,7 +208,7 @@ export function buildBoardInventory(
       const t = nodes.find((n) => n.id === e.target);
       if (!s || !t) return null;
       const skip = (node: Node) =>
-        node.type === "agent" || node.type === "chatbot" || node.type === "area";
+        node.type === "agent" || node.type === "area";
       if (skip(s) || skip(t)) return null;
       return `- "${titleOf(s)}" → "${titleOf(t)}"`;
     })

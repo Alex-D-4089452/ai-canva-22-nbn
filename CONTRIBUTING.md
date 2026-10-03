@@ -52,7 +52,8 @@ To build and run locally, follow the [Quick Start](README.md#-quick-start-local-
    ```
 2. **Make your changes.** Keep them focused; one logical change per PR.
 3. **Test** your changes locally (`npm run dev`). Add/adjust tests if the project has them.
-4. **Keep prompts in `client/src/types.ts`** as sensible defaults — per-box prompts live there.
+4. **Keep prompts in `client/src/types/boxes/<type>.ts`** as sensible defaults — per-box prompts
+   live with the box's metadata.
 5. **Commit** with a clear, imperative message (see [below](#commit)).
 6. **Push** and open a Pull Request against `main`. Reference any related issue in the description.
 
@@ -78,7 +79,8 @@ functions/  Firebase Cloud Functions — the production backend (mirrors server/
 ```
 
 - **Box definitions** (labels, icons, colors, default prompts, sizes) live in
-  `client/src/types.ts` (`BOX_TYPES`).
+  `client/src/types/boxes/` (one file per box type), assembled into `BOX_TYPES` by
+  `client/src/types/boxTypes.ts`.
 - **Canvas + node UI** in `client/src/components/` (`BoxNode.tsx` renders every box type).
 - **State + run logic** in `client/src/store/boardStore.ts`.
 - **AI/prompt filling** in `client/src/lib/` (`api.ts`, `prompts.ts`, `code.ts`).

@@ -1,13 +1,8 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import CodeEditor from "./CodeEditor.js";
-import { wrapCodeInHtml, wrapUIInHtml } from "../lib/code.js";
-import type { BoxType } from "../types.js";
-
-// Sandpack is heavy; lazy-load it so it only loads when a Code box is maximised.
-// Use the bare lazy form (React.lazy unwraps the import's default export); do not
-// chain `.then((m) => m.default)` — see BoxNode.tsx and AGENTS.md.
-const SandpackPreview = lazy(() => import("./SandpackPreview.js"));
+import { wrapUIInHtml } from "../lib/code.js";
+import type { BoxType } from "../types/index.js";
 
 interface CodeModalProps {
   onClose: () => void;
@@ -26,17 +21,15 @@ export default function CodeModal({ onClose, boxType, code, onChange, title }: C
   const [previewLoading, setPreviewLoading] = useState(true);
 
   // Debounce the code fed to the preview: every keystroke changes `code`, and
-  // rebuilding the Sandpack project (or the iframe srcDoc) per keystroke
-  // restarts the bundler constantly — the preview never settles. The editor
-  // stays live; the preview trails by ~400ms.
+  // rebuilding the iframe srcDoc per keystroke restarts the preview constantly
+  // — it never settles. The editor stays live; the preview trails by ~400ms.
   const [previewCode, setPreviewCode] = useState(code);
   useEffect(() => {
     const t = setTimeout(() => setPreviewCode(code), 400);
     return () => clearTimeout(t);
   }, [code]);
 
-  const isStitch = boxType === "stitch";
-  const srcDoc = isStitch ? previewCode : (boxType === "ui" ? wrapUIInHtml : wrapCodeInHtml)(previewCode);
+  const srcDoc = boxType === "stitch" ? previewCode : wrapUIInHtml(previewCode);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-sm">
@@ -72,34 +65,19 @@ export default function CodeModal({ onClose, boxType, code, onChange, title }: C
             👁 Preview
           </div>
           <div className="relative m-3 min-h-0 flex-1 overflow-hidden rounded-lg bg-white">
-            {boxType === "code" ? (
-              <Suspense
-                fallback={
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-slate-400">
-                    <span className="animate-spin text-2xl">⚙️</span>
-                    <span>Loading preview…</span>
-                  </div>
-                }
-              >
-                <SandpackPreview code={previewCode} height="100%" />
-              </Suspense>
-            ) : (
-              <>
-                {previewLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-slate-400">
-                    <span className="animate-spin text-2xl">⚙️</span>
-                    <span>Loading preview…</span>
-                  </div>
-                )}
-                <iframe
-                  srcDoc={srcDoc}
-                  onLoad={() => setPreviewLoading(false)}
-                  className="absolute inset-0 h-full w-full border-0"
-                  sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
-                  title="Preview"
-                />
-              </>
+            {previewLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white text-sm text-slate-400">
+                <span className="animate-spin text-2xl">⚙️</span>
+                <span>Loading preview…</span>
+              </div>
             )}
+            <iframe
+              srcDoc={srcDoc}
+              onLoad={() => setPreviewLoading(false)}
+              className="absolute inset-0 h-full w-full border-0"
+              sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-modals"
+              title="Preview"
+            />
           </div>
         </div>
       </div>

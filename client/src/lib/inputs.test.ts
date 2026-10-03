@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Edge, Node } from "@xyflow/react";
-import type { BoxData } from "../types.js";
+import type { BoxData } from "../types/index.js";
 import { alignmentRunBlocker, collectInputs, imageReferenceText } from "./inputs.js";
 
 function node(id: string, title: string): Node {

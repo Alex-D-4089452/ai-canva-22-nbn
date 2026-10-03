@@ -47,6 +47,82 @@ current state).
   (this change never touches `types.ts`, so the split branch's deletion of that file will
   merge cleanly).
 - **Next steps:** commit here; merge both branches back into main when ready.
+## 2026-10-02 — Split `client/src/types.ts` into a `types/` directory (one file per box)
+
+- **Done:** `client/src/types.ts` (583 lines) replaced by `client/src/types/`:
+  `core.ts` (BoxType union, BoxData + shared shapes, BoxTypeMeta, BoxRole/BoxCategory,
+  AREA_COLORS), `boxes/<type>.ts` ×19 (each box's metadata, re-indented from the old
+  `BOX_TYPES` entries — content sliced, never retyped, so prompts are byte-identical),
+  `boxTypes.ts` (the `BOX_TYPES` record — same insertion order = palette order, `Record<>`
+  still locks union↔table), and `index.ts` (public surface). Box-specific constants moved with
+  their box: `AGENT_CONTROLLER_SYSTEM_PROMPT` → `boxes/agent.ts`, `CODE_CHANGE_PROMPT` →
+  `boxes/ui.ts`, `LABEL_COLORS` → `boxes/label.ts`. No shim: `types.ts` deleted and all
+  **33 importers / 45 import lines** rewritten `../types.js` → `../types/index.js` (verified
+  zero leftovers). Core docs updated: ARCHITECTURE (Box definitions section rewritten),
+  BOX_TYPES (intro, LABEL_COLORS ref, add-a-box step), README tree, ONBOARDING (exercise + a
+  stale `PRD → Code` pipeline line → `PRD → UI Design`), OVERVIEW, CONTRIBUTING, AGENTS.md
+  (new "box definitions live one file per box" bullet + path fixes). **Verified:** `tsc -b`
+  0, vitest **189/189**, `vite build` ok.
+- **In flight:** uncommitted (`types.ts` deletion staged, new `types/` dir untracked).
+- **Next steps:** (1) **course materials still say "register in `types.ts`"** — user chose
+  core-docs-only for now, so `docs/course/02–07` + course 05's walkthrough need a pass to
+  describe `types/core.ts` + `types/boxes/<type>.ts` + `types/boxTypes.ts`; (2) commit when
+  asked (this sits on top of the box-removal working tree).
+
+## 2026-10-02 — Removed the SDLC / Chatbot / legacy code box types end-to-end
+
+- **Done:** Deleted 11 box types (`sdlc-intent|spec|plan|implement|review|merge`, `code`,
+  `codeedit`, `codemap`, `devplan`, `chatbot`) and their whole surface: components
+  (`SdlcGatePanel`, `CodeEditPanel`, `ChatbotPanel`, `StickFigure`, `RepoField`,
+  `SandpackPreview`), libs (`sdlc`, `codeedit`, `chatbot`, `repo` in client **and** the
+  duplicated `server/`+`functions/`), palette/sidebar/landing entries, boardStore branches,
+  index.css styles, and the `sandpack-react` dependency. Shared logic was extracted first:
+  `lib/diff.ts` (`computeLineDiff`/`lineDiff`) and `appendVersion` in `lib/code.ts`.
+  **`/api/repo-digest`** route + `repo.ts` removed from both backends; `GITHUB_TOKEN` dropped
+  from `.env`/`.env.example` (server+functions), `render.yaml` and all docs. `BoxType` is now
+  **19 (18 built-in + `custom`)**; legacy `summarize`→`summarise` aliases kept in
+  `Canvas.tsx`/`BoxNode.tsx`, and the e2e's `"summarize"` lookups + `"Summarize"` palette click
+  were fixed to the real label **Summarise**. `ui` is now the only code-editing box (CDN iframe
+  preview via `wrapUIInHtml`, StackBlitz, AI change requests + versions, here.now deploy for
+  ui+stitch). Docs synced: `BOX_TYPES.md` 525→327, `API.md` 502→434, `OVERVIEW`, `MODELS`,
+  `DEPLOYMENT`, `README` (18 box types table + examples), course 01/05 (BoxType examples),
+  `CHANGELOG` (Removed entry), `AGENTS.md` (box list, removed bullets, ui-smoke description,
+  roles). `ui-smoke.mjs` rewritten 1041→378 lines — now 18 checks: CC1–CC9 (UI change requests)
+  + DP1–DP8 (deploys) + Z1; SDLC/Code-Map/repo-digest coverage removed.
+  **Verified:** client `tsc -b` 0, `vitest` **189/189**, `vite build` ok; server `tsc` 0 +
+  **36/36**; functions `tsc` 0. Temp `.remove-*.ps1` scripts deleted and the `.gitignore`
+  `*.ps1` block reverted.
+- **In flight:** everything above is uncommitted; `client/ui-smoke.mjs` and `client/e2e.mjs`
+  were **not executed** (ui-smoke hardcodes a macOS Chrome path; e2e needs live
+  `npm run dev` + Firebase).
+- **Next steps:** (1) run `node e2e.mjs` / `node ui-smoke.mjs` from `client/` on a machine
+  that can drive Chrome when convenient; (2) commit when the user asks (working tree holds the
+  whole removal — ~40 modified + 15 deleted files).
+## 2026-09-27 — NBN boxes completed (Jargon Translator); Decision Log removed; Stitch + Windows test fixes
+
+- **Done:** Three NBN-collaboration box types ship in the standard integration pattern
+  (`types.ts` union + `BOX_TYPES` + `Canvas.tsx` nodeTypes/minimap + `BoxNode.tsx` banner block):
+  **Handoff Brief** (`handoff`, editable From/To + generated timestamp), **Alignment Check**
+  (`alignment`, edge-inferred Artefact 1/2 + ran timestamp), and — this session —
+  **Jargon Translator** (`jargon`, 🔁, banner styling matching the old Decision Log: edge-inferred
+  `Source:` + `Terms simplified` count stored as `jargonTerms`, counted **only under the
+  `## Terms Simplified` heading** so a numbered source list in the translated artefact can't
+  inflate it); the source label comes from the shared module-level `connectedSourceLabel()` in
+  `BoxNode.tsx` (Documents upstream → filename without extension). A **Decision Log** box was
+  built alongside them earlier but **removed at the user's request** — union / `BOX_TYPES` /
+  `BoxData.decisionCount` / store / Canvas / banner references all deleted (the SDLC pipeline's
+  `parseDecisions`/`crossCheckSpecDecisions` are unrelated and untouched; AGENTS.md now carries a
+  don't-reintroduce note). Also: `stitch.ts` in `server`+`functions` builds a fresh
+  `StitchToolClient` per request (SDK v0.3.5 leaves a stale MCP transport on a singleton), drops
+  the retired `STITCH_MODEL` (`GEMINI_3_PRO`) and sends only required params; fixed 3
+  Windows-only `codeedit.patch.test.ts` failures by pinning `core.autocrlf=false` per test repo.
+  AGENTS.md box list → 29 + NBN-boxes conventions bullet. Verified after removal: client
+  `tsc --noEmit` clean, `npm test` green (server 66 + client 287), no `"decision"` references
+  left in `client/src`.
+- **In flight:** —
+- **Next steps:** `docs/BOX_TYPES.md` documents none of the three NBN boxes yet; the E2E/UI-smoke
+  suites haven't been run against them. Any board saved with a `decision` node now renders it as
+  React Flow's plain default node — delete it from the canvas.
 
 ## 2026-09-23 — Live Hosting deployed against Render; VITE_API_BASE bake fixed
 

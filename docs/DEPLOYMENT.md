@@ -40,7 +40,7 @@ From `render.yaml` / `server/.env.example` — at least:
 
 - `OLLAMA_API_KEY` (required)
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL`
-- Optional: `OLLAMA_MODEL`, `FAL_KEY`, `STITCH_API_KEY`, `GITHUB_TOKEN`, `HERENOW_API_KEY`
+- Optional: `OLLAMA_MODEL`, `FAL_KEY`, `STITCH_API_KEY`, `HERENOW_API_KEY`
 - `FIREBASE_PROJECT_ID` defaults correctly for this repo (`ai-canva-22-nbn-fee4b`)
 
 ### 3. Deploy the client

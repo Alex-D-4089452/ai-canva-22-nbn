@@ -22,8 +22,8 @@ import { useTokenStore } from "./store/tokenStore.js";
 import { signInWithGoogle, signOutUser } from "./lib/auth.js";
 import { isAdmin, updateUserProfile, heartbeat } from "./lib/admin.js";
 import { fetchUserTokenTotal } from "./lib/firestore.js";
-import { BOX_TYPES } from "./types.js";
-import type { BoxType } from "./types.js";
+import { BOX_TYPES } from "./types/index.js";
+import type { BoxType } from "./types/index.js";
 
 export default function App() {
   const addBox = useBoardStore((s) => s.addBox);

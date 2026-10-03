@@ -9,13 +9,13 @@
 Most AI apps are single-purpose chat boxes. AI Canva turns AI into a **visual, modular pipeline**. Think of it as a flowchart where each node is a tool:
 
 ```
-💡 Idea ──▶ 🔍 Research ──▶ 📄 PRD ──▶ 🗺️ Dev Plan ──▶ 💻 Code
+💡 Idea ──▶ 🔍 Research ──▶ 📄 PRD ──▶ ✨ UI Design
 ```
 
 - You write an **idea**.
 - A **Research** box turns it into findings.
 - A **PRD** box structures those findings into a product spec.
-- A **Code** box turns the spec into a working React app you can preview.
+- A **UI Design** box turns the spec into a working UI prototype you can preview.
 
 Instead of writing one giant prompt, you **compose smaller steps** and pass each output to the next box. This teaches a core AI principle: **breaking a hard problem into smaller steps and chaining them** (often called "pipelining" or "agentic workflows").
 
@@ -37,16 +37,14 @@ Instead of writing one giant prompt, you **compose smaller steps** and pass each
 | Idea | 💡 | Input | Free text. The seed of a pipeline. |
 | Image | 🖼️ | Input | Upload an image for downstream boxes. |
 | Research | 🔍 | Worker | Turns inputs into structured findings. |
-| Summarize | 📋 | Worker | Squeezes many inputs into a concise summary. |
+| Summarise | 📋 | Worker | Squeezes many inputs into a concise summary. |
 | PRD | 📄 | Worker | Writes a Product Requirements Document. |
-| Dev Plan | 🗺️ | Worker | Turns a PRD into a build plan (components, state, steps). |
 | Cartoon Profile | 🎨 | Worker | Generates a cartoon avatar from an image or text. |
 | Slides | 📊 | Worker | Generates a navigable pitch deck. |
-| Code | 💻 | Worker | Generates a working React prototype with a live preview. |
 | UI Design | ✨ | Worker | Generates polished React UIs with Tailwind CSS. |
 | Stitch UI | 🧵 | Worker | Generates UI screens via Google Stitch. |
 
-**Two kinds of boxes:** **Input boxes** (no AI) start the data — like an Idea or an Image. **Worker boxes** (AI) transform it — like Research or Code. Boxes are defined in `client/src/types.ts` and rendered by `client/src/components/BoxNode.tsx`.
+**Two kinds of boxes:** **Input boxes** (no AI) start the data — like an Idea or an Image. **Worker boxes** (AI) transform it — like Research or UI Design. Boxes are defined in `client/src/types.ts` and rendered by a single component, `client/src/components/BoxNode.tsx`.
 
 ---
 
@@ -108,7 +106,7 @@ Three layers worth understanding:
 
 | Provider | Used by | Cost |
 |----------|---------|------|
-| **Ollama (DeepSeek)** | All text boxes (Research, PRD, Code, …) | **Free locally** (run on your machine) or paid cloud |
+| **Ollama (DeepSeek)** | All text boxes (Research, PRD, UI Design, …) | **Free locally** (run on your machine) or paid cloud |
 | **fal.ai** | Cartoon Profile box | Paid API key |
 | **Google Stitch** | Stitch UI box | Free to try (API key) |
 

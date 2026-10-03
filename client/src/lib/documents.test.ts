@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxDocument } from "../types.js";
+import type { BoxDocument } from "../types/index.js";
 import {
   MAX_BOX_DOC_CHARS,
   MAX_DOC_CHARS,

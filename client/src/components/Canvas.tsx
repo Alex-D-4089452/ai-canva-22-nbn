@@ -15,7 +15,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
-import { AREA_COLORS } from "../types.js";
+import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
 import { Button } from "./ui/Button.js";
 import BoxNode from "./BoxNode.js";
@@ -24,34 +24,24 @@ import Cursors from "./Cursors.js";
 
 const nodeTypes = {
   agent: BoxNode,
-  chatbot: BoxNode,
   idea: BoxNode,
   research: BoxNode,
   summarize: BoxNode,
+  summarise: BoxNode,
   image: BoxNode,
   documents: BoxNode,
   cartoon: BoxNode,
   slides: BoxNode,
-  code: BoxNode,
-  codeedit: BoxNode,
   prd: BoxNode,
-  devplan: BoxNode,
-  codemap: BoxNode,
   ui: BoxNode,
   stitch: BoxNode,
   handoff: BoxNode,
   alignment: BoxNode,
-  decision: BoxNode,
+  jargon: BoxNode,
   note: BoxNode,
   label: BoxNode,
   timer: BoxNode,
   checklist: BoxNode,
-  "sdlc-intent": BoxNode,
-  "sdlc-spec": BoxNode,
-  "sdlc-plan": BoxNode,
-  "sdlc-implement": BoxNode,
-  "sdlc-review": BoxNode,
-  "sdlc-merge": BoxNode,
   area: AreaNode,
   custom: BoxNode,
 };
@@ -96,35 +86,6 @@ export default function Canvas() {
   useEffect(() => {
     return () => cleanupPresence();
   }, [cleanupPresence]);
-
-  // === Chatbot auto-placement ===
-  // Chatbots added from the palette carry data.autoPlace; on the effect tick
-  // (and after every store update — it early-returns when none are pending)
-  // each one is placed at the BOTTOM-CENTER of the current viewport, offset
-  // horizontally so multiple companions don't stack.
-  const placeChatbot = useBoardStore((s) => s.placeChatbot);
-  useEffect(() => {
-    const place = () => {
-      const st = useBoardStore.getState();
-      const pending = st.nodes.filter(
-        (n) => n.type === "chatbot" && (n.data as Record<string, unknown> | undefined)?.autoPlace
-      );
-      if (pending.length === 0) return;
-      const el = document.querySelector(".react-flow");
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const alreadyHere = st.nodes.filter((n) => n.type === "chatbot").length - pending.length;
-      pending.forEach((b, i) => {
-        const pos = screenToFlowPosition({
-          x: rect.left + rect.width / 2 + (alreadyHere + i) * 150,
-          y: rect.top + rect.height - 130,
-        });
-        if (pos) placeChatbot(b.id, pos);
-      });
-    };
-    place();
-    return useBoardStore.subscribe(place);
-  }, [placeChatbot, screenToFlowPosition]);
 
   // === Area drawing tool ===
   const addArea = useBoardStore((s) => s.addArea);
@@ -293,34 +254,24 @@ export default function Canvas() {
         nodeColor={(node: Node) => {
           const colors: Record<string, string> = {
             agent: "#4f46e5",
-            chatbot: "#e11d48",
             idea: "#fbbf24",
             research: "#60a5fa",
-            summarize: "#a78bfa",
+            summarize: "#a78bfa", // legacy pre-rename node type
+            summarise: "#a78bfa",
             image: "#34d399",
             documents: "#64748b",
             cartoon: "#f472b6",
             slides: "#fb923c",
-            code: "#22d3ee",
-            codeedit: "#1d4ed8",
             prd: "#818cf8",
-            devplan: "#14b8a6",
-            codemap: "#0f766e",
             ui: "#c026d3",
             stitch: "#0ea5e9",
             handoff: "#1d4ed8",
             alignment: "#b45309",
-            decision: "#8b5cf6",
+            jargon: "#8b5cf6",
             note: "#fbbf24",
             label: "#64748b",
             timer: "#06b6d4",
             checklist: "#059669",
-            "sdlc-intent": "#7c3aed",
-            "sdlc-spec": "#4338ca",
-            "sdlc-plan": "#0e7490",
-            "sdlc-implement": "#15803d",
-            "sdlc-review": "#b45309",
-            "sdlc-merge": "#be123c",
           };
           if (node.type === "area") {
             // Areas are near-white on the minimap — use their border shade.

@@ -7,7 +7,7 @@ const PIPELINE = [
   { icon: "💡", label: "Idea", color: "#fbbf24" },
   { icon: "🔍", label: "Research", color: "#60a5fa" },
   { icon: "📄", label: "PRD", color: "#818cf8" },
-  { icon: "💻", label: "Code", color: "#22d3ee" },
+  { icon: "💻", label: "UI Design", color: "#22d3ee" },
 ];
 
 export default function LandingHero({ onSignIn, signingIn }: LandingHeroProps) {
@@ -93,7 +93,7 @@ export default function LandingHero({ onSignIn, signingIn }: LandingHeroProps) {
             <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/60 p-4 text-left">
               <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                Code box output
+                UI Design box output
               </div>
               <div className="space-y-1.5 font-mono text-xs text-slate-300">
                 <div>
