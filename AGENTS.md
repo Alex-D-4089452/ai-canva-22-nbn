@@ -145,6 +145,15 @@ selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
 in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
 color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
 
+**Box sizing & body text:** a new box's size comes from `BOX_TYPES[<type>]
+.defaultWidth/defaultHeight` in `client/src/types.ts` (all types scaled ×1.25 on 2026-10-03 —
+e.g. Idea 400×250, Agent 500×600, SDLC stages 520×580); **persisted nodes keep their stored
+style**, so existing boards only grow when a box is added. Box text is sized centrally in
+`index.css`: `.box-node` base 15px, plus the scoped rules `.box-body .markdown-output`
+(16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it
+wins) and `.box-body textarea` (15px), with markdown headings at 20/18/16 (h1/h2/h3). Prefer
+extending those scoped rules over sprinkling `text-xs`/`text-sm` onto body content.
+
 **`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
 boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
 slices — otherwise every keystroke in the board-title input re-renders the whole
