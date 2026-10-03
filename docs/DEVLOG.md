@@ -55,11 +55,15 @@ current state).
   Rules: **Alignment Check** needs two distinct connected upstream boxes that both contribute
   content (`alignmentRunBlocker`, `skipSelf` — the box's own `content` never counts);
   **Cartoon Profile / Handoff Brief / Decision Log / Slides** need ≥1 connected upstream box
-  with content (`UPSTREAM_INPUT_BOXES` + per-type connect hint); **Agent** needs a typed task
-  (`boxData.content`); all other boxes stay ungated (stock prompts run standalone).
+  with content (`UPSTREAM_INPUT_BOXES` + per-type connect hint); **Code / UI Design /
+  Stitch UI** need a typed description or one connected upstream box with content (their own
+  `content` counts — added after a review found them still runnable empty); **Agent** needs
+  a typed task (`boxData.content`); all other boxes stay ungated (stock prompts run
+  standalone).
   `BoxNode.tsx` mirrors the rules — `runGateReason` disables ▶ Run with a tooltip
-  ("Connect two upstream boxes first" / "Connect an upstream box first" / "Type a task
-  first"), the alignment body shows "n of 2 connected", and the agent body got a missing
+  ("Connect two upstream boxes first" / "Connect an upstream box first" / "Type a
+  description or connect an input" / "Type a task first"), the alignment body shows
+  "n of 2 connected", and the agent body got a missing
   error-display block. Store stays authoritative: the box UI only counts connections (it never
   subscribes to other boxes' data). Documents/Image deliberately skipped — no Run button, the
   upload already gates downstream use. Verified: `tsc -b` 0, client **298/298** (11 new tests
