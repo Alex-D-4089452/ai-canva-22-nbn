@@ -690,8 +690,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 200,
+    defaultWidth: 400,
+    defaultHeight: 250,
   },
   agent: {
     label: "Agent",
@@ -703,8 +703,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: AGENT_CONTROLLER_SYSTEM_PROMPT,
-    defaultWidth: 400,
-    defaultHeight: 480,
+    defaultWidth: 500,
+    defaultHeight: 600,
   },
   chatbot: {
     label: "Chatbot",
@@ -716,8 +716,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: CHATBOT_BASE_PROMPT,
-    defaultWidth: 130,
-    defaultHeight: 180,
+    defaultWidth: 160,
+    defaultHeight: 220,
   },
   research: {
     label: "Research",
@@ -731,8 +731,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Research the following topic thoroughly. Provide key findings, relevant context, market landscape, and potential risks. Format as Markdown with clear headings.\n\nTopic:\n{{input_1}}",
     defaultSystemPrompt:
       "You are a thorough research assistant. Provide well-structured, factual findings in Markdown format. Be concise but comprehensive.",
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 400,
+    defaultHeight: 400,
   },
   summarize: {
     label: "Summarize",
@@ -746,8 +746,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Synthesize the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
     defaultSystemPrompt:
       "You are a synthesis expert. Combine multiple inputs into a clear, concise summary in Markdown format. Highlight key insights.",
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 400,
+    defaultHeight: 400,
   },
   image: {
     label: "Image",
@@ -759,8 +759,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["designer"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 400,
+    defaultHeight: 400,
   },
   documents: {
     label: "Documents",
@@ -773,8 +773,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 340,
-    defaultHeight: 380,
+    defaultWidth: 420,
+    defaultHeight: 480,
   },
   cartoon: {
     label: "Cartoon Profile",
@@ -787,8 +787,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultPrompt:
       "Cartoon style 3D profile picture of {{input_1}}, colorful, fun, stylized cartoon character, clean simple background, professional avatar",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 380,
+    defaultWidth: 400,
+    defaultHeight: 480,
   },
   slides: {
     label: "Slides",
@@ -802,8 +802,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a 10-slide startup pitch deck from the following research. Each slide should have a clear title and 3-5 concise bullet points.\n\nSlide structure:\n1. Problem — What pain point exists?\n2. Solution — How does your product solve it?\n3. Market Size — How big is the opportunity?\n4. Product — Key features and demo highlights\n5. Business Model — How do you make money?\n6. Traction — Current progress and metrics\n7. Competition — Competitive landscape and advantage\n8. Team — Who is building this?\n9. Financials — Key projections\n10. Ask — What do you need from investors?\n\nOutput as JSON array: [{\"title\": \"...\", \"bullets\": [\"...\", \"...\"], \"notes\": \"...\"}]\n\nResearch:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a pitch deck creator. You create concise, impactful slides from research data. Output ONLY a valid JSON array of slide objects. Each slide has a \"title\" (string), \"bullets\" (array of strings, 3-5 items), and optional \"notes\" (string with speaker notes). Do not include any text before or after the JSON array.",
-    defaultWidth: 380,
-    defaultHeight: 380,
+    defaultWidth: 480,
+    defaultHeight: 480,
   },
   code: {
     label: "Code",
@@ -817,8 +817,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a React prototype for the following requirements. Use React hooks (React.useState, React.useEffect, etc.) and inline styles for all styling. Keep it SIMPLE: use small mock data (3-5 items max), focus on the core UI and interactivity. Do NOT generate extensive data arrays or constant definitions. The output must be a complete working component with the App function and ReactDOM.createRoot render call.\n\nRequirements:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a React developer. You write clean, working React components. Output ONLY JavaScript/JSX code. No HTML wrapper, no script tags, no markdown code blocks, no explanation. Use the React.* API (React.useState, React.useEffect) — do not use import statements. Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />). Use inline styles for all styling. CRITICAL: Keep mock data SMALL (3-5 items maximum). Do NOT generate extensive data arrays, long constant lists, or large data definitions. Focus on the UI component, interactivity, and visual design. The output MUST include the full App component and the ReactDOM.createRoot render call.",
-    defaultWidth: 440,
-    defaultHeight: 420,
+    defaultWidth: 550,
+    defaultHeight: 520,
   },
   codeedit: {
     label: "Code Edit",
@@ -830,8 +830,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["developer", "sdlc"],
     defaultPrompt: CODE_EDIT_PROMPT,
     defaultSystemPrompt: CODE_EDIT_SYSTEM_PROMPT,
-    defaultWidth: 460,
-    defaultHeight: 520,
+    defaultWidth: 580,
+    defaultHeight: 650,
   },
   prd: {
     label: "PRD",
@@ -845,8 +845,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a Product Requirements Document (PRD) based on the following research and ideas. Structure it with these sections:\n\n## Product Overview\nBrief description of what we are building and why.\n\n## Problem Statement\nWhat pain point does this solve? Who has this problem?\n\n## Target Users\nWho are the primary users? What are their needs?\n\n## Core Features\nList the key features with priority (P0 = must have, P1 = should have, P2 = nice to have).\n\n## User Stories\nWrite 3-5 user stories in the format: As a [user], I want to [action] so that [benefit].\n\n## UI/UX Guidelines\nKey screens, layout considerations, and design principles.\n\n## Technical Requirements\nTechnology stack recommendations, key constraints, and dependencies.\n\n## Success Metrics\nHow will we measure if this product is successful?\n\nResearch & Ideas:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a product manager. You create clear, structured Product Requirements Documents (PRDs) from research and ideas. Format as Markdown with clear headings, bullet points, and numbered lists. Be specific and actionable — this PRD will be used by developers to build a prototype.",
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultWidth: 450,
+    defaultHeight: 480,
   },
   devplan: {
     label: "Dev Plan",
@@ -860,8 +860,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a simple development plan for a React prototype based on this PRD. Keep it short and practical.\n\nList:\n1. Components to build (names + 1-line purpose)\n2. State variables (names + types)\n3. Key functions (names + what they do)\n4. Build order (3-5 steps)\n\nThis is for a simple prototype. Use small mock data. Do NOT over-engineer.\n\nPRD:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a pragmatic developer. Create SHORT, simple development plans for React prototypes. Use React hooks and inline styles. Keep everything minimal — this is a prototype, not production. Be concise.",
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultWidth: 450,
+    defaultHeight: 480,
   },
   codemap: {
     label: "Code Map",
@@ -873,8 +873,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["developer", "sdlc"],
     defaultPrompt: CODE_MAP_PROMPT,
     defaultSystemPrompt: CODE_MAP_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 440,
+    defaultWidth: 520,
+    defaultHeight: 550,
   },
   ui: {
     label: "UI Design",
@@ -888,8 +888,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
     defaultSystemPrompt:
       "You are an expert UI designer and React developer. You create beautiful, modern, production-quality user interfaces using Tailwind CSS classes. Focus on visual polish: gradients, shadows, rounded corners, good typography, proper spacing, and smooth transitions. Make it look like a real product — not a demo. Output ONLY JavaScript/JSX code. Use the React.* API. Define App component. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).",
-    defaultWidth: 440,
-    defaultHeight: 420,
+    defaultWidth: 550,
+    defaultHeight: 520,
   },
   stitch: {
     label: "Stitch UI",
@@ -902,8 +902,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultPrompt:
       "Generate a beautiful, modern UI screen for the following. Make it polished and production-ready with good spacing, typography, and visual design.\n\nDescription:\n{{inputs}}",
     defaultSystemPrompt: "",
-    defaultWidth: 440,
-    defaultHeight: 420,
+    defaultWidth: 550,
+    defaultHeight: 520,
   },
   handoff: {
     label: "Handoff Brief",
@@ -919,8 +919,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Create a professional handoff brief from the following work. Structure it as:\n\n## Context\nBrief background and why this work was done.\n\n## What Was Completed\nList the deliverables and key outputs.\n\n## Key Decisions & Rationale\nMajor decisions made and why.\n\n## Open Questions / Risks\nAnything unresolved or risky for the next role.\n\n## Definition of Done\nWhat the next role should verify before considering this work complete.\n\n## Handoff Notes\nAny specific instructions, dependencies, or context the next role needs.\n\nUpstream work:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a project coordinator who creates clear, professional handoff documents. Your briefs ensure the receiving role has everything they need — context, deliverables, decisions, risks, and acceptance criteria. Format as clean Markdown. Be specific and actionable.",
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultWidth: 450,
+    defaultHeight: 480,
   },
   alignment: {
     label: "Alignment Check",
@@ -936,8 +936,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Compare the following two artefacts and identify where they agree, where they conflict, and where one has gaps the other should address. Structure as:\n\n## Areas of Alignment\nWhat the two artefacts agree on.\n\n## Conflicts / Drift\nWhere the artefacts contradict each other or pull in different directions. Quote or reference specific sections.\n\n## Gaps\nWhat one artefact covers that the other is missing.\n\n## Recommendations\nConcrete next steps to resolve conflicts and fill gaps.\n\nArtefact 1:\n{{input_1}}\n\nArtefact 2:\n{{input_2}}",
     defaultSystemPrompt:
       "You are a requirements analyst who compares cross-functional artefacts for consistency. Be specific — quote or paraphrase the conflicting parts rather than saying 'they differ'. Identify root causes of drift, not just symptoms. Format as clean Markdown.",
-    defaultWidth: 380,
-    defaultHeight: 400,
+    defaultWidth: 480,
+    defaultHeight: 500,
   },
   decision: {
     label: "Decision Log",
@@ -953,8 +953,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Extract all decisions from the following meeting notes. For each decision, record:\n\n- **Decision** — what was decided\n- **Rationale** — why it was decided this way\n- **Owner** — who is responsible (if mentioned)\n- **Status** — confirmed / tentative / needs follow-up\n\nIf no decisions are found, say so clearly.\n\nMeeting notes:\n{{inputs}}",
     defaultSystemPrompt:
       "You are a meticulous project coordinator who captures decisions from meeting notes. Be precise — use the exact wording from the notes when quoting rationale. If the notes are ambiguous about a decision, mark it 'tentative'. If no owner is named, mark it 'No owner'. Format as clean Markdown with a numbered list of decisions.",
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultWidth: 450,
+    defaultHeight: 480,
   },
   // === SDLC pipeline (six gated stages, ordered) ===
   // These boxes are the pipeline described in the app's SDLC blueprint: each
@@ -971,8 +971,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_INTENT_PROMPT,
     defaultSystemPrompt: SDLC_INTENT_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   "sdlc-spec": {
     label: "2 · Spec",
@@ -984,8 +984,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_SPEC_PROMPT,
     defaultSystemPrompt: SDLC_SPEC_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   "sdlc-plan": {
     label: "3 · Plan",
@@ -997,8 +997,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_PLAN_PROMPT,
     defaultSystemPrompt: SDLC_PLAN_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   "sdlc-implement": {
     label: "4 · Implementation",
@@ -1010,8 +1010,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_IMPLEMENT_PROMPT,
     defaultSystemPrompt: SDLC_IMPLEMENT_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   "sdlc-review": {
     label: "5 · Review",
@@ -1023,8 +1023,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_REVIEW_PROMPT,
     defaultSystemPrompt: SDLC_REVIEW_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   "sdlc-merge": {
     label: "6 · Merge",
@@ -1036,8 +1036,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["sdlc"],
     defaultPrompt: SDLC_MERGE_PROMPT,
     defaultSystemPrompt: SDLC_MERGE_SYSTEM_PROMPT,
-    defaultWidth: 420,
-    defaultHeight: 460,
+    defaultWidth: 520,
+    defaultHeight: 580,
   },
   note: {
     label: "Note",
@@ -1049,8 +1049,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 260,
-    defaultHeight: 240,
+    defaultWidth: 320,
+    defaultHeight: 300,
   },
   label: {
     label: "Label",
@@ -1062,8 +1062,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 200,
-    defaultHeight: 64,
+    defaultWidth: 250,
+    defaultHeight: 80,
   },
   timer: {
     label: "Timer",
@@ -1075,8 +1075,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 260,
-    defaultHeight: 190,
+    defaultWidth: 320,
+    defaultHeight: 240,
   },
   checklist: {
     label: "Checklist",
@@ -1088,8 +1088,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 340,
+    defaultWidth: 400,
+    defaultHeight: 420,
   },
   custom: {
     label: "Custom",
@@ -1101,8 +1101,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 400,
+    defaultHeight: 400,
   },
 };
 

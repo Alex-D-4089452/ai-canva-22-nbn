@@ -811,7 +811,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* Idea box — editable textarea */}
         {isIdea && (
           <textarea
-            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
             placeholder="Write your idea here..."
             value={boxData.content}
             onChange={(e) =>
@@ -840,7 +840,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           return (
             <div className="flex flex-col gap-2 min-h-[140px]">
               <textarea
-                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 placeholder="Describe the task for the agent, e.g. “Turn this idea into a full pitch: research it, write a PRD, and build a landing page prototype”"
                 value={boxData.content}
                 onChange={(e) => updateBoxData(id, { content: e.target.value })}
@@ -880,7 +880,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && (
-                <div className="markdown-output text-slate-700 text-sm">
+                <div className="markdown-output text-slate-700 text-base">
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 mb-0.5">
                     Agent answer
                   </div>
@@ -1134,7 +1134,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             )}
 
             {hasTextOutput && !isRunning && !isCodeEdit && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-slate-700 text-base">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
@@ -1215,7 +1215,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
             )}
             {hasTextOutput && !isRunning && (
-              <div className="markdown-output text-slate-700 text-sm">
+              <div className="markdown-output text-slate-700 text-base">
                 <ReactMarkdown>{boxData.output}</ReactMarkdown>
               </div>
             )}
@@ -1277,7 +1277,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && !isRunning && (
-                <div className="markdown-output text-slate-700 text-sm">
+                <div className="markdown-output text-slate-700 text-base">
                   <ReactMarkdown>{boxData.output}</ReactMarkdown>
                 </div>
               )}
@@ -1350,7 +1350,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasTextOutput && !isRunning && (
-                <div className="markdown-output text-slate-700 text-sm">
+                <div className="markdown-output text-slate-700 text-base">
                   <ReactMarkdown>{boxData.output}</ReactMarkdown>
                 </div>
               )}
@@ -1395,7 +1395,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                       {slide.bullets.map((bullet, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-700 flex gap-1.5 leading-relaxed"
+                          className="                           text-sm text-slate-700 flex gap-1.5 leading-relaxed"
                         >
                           <span
                             className="flex-shrink-0 w-1.5 h-1.5 rounded-full mt-1.5"
@@ -1560,7 +1560,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   placeholder="Describe what you want to build... (e.g. a counter app with increment/decrement buttons)"
                   value={boxData.content}
                   onChange={(e) => updateBoxData(id, { content: e.target.value })}
-                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
                 />
                 <p className="text-xs text-slate-400">
                   Type a description above and click Run, or connect a Research/PRD/Idea box.
@@ -1690,7 +1690,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 Skills / org rule sets (security, brand, compliance)
               </label>
               <textarea
-                className="nodrag nowheel w-full text-xs rounded-lg border border-slate-200 p-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
+                className="nodrag nowheel w-full text-sm rounded-lg border border-slate-200 p-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
                 placeholder={"Paste the rules this stage must obey.\ne.g. - Never log PII\n- All public endpoints must be rate limited"}
                 value={boxData.skills || ""}
                 onChange={(e) => updateBoxData(id, { skills: e.target.value })}
@@ -1736,7 +1736,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   : "System Prompt (role / behavior)"}
               </label>
               <textarea
-                className="w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
+                className="w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
                 value={boxData.systemPrompt}
                 onChange={(e) =>
                   updateBoxData(id, { systemPrompt: e.target.value })
@@ -1754,7 +1754,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </label>
             <textarea
               ref={promptRef}
-              className={"w-full text-xs rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
+              className={"w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
               value={boxData.prompt}
               onChange={(e) =>
                 updateBoxData(id, { prompt: e.target.value })
