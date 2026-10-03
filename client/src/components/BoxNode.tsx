@@ -243,8 +243,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isDecision = boxType === "decision";
   // Input gates (mirrors runInputBlocker in lib/inputs.ts): Alignment Check
   // needs two connected upstream boxes; Cartoon/Handoff/Decision/Slides one;
-  // Agent a typed task. The store additionally requires the upstream box to
-  // actually contribute content (the button can't see other boxes' data).
+  // Code/UI/Stitch a typed description or an upstream box; Agent a typed task.
+  // The store additionally requires the upstream box to actually contribute
+  // content (the button can't see other boxes' data).
   const needsUpstreamInput =
     (isCartoon || isHandoff || isDecision || isSlides) && upstreamCount < 1;
   const agentNeedsTask = isAgent && !(boxData.content || "").trim();
@@ -253,9 +254,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       ? "Connect two upstream boxes first"
       : needsUpstreamInput
         ? "Connect an upstream box first"
-        : agentNeedsTask
-          ? "Type a task first"
-          : null;
+        : isCode && !(boxData.content || "").trim() && upstreamCount < 1
+          ? "Type a description or connect an input"
+          : agentNeedsTask
+            ? "Type a task first"
+            : null;
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas

@@ -237,6 +237,43 @@ describe("runInputBlocker", () => {
     ).toBeNull();
   });
 
+  it("code/ui/stitch need a typed description or a connected input with content", () => {
+    for (const t of ["code", "ui", "stitch"] as const) {
+      // nothing at all → blocked
+      expect(runInputBlocker(t, nodes, [], {}, "box")).toContain("needs a description");
+      // typed description alone → allowed
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [],
+          { box: { content: "a page with a counter" } as BoxData },
+          "box"
+        )
+      ).toBeNull();
+      // connected upstream with content → allowed
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [edge("src", "box")],
+          { src: { output: "findings" } as BoxData },
+          "box"
+        )
+      ).toBeNull();
+      // connected upstream without content → still blocked
+      expect(
+        runInputBlocker(
+          t,
+          nodes,
+          [edge("src", "box")],
+          { src: { output: "", content: "" } as BoxData },
+          "box"
+        )
+      ).toContain("needs a description");
+    }
+  });
+
   it("alignment still requires two inputs (delegates to the alignment rule)", () => {
     const boxData: Record<string, BoxData> = { src: { output: "x" } as BoxData };
     expect(

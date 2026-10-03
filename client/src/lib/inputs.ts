@@ -128,6 +128,8 @@ const UPSTREAM_INPUT_HINT: Partial<Record<BoxType, string>> = {
  * - `alignment`: two distinct upstream boxes, both contributing content;
  * - `cartoon` / `handoff` / `decision` / `slides`: at least one connected
  *   upstream box that actually contributes content;
+ * - `code` / `ui` / `stitch`: a typed description (`content`) or one connected
+ *   upstream box with content — the build-description field accepts either;
  * - `agent`: a typed task (its own `content`);
  * - every other box: no gate — stock prompts are designed to run standalone.
  * `runBox` applies this BEFORE any model call (and before the box flips to
@@ -158,6 +160,16 @@ export function runInputBlocker(
     });
     if (namedInputs.length < 1) {
       return `${label} needs an input with content: run/give input to the connected box first.`;
+    }
+    return null;
+  }
+
+  // Build boxes: their own typed description counts as the input (no
+  // skipSelf), so "description OR connected upstream with content".
+  if (boxType === "code" || boxType === "ui" || boxType === "stitch") {
+    const { namedInputs } = collectInputs(nodes, edges, boxData, id);
+    if (namedInputs.length < 1) {
+      return `${BOX_TYPES[boxType].label} needs a description — type what you want to build, or connect an upstream box.`;
     }
     return null;
   }
