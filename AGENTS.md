@@ -382,7 +382,13 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `client/src/lib/runStatus.ts` (unit-tested); `runBox` and `runAgentLoop` stamp
   `BoxData.ranAt` in their **`finally`**, so every *attempted* run counts (failed runs show
   the time next to the red error) while gate refusals — which return before the `try` —
-  never stamp. The Handoff Brief's "Generated:" and Alignment Check's "Ran:" banner labels
+  never stamp. While a run is in flight the **footer additionally shows an indeterminate
+  progress bar** (`.run-progress` in `index.css`: a 3px slate track with a sweeping
+  35%-wide segment in the box's own color, positioned against the footer's Tailwind
+  `relative`, rendered only while `status === "running"` and `aria-hidden` because the
+  strip already says "Running…"). Model calls expose no measurable percentage, so the bar
+  animates instead of faking one, and it is absolutely positioned so it causes no layout
+  shift. The Handoff Brief's "Generated:" and Alignment Check's "Ran:" banner labels
   were removed in favour of the strip: it falls back to legacy `handoffGeneratedAt` /
   `alignmentRanAt`, and a `status: "done"` box with no timestamp at all renders a bare "Ran"
   (its date predates the field).

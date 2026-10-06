@@ -29,6 +29,22 @@ current state).
 
 ---
 
+## 2026-10-03 — Footer progress bar while a worker box runs
+
+- **Done:** while `status === "running"`, every run-able box's footer renders an
+  **indeterminate progress bar** (`.run-progress` in `index.css`: 3px slate-100 track +
+  a sweeping 35%-wide segment in the box's own `meta.color`, 1.1s ease-in-out loop;
+  positioned against the footer's Tailwind `relative`, `aria-hidden` — the status strip
+  already says "Running…"). Model calls expose no measurable percentage, so the bar
+  animates instead of faking one; it appears/disappears with run state and causes no
+  layout shift (absolute). Verified: `tsc -b` 0, full suite 36 server + 204 client,
+  headless-Edge smoke 6/6 (bar absent before the run, present while running with
+  `animationName: runProgressSweep` and correct geometry, gone when done, delayed mock
+  hit exactly once, no new page errors) plus a pixel probe of a paused mid-sweep frame
+  (track → segment → track, segment ≈35% width, correct color).
+- **In flight:** landed as `511c895` on `feature/fix-medium-low-defects`.
+- **Next steps:** optionally fix the `saveBoard` undefined-value bug noted below.
+
 ## 2026-10-03 — Worker-box run status: "Not run yet" → "Ran at <date, time>"
 
 - **Done:** every run-able box (worker + custom — the same set that gets the ▶ Run footer)
@@ -45,8 +61,9 @@ current state).
   unmodified code): the dead-board recovery path `createNewBoard(…, {preserveContent:true})`
   → `saveBoard` writes raw `boxData` to `setDoc`, so `imageData: undefined` aborts the write
   and leaves `currentBoardId` null for that session.
-- **In flight:** uncommitted on `feature/fix-medium-low-defects` (cut from `122967b`).
-- **Next steps:** commit when asked; optionally fix the `saveBoard` undefined-value bug above
+- **In flight:** landed as `31c6a50`..`cc04fef` on `feature/fix-medium-low-defects`
+  (cut from `122967b`).
+- **Next steps:** optionally fix the `saveBoard` undefined-value bug above
   (clean `boxData` in `createNewBoard`'s `saveBoard` payload, same as `saveToFirestore` does).
 
 ## 2026-10-03 — Merged all four feature PRs into main (squash, dependency order)
