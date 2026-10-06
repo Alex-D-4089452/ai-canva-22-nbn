@@ -29,6 +29,26 @@ current state).
 
 ---
 
+## 2026-10-03 — Worker-box run status: "Not run yet" → "Ran at <date, time>"
+
+- **Done:** every run-able box (worker + custom — the same set that gets the ▶ Run footer)
+  now shows a status strip above the token row: slate italic **"Not run yet"** on a fresh
+  box, indigo **"Running…"** mid-run, then **"Ran at 3/10/2026, 14:32"**
+  (`runStatusLabel` in `lib/runStatus.ts` + test). `runBox`/`runAgentLoop` stamp
+  `BoxData.ranAt` in their `finally` — attempted runs (even failed ones) stamp, gate
+  refusals (returning before the `try`) never do. Handoff's "Generated:" and Alignment's
+  "Ran:" banner labels removed in favour of the strip; legacy `handoffGeneratedAt`/
+  `alignmentRanAt` plus a bare-"Ran" fallback keep old boards' dates readable. Verified:
+  `tsc -b` 0, 36 server + **204 client** tests, `vite build` OK, and an 8/8 headless-Edge
+  smoke against the running dev server (fresh strip, no strip on note/idea, run flips it,
+  legacy fallback, no new page errors). **Found, not fixed** (pre-existing, reproduced on
+  unmodified code): the dead-board recovery path `createNewBoard(…, {preserveContent:true})`
+  → `saveBoard` writes raw `boxData` to `setDoc`, so `imageData: undefined` aborts the write
+  and leaves `currentBoardId` null for that session.
+- **In flight:** uncommitted on `feature/fix-medium-low-defects` (cut from `122967b`).
+- **Next steps:** commit when asked; optionally fix the `saveBoard` undefined-value bug above
+  (clean `boxData` in `createNewBoard`'s `saveBoard` payload, same as `saveToFirestore` does).
+
 ## 2026-10-03 — Merged all four feature PRs into main (squash, dependency order)
 
 - **Done:** squash-merged #11 jargon translator → #12 box removal + `types/` split → #13
