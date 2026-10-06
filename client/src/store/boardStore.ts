@@ -143,14 +143,9 @@ function defaultBoxData(type: BoxType): BoxData {
     // Checklist boxes: the shared task array is created EMPTY but DEFINED
     // (Firestore-safe, and the panel can rely on it existing).
     ...(type === "checklist" ? { checklistItems: [] } : null),
-    // Handoff Brief boxes: editable role fields + generation timestamp.
-    ...(type === "handoff"
-      ? { handoffFrom: "", handoffTo: "", handoffGeneratedAt: undefined }
-      : null),
-    // Alignment Check boxes: run timestamp.
-    ...(type === "alignment"
-      ? { alignmentRanAt: undefined }
-      : null),
+    // Handoff Brief boxes: editable role fields (its run timestamp is the
+    // generic BoxData.ranAt now).
+    ...(type === "handoff" ? { handoffFrom: "", handoffTo: "" } : null),
     // Jargon Translator boxes: jargon term count.
     ...(type === "jargon" ? { jargonTerms: 0 } : null),
   };
@@ -1128,14 +1123,17 @@ export const useBoardStore = create<BoardState>()(
                 output: result.content,
                 status: "done",
                 error: undefined,
-                ...(boxType === "handoff" ? { handoffGeneratedAt: Date.now() } : null),
-                ...(boxType === "alignment" ? { alignmentRanAt: Date.now() } : null),
                 ...(jargonTerms !== undefined ? { jargonTerms } : null),
               });
             }
           }
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Generation failed");
+        } finally {
+          // Run-status strip: every attempted run (success or error) gets a
+          // timestamp — "Not run yet" means the box was never run at all.
+          // Gate refusals return BEFORE the try, so they never stamp.
+          get().updateBoxData(id, { ranAt: Date.now() });
         }
       },
     }),
@@ -1519,5 +1517,8 @@ async function runAgentLoop(agentId: string) {
     get().setBoxStatus(agentId, "error", message);
   } finally {
     agentCancelled.delete(agentId);
+    // Run-status strip: stamp every completed agent run (finish, stop, budget
+    // exhaustion or error) — refusals before the loop never reach here.
+    get().updateBoxData(agentId, { ranAt: Date.now() });
   }
 }
