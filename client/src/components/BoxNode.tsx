@@ -1471,7 +1471,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Footer — AI boxes only */}
       {!isInputBox && !isUtility && (
-        <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+        <div className="box-footer relative px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+          {/* Indeterminate run progress sweep (status strip carries the text) */}
+          {isRunning && (
+            <div className="run-progress" aria-hidden="true">
+              <span style={{ backgroundColor: meta.color }} />
+            </div>
+          )}
           <button
             onClick={() => runBox(id)}
             disabled={isRunning || runGateReason !== null}
