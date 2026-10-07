@@ -24,11 +24,12 @@ has changed." If you change a model, **update the table and append to the change
 - **Endpoint:** `POST {OLLAMA_HOST}/api/chat`, non-streaming.
 - **Auth:** `Bearer OLLAMA_API_KEY` (cloud key from https://ollama.com/settings/keys). With
   `OLLAMA_HOST=http://localhost:11434` and no key, it talks to a local Ollama daemon instead.
-- **Generation:** `options.num_predict: 8192`; system + user message per call.
+- **Generation:** `options.num_predict: 8192`, `options.temperature` from `OLLAMA_TEMPERATURE`
+  (default `0.2`, clamped to 0–2); system + user message per call.
 - **Tokens:** read from the response's `prompt_eval_count` / `eval_count` and reported back as
   `usage` on `/api/generate`.
 - **Env vars:** `OLLAMA_API_KEY`, `OLLAMA_HOST` (default `https://ollama.com`), `OLLAMA_MODEL`
-  (default `deepseek-v4.1-flash`).
+  (default `deepseek-v4.1-flash`), `OLLAMA_TEMPERATURE` (default `0.2`).
 
 ### Google Stitch (UI screens)
 - **Auth:** `STITCH_API_KEY`.

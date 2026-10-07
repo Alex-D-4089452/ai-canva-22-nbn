@@ -374,6 +374,24 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   never subscribes to other boxes' data. Documents and Image boxes are deliberately ungated:
   they have no Run button at all (their upload already gates downstream use). Unit-tested in
   `inputs.test.ts` (`alignmentRunBlocker` + `runInputBlocker`).
+- **Run status strip ("Not run yet" → "Ran at <date, time>"):** every run-able box (worker +
+  custom — the same set that gets the ▶ Run footer, gated on `!isInputBox && !isUtility`;
+  inputs and collab boxes never show it) renders a thin strip above the token row in
+  `BoxNode.tsx`: slate italic "Not run yet", indigo "Running…" mid-run, then a dot +
+  "Ran at 3/10/2026, 14:32". The label is the pure `runStatusLabel(ranAt, hasRun)` in
+  `client/src/lib/runStatus.ts` (unit-tested); `runBox` and `runAgentLoop` stamp
+  `BoxData.ranAt` in their **`finally`**, so every *attempted* run counts (failed runs show
+  the time next to the red error) while gate refusals — which return before the `try` —
+  never stamp. While a run is in flight the **footer additionally shows an indeterminate
+  progress bar** (`.run-progress` in `index.css`: a 3px slate track with a sweeping
+  35%-wide segment in the box's own color, positioned against the footer's Tailwind
+  `relative`, rendered only while `status === "running"` and `aria-hidden` because the
+  strip already says "Running…"). Model calls expose no measurable percentage, so the bar
+  animates instead of faking one, and it is absolutely positioned so it causes no layout
+  shift. The Handoff Brief's "Generated:" and Alignment Check's "Ran:" banner labels
+  were removed in favour of the strip: it falls back to legacy `handoffGeneratedAt` /
+  `alignmentRanAt`, and a `status: "done"` box with no timestamp at all renders a bare "Ran"
+  (its date predates the field).
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product` — `BoxRole` in `types/core.ts`, the tags on each
   box in `types/boxes/`); the View dropdown in

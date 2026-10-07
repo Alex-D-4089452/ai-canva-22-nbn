@@ -29,6 +29,54 @@ current state).
 
 ---
 
+## 2026-10-07 — Ollama temperature now configurable (`OLLAMA_TEMPERATURE`)
+
+- **Done:** `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts` now
+  sends `options.temperature`, parsed from `OLLAMA_TEMPERATURE` (default **0.2**, clamped 0–2)
+  instead of relying on Ollama's implicit 0.8. New server test covers default + override +
+  clamping; docs updated (`docs/API.md` env table, `docs/MODELS.md` generation/env lines,
+  `docs/DEPLOYMENT.md` optional list). Tests 241/241 + both `tsc` builds green.
+- **In flight:** —
+- **Next steps:** set `OLLAMA_TEMPERATURE` in `functions/.env` / Render env if a value other
+  than 0.2 is wanted in production.
+
+## 2026-10-03 — Footer progress bar while a worker box runs
+
+- **Done:** while `status === "running"`, every run-able box's footer renders an
+  **indeterminate progress bar** (`.run-progress` in `index.css`: 3px slate-100 track +
+  a sweeping 35%-wide segment in the box's own `meta.color`, 1.1s ease-in-out loop;
+  positioned against the footer's Tailwind `relative`, `aria-hidden` — the status strip
+  already says "Running…"). Model calls expose no measurable percentage, so the bar
+  animates instead of faking one; it appears/disappears with run state and causes no
+  layout shift (absolute). Verified: `tsc -b` 0, full suite 36 server + 204 client,
+  headless-Edge smoke 6/6 (bar absent before the run, present while running with
+  `animationName: runProgressSweep` and correct geometry, gone when done, delayed mock
+  hit exactly once, no new page errors) plus a pixel probe of a paused mid-sweep frame
+  (track → segment → track, segment ≈35% width, correct color).
+- **In flight:** landed as `511c895` on `feature/fix-medium-low-defects`.
+- **Next steps:** optionally fix the `saveBoard` undefined-value bug noted below.
+
+## 2026-10-03 — Worker-box run status: "Not run yet" → "Ran at <date, time>"
+
+- **Done:** every run-able box (worker + custom — the same set that gets the ▶ Run footer)
+  now shows a status strip above the token row: slate italic **"Not run yet"** on a fresh
+  box, indigo **"Running…"** mid-run, then **"Ran at 3/10/2026, 14:32"**
+  (`runStatusLabel` in `lib/runStatus.ts` + test). `runBox`/`runAgentLoop` stamp
+  `BoxData.ranAt` in their `finally` — attempted runs (even failed ones) stamp, gate
+  refusals (returning before the `try`) never do. Handoff's "Generated:" and Alignment's
+  "Ran:" banner labels removed in favour of the strip; legacy `handoffGeneratedAt`/
+  `alignmentRanAt` plus a bare-"Ran" fallback keep old boards' dates readable. Verified:
+  `tsc -b` 0, 36 server + **204 client** tests, `vite build` OK, and an 8/8 headless-Edge
+  smoke against the running dev server (fresh strip, no strip on note/idea, run flips it,
+  legacy fallback, no new page errors). **Found, not fixed** (pre-existing, reproduced on
+  unmodified code): the dead-board recovery path `createNewBoard(…, {preserveContent:true})`
+  → `saveBoard` writes raw `boxData` to `setDoc`, so `imageData: undefined` aborts the write
+  and leaves `currentBoardId` null for that session.
+- **In flight:** landed as `31c6a50`..`cc04fef` on `feature/fix-medium-low-defects`
+  (cut from `122967b`).
+- **Next steps:** optionally fix the `saveBoard` undefined-value bug above
+  (clean `boxData` in `createNewBoard`'s `saveBoard` payload, same as `saveToFirestore` does).
+
 ## 2026-10-03 — Merged all four feature PRs into main (squash, dependency order)
 
 - **Done:** squash-merged #11 jargon translator → #12 box removal + `types/` split → #13

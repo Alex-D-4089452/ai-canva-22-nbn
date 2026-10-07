@@ -7,6 +7,7 @@ import { BOX_TYPES, LABEL_COLORS } from "../types/index.js";
 import type { BoxType } from "../types/index.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
+import { runStatusLabel } from "../lib/runStatus.js";
 import CodeChangePanel from "./CodeChangePanel.js";
 import DeployPanel from "./DeployPanel.js";
 import ChecklistPanel from "./ChecklistPanel.js";
@@ -224,14 +225,22 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isTimer = boxType === "timer";
   const isChecklist = boxType === "checklist";
   const isUtility = isNote || isLabel || isTimer || isChecklist;
-  // Handoff Brief: custom banner with From/To/Generated/Status.
+  // Handoff Brief: custom banner with From/To/Status.
   const isHandoff = boxType === "handoff";
-  // Alignment Check: custom banner with Artefact 1/Artefact 2/Ran.
+  // Alignment Check: custom banner with Artefact 1/Artefact 2.
   const isAlignment = boxType === "alignment";
   // Jargon Translator: custom banner with Source/Terms simplified.
   const isJargon = boxType === "jargon";
   // Banner source label (Jargon Translator).
   const sourceLabel = connectedSourceLabel(edges, allNodes, id);
+  // Run status strip (every run-able box): "Not run yet" until the first run
+  // finishes, then "Ran at <date, time>" (runStatusLabel in lib/runStatus.ts).
+  // ranAt falls back to the legacy per-type timestamps so boards saved before
+  // this field still show their date; "done" without any timestamp counts as
+  // "Ran" (a bare word — the date is unknown for pre-timestamp boards).
+  const ranAt =
+    boxData.ranAt ?? boxData.handoffGeneratedAt ?? boxData.alignmentRanAt;
+  const hasRun = ranAt !== undefined || boxData.status === "done";
   // Input gates (mirrors runInputBlocker in lib/inputs.ts): Alignment Check
   // needs two connected upstream boxes; Cartoon/Handoff/Jargon/Slides one;
   // UI/Stitch a typed description or an upstream box; Agent a typed task.
@@ -1059,7 +1068,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         {/* AI box output — handoff brief (banner + text) */}
         {!isInputBox && isHandoff && (
           <div className="min-h-[80px]">
-            {/* Banner: From / To / Generated / Status */}
+            {/* Banner: From / To / Status */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
               <label className="flex items-center gap-1">
                 <span className="font-semibold text-slate-600">From:</span>
@@ -1081,12 +1090,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   className="nodrag bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder:text-slate-300 w-32"
                 />
               </label>
-              {boxData.handoffGeneratedAt && (
-                <span>
-                  <span className="font-semibold text-slate-600">Generated:</span>{" "}
-                  {new Date(boxData.handoffGeneratedAt).toLocaleDateString()}
-                </span>
-              )}
               <span>
                 <span className="font-semibold text-slate-600">Status:</span>{" "}
                 {hasTextOutput ? (
@@ -1134,7 +1137,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           const art2 = incomingNames[1] || "";
           return (
             <div className="min-h-[80px]">
-              {/* Banner: Artefact 1 / Artefact 2 / Ran */}
+              {/* Banner: Artefact 1 / Artefact 2 */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 px-1 pb-2 border-b border-slate-100 mb-2">
                 {art1 && (
                   <span>
@@ -1150,12 +1153,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 )}
                 {!art1 && !art2 && (
                   <span className="text-slate-400 italic">Connect two boxes to label artefacts</span>
-                )}
-                {boxData.alignmentRanAt && (
-                  <span>
-                    <span className="font-semibold text-slate-600">Ran:</span>{" "}
-                    {new Date(boxData.alignmentRanAt).toLocaleDateString()}
-                  </span>
                 )}
               </div>
 
@@ -1432,6 +1429,34 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         )}
       </div>
 
+      {/* Run status — "Not run yet" / "Ran at <date>" (AI boxes only; the
+          Handoff/Alignment banners used to carry their own date label). */}
+      {!isInputBox && !isUtility && (
+        <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px]">
+          <span
+            className={
+              "inline-block w-1.5 h-1.5 rounded-full " +
+              (isRunning
+                ? "bg-indigo-500 animate-pulse"
+                : hasRun
+                  ? "bg-emerald-500"
+                  : "bg-slate-300")
+            }
+          />
+          <span
+            className={
+              isRunning
+                ? "text-indigo-500 font-medium"
+                : hasRun
+                  ? "text-slate-500"
+                  : "text-slate-400 italic"
+            }
+          >
+            {isRunning ? "Running…" : runStatusLabel(ranAt, hasRun)}
+          </span>
+        </div>
+      )}
+
       {/* Token usage from the last LLM call */}
       {boxData.tokens && (
         <div className="px-3 py-1.5 border-t border-slate-100 flex items-center justify-end gap-2 text-[10px] text-slate-400">
@@ -1446,7 +1471,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Footer — AI boxes only */}
       {!isInputBox && !isUtility && (
-        <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+        <div className="box-footer relative px-3 py-2 border-t border-slate-100 flex items-center gap-2">
+          {/* Indeterminate run progress sweep (status strip carries the text) */}
+          {isRunning && (
+            <div className="run-progress" aria-hidden="true">
+              <span style={{ backgroundColor: meta.color }} />
+            </div>
+          )}
           <button
             onClick={() => runBox(id)}
             disabled={isRunning || runGateReason !== null}

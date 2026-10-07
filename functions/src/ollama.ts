@@ -29,6 +29,15 @@ export interface GenerateResult {
   totalTokens: number;
 }
 
+const DEFAULT_TEMPERATURE = 0.2;
+
+/** Parses OLLAMA_TEMPERATURE into a valid Ollama temperature (0..2). */
+function parseTemperature(raw?: string): number {
+  const n = Number(raw);
+  if (!raw || !Number.isFinite(n)) return DEFAULT_TEMPERATURE;
+  return Math.min(2, Math.max(0, n));
+}
+
 /**
  * Calls an Ollama model with a system + user prompt and returns the text reply
  * plus token usage.
@@ -36,6 +45,7 @@ export interface GenerateResult {
  * - Endpoint:  POST {OLLAMA_HOST}/api/chat   (default https://ollama.com)
  * - Auth:      Bearer token from OLLAMA_API_KEY
  * - Model:     OLLAMA_MODEL (default "deepseek-v4.1-flash")
+ * - Temp:      OLLAMA_TEMPERATURE (default 0.2)
  */
 export async function generateContent(
   systemPrompt: string,
@@ -44,6 +54,7 @@ export async function generateContent(
   const host = process.env.OLLAMA_HOST || "https://ollama.com";
   const apiKey = process.env.OLLAMA_API_KEY;
   const model = process.env.OLLAMA_MODEL || "deepseek-v4.1-flash";
+  const temperature = parseTemperature(process.env.OLLAMA_TEMPERATURE);
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) {
@@ -61,7 +72,7 @@ export async function generateContent(
     body: JSON.stringify({
       model,
       stream: false,
-      options: { num_predict: 8192 },
+      options: { num_predict: 8192, temperature },
       messages,
     }),
   });

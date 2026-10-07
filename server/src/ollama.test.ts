@@ -9,6 +9,7 @@ describe("generateContent", () => {
     process.env.OLLAMA_HOST = "https://ollama.example";
     process.env.OLLAMA_API_KEY = "test-key";
     delete process.env.OLLAMA_MODEL;
+    delete process.env.OLLAMA_TEMPERATURE;
   });
 
   afterEach(() => {
@@ -54,6 +55,28 @@ describe("generateContent", () => {
     const body = JSON.parse(init.body as string);
     expect(body.model).toBe("custom-model");
     expect(body.stream).toBe(false);
+  });
+
+  it("sends a default temperature and honours OLLAMA_TEMPERATURE", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: { content: "ok" } }),
+    });
+    globalThis.fetch = fetchMock as any;
+
+    await generateContent("sys", "hi");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).options)
+      .toEqual({ num_predict: 8192, temperature: 0.2 });
+
+    process.env.OLLAMA_TEMPERATURE = "0.9";
+    await generateContent("sys", "hi");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).options)
+      .toEqual({ num_predict: 8192, temperature: 0.9 });
+
+    process.env.OLLAMA_TEMPERATURE = "7";
+    await generateContent("sys", "hi");
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body as string).options)
+      .toEqual({ num_predict: 8192, temperature: 2 });
   });
 
   it("throws a descriptive error when Ollama returns a non-OK status", async () => {

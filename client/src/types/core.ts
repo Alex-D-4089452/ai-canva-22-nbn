@@ -205,9 +205,16 @@ export interface BoxData {
   /** Handoff Brief boxes: the source and destination roles. */
   handoffFrom?: string;
   handoffTo?: string;
-  /** Epoch ms when the handoff output was last generated. */
+  /**
+   * Epoch ms when the box last finished a run (success or error) — drives the
+   * "Not run yet" / "Ran at <date, time>" status strip in BoxNode. Stamped by
+   * runBox / runAgentLoop's `finally`; omitted until the first run completes.
+   */
+  ranAt?: number;
+  /** Legacy Handoff Brief run timestamp — read as a fallback by the status
+   *  strip for boards saved before `ranAt` existed; new runs only stamp ranAt. */
   handoffGeneratedAt?: number;
-  /** Alignment Check boxes: run timestamp. */
+  /** Legacy Alignment Check run timestamp — same fallback rule as above. */
   alignmentRanAt?: number;
   /** Jargon Translator boxes: number of jargon terms explained in the output. */
   jargonTerms?: number;
