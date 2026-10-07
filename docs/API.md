@@ -397,6 +397,7 @@ via `auth.updateUser`. An admin cannot block their own account.
 | `OLLAMA_API_KEY`    | Text boxes        | Ollama Cloud API key (https://ollama.com/settings/keys) |
 | `OLLAMA_MODEL`      | Optional          | Model name (default `deepseek-v4.1-flash`)      |
 | `OLLAMA_HOST`       | Optional          | Ollama host (default `https://ollama.com`)     |
+| `OLLAMA_TEMPERATURE`| Optional          | Sampling temperature 0–2 (default `0.2`)       |
 | `FAL_KEY`           | Cartoon box       | fal.ai API key                                 |
 | `STITCH_API_KEY`    | Stitch UI box     | Google Stitch API key                          |
 | `HERENOW_API_KEY`   | Optional          | Box deploys — anonymous 24h Sites without it    |
