@@ -29,6 +29,17 @@ current state).
 
 ---
 
+## 2026-10-07 — Ollama temperature now configurable (`OLLAMA_TEMPERATURE`)
+
+- **Done:** `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts` now
+  sends `options.temperature`, parsed from `OLLAMA_TEMPERATURE` (default **0.2**, clamped 0–2)
+  instead of relying on Ollama's implicit 0.8. New server test covers default + override +
+  clamping; docs updated (`docs/API.md` env table, `docs/MODELS.md` generation/env lines,
+  `docs/DEPLOYMENT.md` optional list). Tests 241/241 + both `tsc` builds green.
+- **In flight:** —
+- **Next steps:** set `OLLAMA_TEMPERATURE` in `functions/.env` / Render env if a value other
+  than 0.2 is wanted in production.
+
 ## 2026-10-03 — Footer progress bar while a worker box runs
 
 - **Done:** while `status === "running"`, every run-able box's footer renders an
