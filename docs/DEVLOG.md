@@ -29,6 +29,18 @@ current state).
 
 ---
 
+## 2026-10-08 — Image box: re-upload now actually replaces the image
+
+- **Done:** replacing an image in an Image box silently did nothing — `uploadImageToStorage`
+  (`client/src/lib/storage.ts`) always wrote to the fixed key `boards/{boardId}/images/{boxId}.jpg`,
+  so the R2 public URL was byte-identical on every upload, `<img src={boxData.imageData}>` never
+  changed, and the browser kept showing the cached first image. The key now carries a timestamp
+  suffix (`{boxId}-{Date.now()}.jpg`) — same pattern as the Documents box. The `IMAGE_KEY` regex in
+  `server/src/r2.ts` / `functions/src/r2.ts` already accepted it (comments updated); no backend
+  logic change, old boards keep their existing URLs. Tests 241/241 + both `tsc` builds green.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-07 — Ollama temperature now configurable (`OLLAMA_TEMPERATURE`)
 
 - **Done:** `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts` now
