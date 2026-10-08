@@ -115,6 +115,40 @@ describe("collectInputs", () => {
     const { namedInputs } = collectInputs(nodes, [edge("idea1", "run1")], boxData, "run1");
     expect(namedInputs[0].output).toContain("spec.md");
   });
+
+  it("unified input box contributes idea text AND documents AND the image", () => {
+    const boxData: Record<string, BoxData> = {
+      idea1: {
+        content: "Plan a launch",
+        output: "Plan a launch",
+        imageData: "https://cdn.example/a.jpg",
+        documents: [
+          {
+            id: "d1",
+            name: "spec.md",
+            size: 3,
+            ext: "md",
+            url: "",
+            text: "abc",
+            chars: 3,
+            truncated: false,
+            error: "",
+          },
+        ],
+      } as unknown as BoxData,
+    };
+    const { namedInputs, inputImage } = collectInputs(
+      nodes,
+      [edge("idea1", "run1")],
+      boxData,
+      "run1"
+    );
+    const output = namedInputs[0].output;
+    expect(output).toContain("Plan a launch");
+    expect(output).toContain("=== spec.md ===");
+    expect(output).toContain("[image: https://cdn.example/a.jpg]");
+    expect(inputImage).toBe("https://cdn.example/a.jpg");
+  });
 });
 
 describe("alignmentRunBlocker", () => {
