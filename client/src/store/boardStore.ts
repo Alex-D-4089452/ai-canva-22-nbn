@@ -982,6 +982,19 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // Input boxes (idea / image / documents / unified input) have no AI
+        // either — their content IS the output. Same guard, so a stray caller
+        // (e.g. a future agent run_box on an existing input) can never fall
+        // into the text-AI branch with an empty prompt.
+        if (
+          boxType === "idea" ||
+          boxType === "image" ||
+          boxType === "documents" ||
+          boxType === "media"
+        ) {
+          return;
+        }
+
         // Input gates: refuse BEFORE any model call and before the box flips
         // to "running". Alignment Check needs two artefacts;
         // Cartoon/Handoff/Jargon/Slides one connected box with content;
