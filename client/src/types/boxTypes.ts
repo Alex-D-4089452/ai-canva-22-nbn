@@ -1,4 +1,5 @@
 import type { BoxType, BoxTypeMeta } from "./core.js";
+import { mediaBox } from "./boxes/media.js";
 import { ideaBox } from "./boxes/idea.js";
 import { agentBox } from "./boxes/agent.js";
 import { researchBox } from "./boxes/research.js";
@@ -26,6 +27,7 @@ import { customBox } from "./boxes/custom.js";
  * union — is a compile error. Insertion order is the palette order.
  */
 export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
+  media: mediaBox,
   idea: ideaBox,
   agent: agentBox,
   research: researchBox,
