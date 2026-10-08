@@ -94,10 +94,13 @@ function connectedSourceLabel(
     .map((e) => nodes.find((n) => n.id === e.source))
     .find(Boolean);
   if (!src) return "";
-  if (src.type === "documents") {
+  if (src.type === "documents" || src.type === "media") {
     const docs = useBoardStore.getState().boxData[src.id]?.documents;
     if (docs?.length) {
-      return docs[0].name.replace(/\.[^.]+$/, "") + " (via Documents Box)";
+      return (
+        docs[0].name.replace(/\.[^.]+$/, "") +
+        (src.type === "documents" ? " (via Documents Box)" : " (via Input Box)")
+      );
     }
   }
   return (src.data?.title as string) || "";
@@ -158,7 +161,10 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, [timerRunning]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Two refs because a box can render BOTH uploaders (the unified input box):
+  // sharing one ref would open the wrong file picker.
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   // Find connected upstream box names for the settings panel
@@ -213,11 +219,13 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isAgent = boxType === "agent";
   const isImage = boxType === "image";
   const isDocuments = boxType === "documents";
+  // Unified input box: idea text + uploaded image + uploaded documents in one.
+  const isMedia = boxType === "media";
   const isCartoon = boxType === "cartoon";
   const isSlides = boxType === "slides";
   const isCode = boxType === "ui" || boxType === "stitch";
   const isStitch = boxType === "stitch";
-  const isInputBox = isIdea || isImage || isDocuments;
+  const isInputBox = isIdea || isImage || isDocuments || isMedia;
   // Collaboration boxes (note / label / timer / checklist) are standalone
   // annotations: no AI, no Run button, no settings panel, no handles.
   const isNote = boxType === "note";
@@ -738,11 +746,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* ===== AI / input boxes ===== */}
 
-        {/* Idea box — editable textarea */}
-        {isIdea && (
+        {/* Idea box — editable textarea. The unified input box renders the
+            same field as its first section (both fields are mirrored into
+            `output` so the text flows downstream). */}
+        {(isIdea || isMedia) && (
           <textarea
             className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
-            placeholder="Write your idea here..."
+            placeholder={
+              isMedia
+                ? "Write your idea here — or just upload files/an image below…"
+                : "Write your idea here..."
+            }
             value={boxData.content}
             onChange={(e) =>
               updateBoxData(id, { content: e.target.value, output: e.target.value })
@@ -827,9 +841,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           );
         })()}
 
-        {/* Image upload box */}
-        {isImage && (
-          <div className="nodrag">
+        {/* Image upload box (also the image section of the unified input box) */}
+        {(isImage || isMedia) && (
+          <div className={isMedia ? "nodrag mt-2" : "nodrag"}>
             {hasError && boxData.error && (
               <div className="text-red-500 text-xs p-2 mb-2 bg-red-50 rounded-lg">
                 ⚠️ {boxData.error}
@@ -843,7 +857,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   className="w-full rounded-lg border border-slate-200"
                 />
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => imageInputRef.current?.click()}
                   className="mt-2 w-full text-xs py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
                 >
                   📁 Change Image
@@ -851,7 +865,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
             ) : (
               <div
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => imageInputRef.current?.click()}
                 className="cursor-pointer border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-emerald-400 hover:bg-emerald-50 transition"
               >
                 <div className="text-3xl mb-2">🖼️</div>
@@ -864,7 +878,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               </div>
             )}
             <input
-              ref={fileInputRef}
+              ref={imageInputRef}
               type="file"
               accept="image/*"
               className="hidden"
@@ -874,16 +888,21 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         )}
 
         {/* Documents upload box — multi-file, drag & drop, extracted text
-            becomes the box's output for downstream prompt templating. */}
-        {isDocuments &&
+            becomes the box's output for downstream prompt templating (also the
+            documents section of the unified input box). */}
+        {(isDocuments || isMedia) &&
           (() => {
             const docs = boxData.documents || [];
             const totalChars = docs.reduce((s, d) => s + d.chars, 0);
             const usable = docs.filter((d) => !d.error && d.text).length;
             return (
-              <div className="nodrag space-y-2">
+              <div
+                className={
+                  "nodrag space-y-2" + (isMedia ? " mt-2" : "")
+                }
+              >
                 <div
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => docInputRef.current?.click()}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDocDragOver(true);
@@ -978,7 +997,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 )}
 
                 <input
-                  ref={fileInputRef}
+                  ref={docInputRef}
                   type="file"
                   multiple
                   accept={SUPPORTED_DOC_EXTS.map((e) => "." + e).join(",")}
