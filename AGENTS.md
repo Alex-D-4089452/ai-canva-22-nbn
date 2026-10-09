@@ -118,7 +118,8 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   Google sign-in) or Export/Import JSON. A dead `currentBoardId` (wrong project / deleted board)
   is cleared by `loadBoardFromFirestore` (returns false); App then recovers the local canvas via
   `createNewBoard(…, { preserveContent: true })` so saves don’t loop on `not-found`.
-- **18 built-in box types** plus user-created custom boxes: Agent, Idea, Image,
+- **19 built-in box types** plus user-created custom boxes: **Input** (`media` — the unified
+  input box: typed idea + uploaded documents + uploaded image in one), Agent, Idea, Image,
   Documents, Research, Summarise, PRD, Cartoon Profile,
   Slides, UI Design,
   Stitch UI, Handoff Brief, Alignment Check, Jargon Translator, four collaboration boxes (Note, Label,

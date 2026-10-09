@@ -4,7 +4,7 @@
 // file under `./boxes/`; `./boxTypes.ts` assembles them into BOX_TYPES and
 // `./index.ts` re-exports the whole public surface.
 
-export type BoxType = "agent" | "idea" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "jargon" | "note" | "label" | "timer" | "checklist" | "custom";
+export type BoxType = "media" | "agent" | "idea" | "research" | "summarise" | "image" | "documents" | "cartoon" | "slides" | "prd" | "ui" | "stitch" | "handoff" | "alignment" | "jargon" | "note" | "label" | "timer" | "checklist" | "custom";
 
 /**
  * One task in a Checklist box — the team's shared to-do list. Every field is

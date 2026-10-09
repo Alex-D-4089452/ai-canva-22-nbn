@@ -29,6 +29,37 @@ current state).
 
 ---
 
+## 2026-10-08 — New box: unified Input box (`media`)
+
+- **Done:** added a 4th input box type **Input** (`media`, 📥) that unifies Idea + Image +
+  Documents in one box (typed idea textarea + image dropzone + documents dropzone). It reuses the
+  existing fields (`content`/`output`, `imageData`, `documents`) and both upload handlers, so no
+  new state/endpoints/`runBox` branch. Touches: `types/core.ts` (union), new
+  `types/boxes/media.ts`, `boxTypes.ts` (first in palette), `Canvas.tsx` (nodeTypes + minimap),
+  `BoxNode.tsx` (`isInputBox` union, **split the shared `fileInputRef` into `imageInputRef` +
+  `docInputRef`** — one box now renders both uploaders, extended idea/image/documents blocks to
+  `isMedia`, `connectedSourceLabel` recognizes `media`), `boardStore.ts` (input-type early-return
+  guard in `runBox`, so a stray Run can't hit the text branch), and the one real logic change:
+  `lib/inputs.ts` `collectInputs` now **combines** own text + documents text (was documents-OR-
+  text, which would have dropped the typed idea) before appending the image ref. New test in
+  `inputs.test.ts` covers idea+docs+image together. Docs: `BOX_TYPES.md` (new section +
+  checklist), `AGENTS.md`/`README.md` box counts (18 → 19 built-in). Tests 242/242, both `tsc`
+  builds green. The three original input boxes remain for backward compat.
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-08 — Image box: re-upload now actually replaces the image
+
+- **Done:** replacing an image in an Image box silently did nothing — `uploadImageToStorage`
+  (`client/src/lib/storage.ts`) always wrote to the fixed key `boards/{boardId}/images/{boxId}.jpg`,
+  so the R2 public URL was byte-identical on every upload, `<img src={boxData.imageData}>` never
+  changed, and the browser kept showing the cached first image. The key now carries a timestamp
+  suffix (`{boxId}-{Date.now()}.jpg`) — same pattern as the Documents box. The `IMAGE_KEY` regex in
+  `server/src/r2.ts` / `functions/src/r2.ts` already accepted it (comments updated); no backend
+  logic change, old boards keep their existing URLs. Tests 241/241 + both `tsc` builds green.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-07 — Ollama temperature now configurable (`OLLAMA_TEMPERATURE`)
 
 - **Done:** `generateContent` in both `server/src/ollama.ts` and `functions/src/ollama.ts` now

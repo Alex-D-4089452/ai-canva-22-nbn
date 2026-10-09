@@ -47,11 +47,15 @@ export function collectInputs(
 
     if (sourceData.imageData && !inputImage) inputImage = sourceData.imageData;
 
-    // Documents boxes derive their output from the extracted file text
-    // (labeled by filename) — see lib/documents.ts.
-    const textOutput = sourceData.documents?.length
+    // Sources contribute their own text (idea/content, or generated output)
+    // AND any uploaded documents — a box can hold both (the unified input
+    // box), so neither wins over the other. Documents are labeled by
+    // filename — see lib/documents.ts.
+    const ownText = getBoxOutput(sourceData.output, sourceData.content);
+    const docsText = sourceData.documents?.length
       ? buildDocumentsOutput(sourceData.documents)
-      : getBoxOutput(sourceData.output, sourceData.content);
+      : "";
+    const textOutput = [ownText, docsText].filter(Boolean).join("\n\n");
 
     const parts: string[] = [];
     if (textOutput) parts.push(textOutput);

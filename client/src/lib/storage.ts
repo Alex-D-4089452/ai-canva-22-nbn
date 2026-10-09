@@ -56,7 +56,10 @@ export async function uploadImageToStorage(
   boxId: string,
   dataUrl: string
 ): Promise<string> {
-  const key = `boards/${boardId}/images/${boxId}.jpg`;
+  // Version the key per upload: a fixed `{boxId}.jpg` key returns the same
+  // URL on every re-upload, so <img src> never changes and the browser keeps
+  // showing the cached first image (replacing an image looked like a no-op).
+  const key = `boards/${boardId}/images/${boxId}-${Date.now()}.jpg`;
   // Decode the data URL to bytes so the presigned PUT carries the JPEG body.
   const blob = await (await fetch(dataUrl)).blob();
   return signAndUpload(key, "image/jpeg", blob);

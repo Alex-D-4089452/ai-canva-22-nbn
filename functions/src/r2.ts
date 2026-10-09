@@ -75,7 +75,7 @@ function getClient(accountId: string): S3Client {
 
 // === Key validation — the sign endpoint only ever writes board files ===
 
-// boards/{boardId}/images/{boxId}.jpg  (box ids are `box-<ts>-<rand>`)
+// boards/{boardId}/images/{boxId}[-{timestamp}].jpg  (box ids are `box-<ts>-<rand>`)
 const IMAGE_KEY = /^boards\/[A-Za-z0-9_-]+\/images\/[A-Za-z0-9_-]+\.jpg$/;
 // boards/{boardId}/documents/{boxId}/{timestamp}-{safeName}
 // safeName = file.name with anything outside [a-zA-Z0-9._-] replaced by "_"

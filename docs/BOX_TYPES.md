@@ -18,6 +18,23 @@ Boxes fall into three categories:
 
 ## Input boxes
 
+### 📥 Input — `media`
+
+The **unified input box**: type an idea, upload documents, *and* upload an image in one box —
+so a single source can carry all three kinds of material downstream (one `{{inputs}}` entry
+instead of three boxes to wire up). It reuses the Idea textarea, the Image uploader, and the
+Documents uploader as three sections of the same body.
+
+- **Inputs:** none (no target handle).
+- **Outputs:** everything the box holds, combined into one named `{{inputs}}` entry: the typed
+  text (mirrored into `output`, like the Idea box), each document's extracted text labeled
+  `=== filename ===`, and the image reference `[image: <url>]`. The image URL is also picked up
+  as `inputImage`, so a connected Cartoon box still gets real image-to-image input.
+- **Persistence / budgets:** same as the Image and Documents boxes (≤1024px JPEG → Cloudflare
+  R2; browser-side extraction capped at 100k chars per file and 400k per box; base64 images are
+  stripped before the Firestore save).
+- **Settings:** none (input box).
+
 ### 💡 Idea — `idea`
 
 Free-text input. No AI. The seed of most pipelines. Its content becomes the output sent to
@@ -322,8 +339,9 @@ Tagging a box does not affect collaboration, the canvas, or `runBox` — it is p
    — see above), and register it in `BOX_TYPES` in `client/src/types/boxTypes.ts` (union and table
    must match — a mismatch is a compile error).
 2. Register it in `Canvas.tsx` (`nodeTypes`) and the MiniMap color map.
-3. Add a render/output branch in `BoxNode.tsx`.
+3. Add a render/output branch in `BoxNode.tsx`. An input box instead joins the `isInputBox`
+   union there (hides Run / status strip / settings / target handle) and renders its body.
 4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch — a plain text
-   box needs no branch at all).
+   box needs no branch at all; an input box just joins the input-type early-return guard).
 5. Add any new backend endpoint in `server/src/index.ts` **and** `functions/src/index.ts`.
 6. Update the box-type tables in the README and this document.
