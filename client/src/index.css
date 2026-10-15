@@ -60,6 +60,85 @@ select,
     0 14px 30px -8px rgba(79, 70, 229, 0.28);
 }
 
+/* ===== Box header (white strip + tinted icon tile) ===== */
+.box-header {
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+}
+.box-icon-tile {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+/* ===== Floating status pill (renders above the card) =====
+   Upload / run / connection state. The pill sits OUTSIDE .box-node so the
+   card's `overflow: hidden` never clips it; the parent (.react-flow__node)
+   is absolutely positioned, so top: -30px floats it over the canvas. */
+.box-pill {
+  position: absolute;
+  top: -30px;
+  left: 2px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 4px);
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.12);
+  pointer-events: none;
+}
+.box-pill-glyph {
+  flex-shrink: 0;
+  font-size: 10px;
+}
+.box-pill-success {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+.box-pill-info {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+}
+.box-pill-info .box-pill-glyph {
+  animation: savePulse 1.2s ease-in-out infinite;
+}
+.box-pill-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #b45309;
+}
+.box-pill-danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.box-pill-idle {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+.box-pill-idle .box-pill-glyph {
+  color: #94a3b8;
+}
+
 /* ===== Box readability pass: larger input/output text =====
    These selectors are deliberately more specific than the Tailwind
    `text-sm` / `text-xs` utilities, so they win regardless of stylesheet
@@ -100,12 +179,12 @@ select,
 
 /* ===== App chrome (header / tools) ===== */
 
+/* The app bar is dark (near-black), per the reference design: white-alpha
+   neutrals over #0b0d12, with indigo reserved for the one loud action. */
 .app-bar {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: #0b0d12;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.35);
   /* Notched-device safe areas (landscape iPad in fullscreen kiosk mode). */
   height: auto;
   min-height: calc(56px + env(safe-area-inset-top));
@@ -148,24 +227,425 @@ select,
   50% { opacity: 0.35; }
 }
 
-/* React Flow controls + minimap — matched to the chrome. */
-.react-flow__controls {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12);
-}
-.react-flow__controls-button {
-  background: #fff;
-  border-bottom: 1px solid #eef2f7;
-  color: #475569;
-  width: 26px;
-  height: 26px;
-}
-.react-flow__controls-button:last-child { border-bottom: none; }
-.react-flow__controls-button:hover { background: #f8fafc; }
-.react-flow__controls-button svg { fill: currentColor; }
+/* ===== Pipeline strip (step chips under the app bar) ===== */
 
+.pipeline-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
+  /* Below the header (z-40) so the header's dropdowns — Boards menu, account
+     menu, roster popover (z-50 INSIDE the header's stacking context) — paint
+     over the strip instead of being clipped by this element. */
+  z-index: 30;
+}
+
+.strip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px 0 6px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 12px;
+  color: #334155;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.strip-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.strip-num-done {
+  background: #10b981;
+  color: #ffffff;
+}
+.strip-connector {
+  width: 22px;
+  border-top: 2px dotted #cbd5e1;
+  flex-shrink: 0;
+  margin: 0 -2px;
+}
+.strip-tone-success { border-color: #a7f3d0; }
+.strip-tone-success .strip-status { color: #047857; }
+.strip-tone-info { border-color: #c7d2fe; }
+.strip-tone-info .strip-num { background: #6366f1; color: #fff; animation: savePulse 1.2s ease-in-out infinite; }
+.strip-tone-info .strip-status { color: #4338ca; }
+.strip-tone-warning { border-color: #fde68a; }
+.strip-tone-warning .strip-num { background: #fbbf24; color: #78350f; }
+.strip-tone-warning .strip-status { color: #b45309; }
+.strip-tone-danger { border-color: #fecaca; }
+.strip-tone-danger .strip-num { background: #ef4444; color: #fff; }
+.strip-tone-danger .strip-status { color: #b91c1c; }
+.strip-tone-idle .strip-status { color: #64748b; }
+
+/* ===== Left canvas rail (Add / Area / Notes / Help) ===== */
+
+.canvas-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 10px;
+}
+.rail-btn {
+  width: 56px;
+  padding: 6px 0 5px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.rail-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #334155;
+}
+.rail-icon {
+  font-size: 17px;
+  line-height: 1;
+}
+.rail-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+/* The Add Box item owns the reference design's black circle. */
+.rail-btn-primary .rail-icon-plus {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.rail-btn-primary.rail-active .rail-icon-plus,
+.rail-btn-primary:hover .rail-icon-plus {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 4px 10px -2px rgba(15, 23, 42, 0.4);
+}
+.rail-active-indigo {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+/* Area color picker — floats beside the rail while the tool is active. */
+.area-colors {
+  position: absolute;
+  left: 72px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 6px 16px -4px rgba(15, 23, 42, 0.18);
+}
+.area-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.area-color-swatch:hover { transform: scale(1.12); }
+.area-color-active { transform: scale(1.12); }
+
+/* ===== "Add a box" palette panel (left, beside the rail) ===== */
+
+.sidebar-panel {
+  position: absolute;
+  left: 64px;
+  top: 0;
+  bottom: 0;
+  width: 288px;
+  z-index: 20;
+  background: #ffffff;
+  border-radius: 0 16px 16px 0;
+  box-shadow: 12px 0 32px -12px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.palette-section {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.palette-count {
+  color: #94a3b8;
+  font-weight: 600;
+}
+.palette-chevron {
+  margin-left: auto;
+  color: #cbd5e1;
+  font-size: 9px;
+}
+
+.palette-item {
+  position: relative;
+}
+/* The trailing + / ✓ rides on the ROW WRAPPER (not the button), so the
+   button's textContent still ends with the box label — the E2E suite
+   matches palette rows that way. */
+.palette-item::after {
+  content: "+";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6366f1;
+  font-size: 15px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.palette-item.is-added::after {
+  content: "✓";
+  color: #059669;
+}
+.palette-item-x::after {
+  content: none;
+}
+
+.palette-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 8px 30px 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.palette-row:hover {
+  border-color: #c7d2fe;
+  background: #fafbff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.palette-tile {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.palette-main {
+  min-width: 0;
+}
+.palette-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The one-line description is generated content: visible, but not part of
+   the button's textContent (see the palette-item note above). */
+.palette-main::after {
+  content: attr(data-desc);
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  margin-top: 1px;
+}
+.palette-item.is-added .palette-main::after {
+  content: attr(data-added);
+  color: #059669;
+  font-weight: 600;
+}
+
+.palette-remove {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  font-size: 10px;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.palette-item-x:hover .palette-remove,
+.palette-remove:focus-visible {
+  opacity: 1;
+}
+.palette-remove:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.palette-cta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px dashed #a5b4fc;
+  border-radius: 10px;
+  background: rgba(238, 242, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.palette-cta:hover {
+  background: #eef2ff;
+  border-color: #818cf8;
+}
+.palette-cta .palette-title {
+  color: #4338ca;
+}
+
+/* ===== Bottom canvas bar (zoom + toast) ===== */
+
+.canvas-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+}
+.bar-zoom-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #cbd5e1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.bar-zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+.bar-zoom-level {
+  min-width: 44px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+.bar-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+.bar-toast {
+  max-width: 460px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #e2e8f0;
+  padding-right: 6px;
+}
+.bar-undo {
+  padding: 5px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.bar-undo:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* The board canvas sits on a light cool grey so white cards pop. */
+.board-flow {
+  background: #eff2f6;
+}
+
+/* React Flow minimap — matched to the chrome. */
 .react-flow__minimap {
   border-radius: 10px;
   overflow: hidden;
@@ -434,10 +914,19 @@ html {
     width: 20px !important;
     height: 20px !important;
   }
-  /* Zoom controls. */
-  .react-flow__controls-button {
-    width: 34px;
-    height: 34px;
+  /* Bottom canvas bar zoom buttons. */
+  .bar-zoom-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+  }
+  /* Left rail items. */
+  .rail-btn {
+    min-height: 46px;
+  }
+  .area-color-swatch {
+    width: 30px;
+    height: 30px;
   }
 
   /* Box bodies scroll vertically with a finger instead of dragging the node
@@ -506,13 +995,8 @@ html {
     padding-top: 10px;
     padding-bottom: 10px;
   }
-  .sidebar-tab {
-    width: 44px;
-  }
-  /* The help card shares its corner with the zoom controls — yield to them. */
-  .help-anchor {
-    left: 72px;
-  }
+  /* The help card is positioned in JS (it yields to the open palette), so
+     the old fixed-left override is gone. */
   .app-bar button {
     height: 40px;
   }

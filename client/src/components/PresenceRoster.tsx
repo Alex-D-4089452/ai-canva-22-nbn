@@ -43,14 +43,14 @@ export default function PresenceRoster() {
     <div ref={wrapRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+        className="flex items-center gap-1.5 h-8 px-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition"
         title="Who is on this board right now"
       >
         <span className="flex items-center -space-x-1.5">
           {shown.map((u) => (
             <span
               key={u.email}
-              className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-white"
+              className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center border-2 border-[#0b0d12]"
               style={{ backgroundColor: u.color }}
               title={u.email}
             >
@@ -58,8 +58,8 @@ export default function PresenceRoster() {
             </span>
           ))}
         </span>
-        <span className="text-xs font-medium text-slate-600 flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="text-xs font-medium text-slate-300 flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           {roster.online.length} online
         </span>
       </button>

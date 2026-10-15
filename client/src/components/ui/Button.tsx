@@ -6,10 +6,18 @@ import type { ButtonHTMLAttributes } from "react";
  *
  * Enterprise-clean by design:
  *  - exactly one loud color (indigo `primary`), used sparingly;
- *  - everything else is quiet neutrals (white / slate);
+ *  - everything else is quiet neutrals (white / slate — or white-alpha on the
+ *    dark app bar: `onDark` / `outlineLight` / `ghostLight`);
  *  - consistent heights, radii, and a visible keyboard focus ring.
  */
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "onDark"
+  | "outlineLight"
+  | "ghostLight";
 export type ButtonSize = "xs" | "sm" | "md";
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -25,6 +33,17 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger:
     "bg-white text-red-600 border border-red-200 " +
     "hover:bg-red-50 hover:border-red-300",
+  // Dark-app-bar variants: neutrals become white-alpha; focus rings get a
+  // dark offset so they don't flash a white square on the near-black bar.
+  onDark:
+    "bg-white/10 text-white border border-white/15 shadow-sm " +
+    "hover:bg-white/15 hover:border-white/25 focus-visible:ring-offset-[#0b0d12]",
+  outlineLight:
+    "bg-transparent text-white border border-white/40 shadow-sm " +
+    "hover:bg-white/10 focus-visible:ring-offset-[#0b0d12]",
+  ghostLight:
+    "bg-transparent text-slate-300 border border-transparent " +
+    "hover:bg-white/10 hover:text-white focus-visible:ring-offset-[#0b0d12]",
 };
 
 /** Pressed / toggled state (e.g. an open panel or active view). */
@@ -35,6 +54,9 @@ const ACTIVE: Record<ButtonVariant, string> = {
     "hover:bg-slate-800 hover:border-slate-800 hover:text-white",
   ghost: "bg-slate-900 border-slate-900 text-white hover:bg-slate-900",
   danger: "bg-red-600 border-red-600 text-white hover:bg-red-600",
+  onDark: "bg-white/20 border-white/30 text-white hover:bg-white/20",
+  outlineLight: "bg-white/15 border-white/60 text-white hover:bg-white/15",
+  ghostLight: "bg-white/10 text-white hover:bg-white/10 hover:text-white",
 };
 
 const SIZE: Record<ButtonSize, string> = {

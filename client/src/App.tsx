@@ -4,6 +4,9 @@ import Canvas from "./components/Canvas.js";
 import Header from "./components/Header.js";
 import Toolbar from "./components/Toolbar.js";
 import Sidebar from "./components/Sidebar.js";
+import CanvasRail from "./components/CanvasRail.js";
+import CanvasBar from "./components/CanvasBar.js";
+import PipelineStrip from "./components/PipelineStrip.js";
 import NewBoardModal from "./components/NewBoardModal.js";
 import ShareModal from "./components/ShareModal.js";
 import LandingPage from "./components/landing/LandingPage.js";
@@ -61,7 +64,6 @@ export default function App() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [adminView, setAdminView] = useState(false);
@@ -251,10 +253,6 @@ export default function App() {
     setShowShareModal(true);
   }, []);
 
-  const handleToggleSidebar = useCallback(() => {
-    setSidebarOpen((o) => !o);
-  }, []);
-
   const handleToggleAdminView = useCallback(() => {
     setFacilitatorView(false);
     setAdminView((v) => !v);
@@ -335,8 +333,6 @@ export default function App() {
     <div className="flex flex-col h-full w-full">
       <Header
         user={user}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={handleToggleSidebar}
         onShare={handleShare}
         onNewBoard={handleNewBoard}
         onLoadBoard={handleLoadBoard}
@@ -364,11 +360,18 @@ export default function App() {
             }}
           />
         ) : (
-          <ReactFlowProvider>
-            <Canvas />
-            <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-            <Toolbar />
-          </ReactFlowProvider>
+          <div className="flex flex-col h-full">
+            <PipelineStrip />
+            <div className="flex-1 relative min-h-0 overflow-hidden">
+              <ReactFlowProvider>
+                <Canvas />
+                <Sidebar />
+                <CanvasRail />
+                <CanvasBar />
+                <Toolbar />
+              </ReactFlowProvider>
+            </div>
+          </div>
         )}
       </div>
       {/* Workshop guest profile step (new joins or unfinished profiles) */}
