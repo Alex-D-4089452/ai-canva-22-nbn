@@ -1231,7 +1231,9 @@ try {
   // no token — facilitator checks will be skipped gracefully
 }
 const fsRest = (method, path, body) =>
-  fetch(`https://firestore.googleapis.com/v1/projects/carbondocs/databases/(default)/documents${path}`, {
+  // Must target the project the CLIENT uses (client/src/lib/firebase.ts) —
+  // grants written to the legacy carbondocs project are invisible to the app.
+  fetch(`https://firestore.googleapis.com/v1/projects/ai-canva-22-nbn-fee4b/databases/(default)/documents${path}`, {
     method,
     headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -1475,8 +1477,10 @@ await safe("TF facilitator flow", async () => {
         check("TG guest sees the team board in their board list", listHasTeam);
 
         // Cleanup: delete the guest auth user (REST) + close context.
+        // (Same project as the client — a carbondocs URL here silently 404s
+        // and leaks the guest account into ai-canva's Identity Toolkit.)
         if (guestUid && adminToken) {
-          await fetch("https://identitytoolkit.googleapis.com/v1/projects/carbondocs/accounts:delete", {
+          await fetch("https://identitytoolkit.googleapis.com/v1/projects/ai-canva-22-nbn-fee4b/accounts:delete", {
             method: "POST",
             headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ localId: guestUid }),
