@@ -778,7 +778,13 @@ await pageA.goto(APP, { waitUntil: "load" });
       }),
       { label: "B sees A's note edit", timeout: 15000 }
     ).catch(() => null);
-    check("T12 note edit syncs A → B live", !!bSawEdit);
+    // On failure, capture A's side (local content + save state) so a flaky
+    // cloud round-trip is distinguishable from a broken edit→save path.
+    const t12dbg = bSawEdit ? "" : await pageA.evaluate((id) => {
+      const s = window.__dsh.useBoardStore.getState();
+      return JSON.stringify({ local: s.boxData[id]?.content, save: s.saveStatus, board: s.currentBoardId });
+    }, noteId).catch(() => "n/a");
+    check("T12 note edit syncs A → B live", !!bSawEdit, t12dbg);
 
     // B adds a Timer box via its real palette, then starts it; A must see the
     // new box AND the running timer with attribution (full cross-user sync).
