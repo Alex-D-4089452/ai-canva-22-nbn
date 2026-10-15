@@ -920,7 +920,7 @@ export const useBoardStore = create<BoardState>()(
         // Presence heartbeat: even without mouse movement, refresh
         // lastActive every 15s so the online roster stays accurate.
         if (presenceHeartbeat) clearInterval(presenceHeartbeat);
-        presenceHeartbeat = setInterval(async () => {
+        const stampPresence = async () => {
           const user = useAuthStore.getState().user;
           const bid = get().currentBoardId;
           if (!user || !bid) return;
@@ -936,7 +936,13 @@ export const useBoardStore = create<BoardState>()(
           } catch {
             // best-effort
           }
-        }, 15000);
+        };
+        // Write presence IMMEDIATELY — a user who just opened the board should
+        // appear on the roster at once, not only after the first 15s tick
+        // (the cursor path needs mouse movement, which an idle user may never
+        // make).
+        void stampPresence();
+        presenceHeartbeat = setInterval(stampPresence, 15000);
       },
 
       unsubscribeFromBoard: () => {
