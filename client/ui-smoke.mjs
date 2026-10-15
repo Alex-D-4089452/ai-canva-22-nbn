@@ -7,6 +7,7 @@
  * Run: node ui-smoke.mjs
  */
 import { chromium } from "playwright-core";
+import { resolveChrome } from "./chrome.mjs";
 
 const APP = "http://localhost:5173";
 const results = [];
@@ -16,7 +17,7 @@ const check = (name, ok, detail = "") => {
 };
 
 const browser = await chromium.launch({
-  executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  executablePath: resolveChrome() || undefined,
   headless: true,
 });
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });

@@ -13,6 +13,7 @@
  * Run: node e2e.mjs   (from client/, dev server on 5173 must be running)
  */
 import { chromium } from "playwright-core";
+import { resolveChrome } from "./chrome.mjs";
 
 const APP = "http://localhost:5173";
 const results = [];
@@ -23,7 +24,7 @@ const check = (name, ok, detail = "") => {
 const safe = async (name, fn) => { try { return await fn(); } catch (e) { return check(name, false, "ERROR: " + e.message.slice(0, 60)); } };
 
 const browser = await chromium.launch({
-  executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  executablePath: resolveChrome() || undefined,
   headless: true,
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
