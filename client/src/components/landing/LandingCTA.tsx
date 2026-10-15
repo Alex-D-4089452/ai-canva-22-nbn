@@ -5,24 +5,37 @@ interface LandingCTAProps {
 
 export default function LandingCTA({ onSignIn, signingIn }: LandingCTAProps) {
   return (
-    <section className="border-t border-white/5 py-20">
-      <div className="mx-auto max-w-4xl px-5">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-600/20 via-fuchsia-600/10 to-cyan-600/20 p-10 text-center md:p-14">
-          <div className="pointer-events-none absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-500/30 blur-3xl" />
-          <h2 className="relative text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Start building your first AI pipeline
-          </h2>
-          <p className="relative mx-auto mt-3 max-w-xl text-slate-300">
-            Sign in free and go from an idea to a working prototype in minutes.
-            No setup, no code required to start.
-          </p>
-          <button
-            onClick={onSignIn}
-            disabled={signingIn}
-            className="relative mt-8 rounded-xl bg-white px-8 py-3.5 text-base font-semibold text-slate-900 shadow-xl transition hover:scale-105 disabled:opacity-60"
-          >
-            {signingIn ? "Connecting…" : "Get started free"}
-          </button>
+    <section className="py-16 md:py-20">
+      <div className="mx-auto max-w-6xl px-5">
+        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-emerald-300 via-green-400 to-emerald-500 p-8 md:p-12">
+          {/* Soft highlight sweep */}
+          <div className="pointer-events-none absolute -top-24 -right-16 h-72 w-72 rounded-full bg-white/25 blur-3xl" />
+          <div className="relative flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+            <div>
+              <h2 className="max-w-md text-3xl font-extrabold leading-tight tracking-tight text-zinc-950 md:text-4xl">
+                Start building your first AI pipeline
+              </h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-800/80 md:text-base">
+                Sign in free and go from an idea to a working prototype in
+                minutes. No setup, no code required to start.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              <button
+                onClick={onSignIn}
+                disabled={signingIn}
+                className="rounded-xl bg-zinc-950 px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-800 disabled:opacity-60"
+              >
+                {signingIn ? "Connecting…" : "Start building free"}
+              </button>
+              <a
+                href="#boxes"
+                className="rounded-xl border border-zinc-950/25 px-6 py-3.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-950/10"
+              >
+                Browse the boxes
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </section>

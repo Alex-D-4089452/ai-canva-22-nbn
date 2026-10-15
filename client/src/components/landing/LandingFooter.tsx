@@ -1,22 +1,97 @@
-export default function LandingFooter() {
+import type { MouseEvent } from "react";
+
+interface LandingFooterProps {
+  onSignIn: () => void;
+}
+
+const COLUMNS: {
+  title: string;
+  external?: boolean;
+  links: { label: string; href: string }[];
+}[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "How it works", href: "#how-it-works" },
+      { label: "Features", href: "#features" },
+      { label: "Boxes", href: "#boxes" },
+      { label: "For teams", href: "#for-teams" },
+    ],
+  },
+  {
+    title: "Workshops",
+    links: [
+      { label: "Join with a code", href: "#workshop" },
+      { label: "Start a workshop", href: "#signin" },
+      { label: "Create a team board", href: "#signin" },
+    ],
+  },
+  {
+    title: "Built with",
+    external: true,
+    links: [
+      { label: "React", href: "https://react.dev" },
+      { label: "Firebase", href: "https://firebase.google.com" },
+      { label: "Ollama", href: "https://ollama.com" },
+      { label: "React Flow", href: "https://reactflow.dev" },
+    ],
+  },
+];
+
+/** Blue in the light theme, near-black in the dark theme (per the design). */
+export default function LandingFooter({ onSignIn }: LandingFooterProps) {
+  const handleSignInLinks = (href: string) => (e: MouseEvent) => {
+    if (href === "#signin") {
+      e.preventDefault();
+      onSignIn();
+    }
+  };
+
   return (
-    <footer className="border-t border-white/10 bg-slate-950/60 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-5 md:flex-row">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">🎨</span>
-          <span className="text-base font-bold text-white">AI Canva</span>
+    <footer className="bg-blue-600 text-white dark:bg-[#0a0a0c]">
+      <div className="mx-auto max-w-6xl px-5 py-14">
+        <div className="grid gap-10 md:grid-cols-[1.2fr_repeat(3,1fr)]">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="logo-tile items-center justify-center text-base">🎨</span>
+              <span className="text-base font-bold">AI Canva</span>
+            </div>
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-blue-100 dark:text-slate-400">
+              A collaborative AI whiteboard: place boxes, connect them, and run
+              pipelines from idea to working code.
+            </p>
+          </div>
+
+          {COLUMNS.map((col) => (
+            <div key={col.title}>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-blue-200 dark:text-slate-500">
+                {col.title}
+              </h3>
+              <ul className="mt-4 space-y-2.5">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <a
+                      href={link.href}
+                      onClick={handleSignInLinks(link.href)}
+                      target={col.external ? "_blank" : undefined}
+                      rel={col.external ? "noreferrer" : undefined}
+                      className="text-sm text-blue-50 transition hover:text-white dark:text-slate-300 dark:hover:text-white"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
-        <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
-          <a href="#how-it-works" className="transition hover:text-white">How it works</a>
-          <a href="#features" className="transition hover:text-white">Features</a>
-          <a href="#boxes" className="transition hover:text-white">Boxes</a>
-          <a href="#for-teams" className="transition hover:text-white">For teams</a>
-        </nav>
-
-        <p className="text-xs text-slate-500">
-          © {new Date().getFullYear()} AI Canva · Built with React, Firebase & Ollama
-        </p>
+        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-blue-500/50 pt-6 text-xs text-blue-100 md:flex-row md:items-center dark:border-white/10 dark:text-slate-500">
+          <p>
+            © {new Date().getFullYear()} AI Canva · Built with React, Firebase &amp; Ollama
+          </p>
+          <p>Runs on your models · Your boards, your data</p>
+        </div>
       </div>
     </footer>
   );

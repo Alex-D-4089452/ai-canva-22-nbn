@@ -51,11 +51,11 @@ export default function LandingPage({ workshop }: LandingPageProps) {
         <LandingValue />
         <LandingHowItWorks />
         <LandingFeatures />
-        <LandingBoxes />
-        <LandingRoles />
+        <LandingBoxes onSignIn={handleSignIn} signingIn={signingIn} />
+        <LandingRoles onSignIn={handleSignIn} signingIn={signingIn} />
         <LandingCTA onSignIn={handleSignIn} signingIn={signingIn} />
       </main>
-      <LandingFooter />
+      <LandingFooter onSignIn={handleSignIn} />
     </div>
   );
 }
