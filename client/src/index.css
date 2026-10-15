@@ -345,7 +345,11 @@ select,
   @apply bg-slate-100 font-semibold;
 }
 
-/* === Landing page === */
+/* === Landing page ===
+   Light + dark theme: the `dark` class is toggled on the landing root by
+   `useTheme` (system preference by default, nav toggle overrides + persists).
+   Most styling is Tailwind `dark:` variants; this file holds the page
+   background and the animation primitives shared by the sections. */
 html {
   scroll-behavior: smooth;
 }
@@ -355,13 +359,6 @@ html {
 }
 .landing-bg.dark {
   background: #0a0a0c;
-}
-.glass-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
 }
 .fade-in {
   animation: fadeInUp 0.8s ease-out forwards;
@@ -382,12 +379,6 @@ html {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
 }
-.gradient-text {
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #22d3ee 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
 
 /* Scroll-triggered section reveal */
 .reveal {
@@ -405,15 +396,6 @@ html {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-}
-
-/* Hero pipeline arrow flow */
-.pipeline-arrow {
-  animation: arrowFlow 1.6s ease-in-out infinite;
-}
-@keyframes arrowFlow {
-  0%, 100% { opacity: 0.35; transform: translateX(0); }
-  50% { opacity: 1; transform: translateX(3px); }
 }
 
 /* Area drawing tool: crosshair over the canvas while active */
