@@ -130,15 +130,20 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 
 ## UI design system
 
-The app chrome (header, sidebar, canvas tools) follows a consistent "enterprise but
-modern" language, built on two shared primitives:
+The app chrome follows a consistent "enterprise but modern" language: a **near-black app bar**
+(`.app-bar`, `#0b0d12`, blurred) over a **pipeline strip** (`components/PipelineStrip.tsx` — the
+live box-order breadcrumb under the header), a **left icon rail** + **left "Add a box" palette
+panel** on the canvas, a light **dotted** canvas with floating status pills on the box cards, and
+a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives:
 
 - **`client/src/components/ui/Button.tsx`** — the only button styling in the chrome.
-  Variants: `primary` (indigo-600 — the single loud color, used for Share and the
+  Variants: `primary` (indigo-600 — the single loud color, used for Share, Run all and the
   area tool's active state), `secondary` (white + 1px slate border — the default),
-  `ghost` (transparent, for role-gated views), `danger`; sizes `xs/sm/md`; `active`
-  renders the pressed state (dark). Every button gets a keyboard focus ring. Use it
-  instead of hand-rolled Tailwind button class strings.
+  `ghost` (transparent, for role-gated views), `danger`, plus **dark-surface variants**
+  `onDark` (translucent white pill for the dark bar — Boards menu), `outlineLight` /
+  `ghostLight` (Share, Admin/Facilitator on the dark bar; focus ring offset `#0b0d12`);
+  sizes `xs/sm/md`; `active` renders the pressed state (dark). Every button gets a keyboard
+  focus ring. Use it instead of hand-rolled Tailwind button class strings.
 - **`client/src/components/ui/Menu.tsx`** — dropdown primitive (`Menu` + `MenuItem`
   + `MenuDivider`/`MenuLabel`). Closes on outside click + Escape; pass children as
   a function `(close) => …` so items can dismiss the menu after acting. Used by the
@@ -146,12 +151,26 @@ modern" language, built on two shared primitives:
   outside-click/Escape contract.
 
 Design rules: one accent (indigo) over slate neutrals; 1px borders + layered soft
-shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, blurred
-white); box cards are `.box-node` (1px type-colored border set inline, indigo
-selection ring); `.logo-tile` is the only gradient; `.save-dot` states map
-`saveStatus`; thin scrollbars and rounded React Flow controls/minimap styling live
-in `client/src/index.css`. Palette rows use a 28×28 icon tile tinted with the box
-color at ~12% alpha (`color + "1F"`) instead of the old left border-rail.
+shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, dark + blurred,
+`z-40`); box cards are `.box-node` (1px type-colored border set inline, indigo
+selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` — the 2026-10-15
+restyle briefly flattened it to white and the run-status strip below disappeared; both restored
+and guarded by markers-check) and a tinted `.box-icon-tile`;
+`.logo-tile` is the only gradient; `.save-dot` states map
+`saveStatus`; thin scrollbars and the rounded minimap styling live
+in `client/src/index.css` (React Flow's `<Controls />` is gone — the custom `CanvasBar`
+owns zoom). Palette rows use a 28×28 icon tile tinted with the box
+color at ~12% alpha (`color + "1F"`). **Chrome layering:** `.pipeline-strip` is `z-30`, BELOW
+the header's `z-40` — header dropdowns (Boards/account menus, roster popover) are `z-50` *inside*
+the header's stacking context, so a strip at ≥ 40 would clip them (later sibling wins on a tie);
+markers-check hit-tests the overlap ("Boards menu paints over the pipeline strip").
+
+**E2E palette-row contract (sharp edge):** a palette row's label must be the **last text in its
+`<button>`** — the suite finds rows with `textContent.trim().endsWith(label)`. Row descriptions
+and the trailing `+` / `✓ Added to the board` indicator therefore render from CSS pseudo-elements
+(`data-desc`/`data-added` attributes on `.palette-main`, `::after` content on `.palette-item`
+with `pointer-events: none`), never as child text nodes. Sections render expanded by default
+(the suite needs the rows visible), collapsing only on user click.
 
 **Box sizing & body text:** a new box's size comes from `defaultWidth`/`defaultHeight` in its
 `client/src/types/boxes/<type>.ts` file (surfaced through `BOX_TYPES[<type>]` in
@@ -169,8 +188,25 @@ slices — otherwise every keystroke in the board-title input re-renders the who
 Canvas tree (this was the case before the header extraction). App passes only
 stable `useCallback` handlers across the memo boundary. Destructive/rare actions
 (Clear/Delete board, Sign out) live inside the header menus, not on the bar; the
-visible bar is ~5 controls for a regular user (roster, Share, + Add Box, Boards,
-account) plus role-gated Admin/Facilitator buttons.
+visible bar is ~5 controls for a regular user (roster + ⚡ usage, Boards, Share,
+**Run all**, account) plus role-gated Admin/Facilitator buttons. The **Boards menu
+and Run all render even before a board opens** (a board-less state still needs
+"Boards (" to open/create one — Share/roster/usage stay `currentBoardId`-gated).
+
+**Canvas chrome (`App.tsx` layout):** header → `PipelineStrip` → a `flex-1 relative` canvas
+region containing `Canvas`, `CanvasRail` (left icon rail: **Add Box** toggles the palette,
+▭ Area tool + its `.area-colors` picker, Notes, Help), `Sidebar` (the `.sidebar-panel` palette:
+search, role filter, collapsible sections), `Toolbar` (the "How to use" card — it shifts to
+`left-[368px]` while the palette is open), and `CanvasBar` (bottom-center: zoom −/%/+ + the
+toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
+rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
+(`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — consumers subscribe
+themselves and **App must not** (the 6s-dismiss toast would re-render the whole canvas tree).
+Shared pure logic: `lib/status.ts` `boxStatus()` drives both each card's floating `.box-pill`
+and the strip's chip state; `lib/pipeline.ts` `pipelineOrder()` (Kahn topo sort, x-tiebreak,
+cycle fallback) orders the strip **and** the sequential **Run all** loop in Header (skips boxes
+whose `runInputBlocker` refuses instead of erroring them; the button's play glyph is an SVG, so
+its text is exactly `Run all` — never `▶`, which the E2E counts per-box).
 
 ## Admin board
 
@@ -237,7 +273,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `vite.config.ts` to avoid the dev-server proxy + build chunks.
 - **No functions/ tests yet** — they need the Firebase emulator / Admin SDK; keep API logic in sync
   between `server` and `functions` by hand and cover the shared logic via `server` tests.
-- **E2E suite:** `client/e2e.mjs` (playwright-core + system Chrome) drives the **real dev app** on
+- **E2E suite:** `client/e2e.mjs` (playwright-core + system Chrome — binary resolved
+  cross-platform by `client/chrome.mjs`, shared with ui-smoke/markers-check) drives the **real dev
+  app** on
   `localhost:5173` with the real backend. Part 1 (fake user via dev-only `window.__dsh` store hooks
   in `main.tsx`, `import.meta.env.DEV`-guarded, stripped from prod): landing → login → palette adds
   → note/label/timer flows → a real `/api/generate` run (Ollama) with markdown output + token badge.
@@ -247,10 +285,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   a second user opening the board via `?board=<id>`, and live cross-user sync (note edits A→B,
   timer start/stop B→A with attribution, presence). Requires the **Email/Password provider**
   enabled in Firebase Auth — done once via the Identity Toolkit admin API
-  (`PATCH .../admin/v2/projects/carbondocs/config?updateMask=signIn.email` with the firebase-tools
-  access token from `~/.config/configstore/firebase-tools.json`); it can be re-disabled in the
-  console, but the suite needs it. Test accounts (`e2e-a@/e2e-b@test.local`) are auto-created
-  (reused if present) and deleted afterwards via `accounts:lookup` + `accounts:delete`; test
+  (`PATCH .../admin/v2/projects/ai-canva-22-nbn-fee4b/config?updateMask=signIn.email` with the
+  firebase-tools access token from `~/.config/configstore/firebase-tools.json` — always use the
+  **client's** project id from `lib/firebase.ts`; an older doc said `carbondocs`); it can be
+  re-disabled in the console, but the suite needs it. Test accounts (`e2e-a@/e2e-b@test.local`)
+  are auto-created and **reused** across runs (only the Part-3 guest user is deleted via
+  `accounts:delete` REST); test
   boards are deleted at start and end of each run (self-cleaning). The single
   "Missing or insufficient permissions" page error from Part 1's fake user is expected noise.
   Run with `node e2e.mjs` from `client/` while `npm run dev` is up. Playwright clicks inside
@@ -259,9 +299,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   grants the facilitator role to a test user via the Firestore admin REST API (OAuth token from
   firebase-tools), then drives the dashboard (workshop → template → team → seat codes), joins as
   a guest in a fresh context (code → profile modal → team board → own board → team board visible
-  in the list), and cleans everything up. Result at time of writing: **105/105 passed**
-  (75 base + 5 "TD" Documents-box tests + 13 "TC" Checklist tests + 9 "T15" shared-checklist
-  cross-user tests added since).
+  in the list), and cleans everything up. **Every admin REST call in the suite must target the
+  client's Firebase project** — until 2026-10-15 the facilitator PATCH + guest delete still
+  pointed at the legacy `carbondocs` project, which made TF fail deterministically (grant
+  invisible to the app) and leaked guest accounts; both are fixed in `e2e.mjs`.
 - **UI smoke test:** `client/ui-smoke.mjs` (playwright-core + system Chrome, same pattern as
   `e2e.mjs`) drives the **real dev app** on `localhost:5173` with `/api/generate` mocked at the
   page level (deterministic artifacts, so it needs no Ollama, no GitHub and no Firebase). It covers
@@ -272,6 +313,22 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
+- **Marker check:** `client/markers-check.mjs` — fast headless (32-check) verification of **every
+  text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
+  rail/palette, bottom bar, add-toast Undo, area tool + `▭ Area$`, `▶ Run` counting, Boards menu,
+  box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
+  `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
+  `node markers-check.mjs` from `client/` after any chrome restyle, then the full suites; it saves
+  a canvas screenshot to the OS temp dir (`ai-canva-restyle.png`) for visual review.
+- **Presence probe:** `client/probe-presence.mjs` — self-cleaning sign-in probe for the roster
+  path (own presence doc appears immediately on subscribe; cursor writes are checked by moving the
+  mouse over the EMPTY pane — never over the default-open help card, whose events don't reach
+  React Flow). `node probe-presence.mjs` from `client/`; deletes the board it creates.
+- **T12 sync probe:** `client/probe-t12.mjs` — standalone, self-cleaning repro of the E2E's
+  "note edit syncs A → B live" (real sign-in → note → reload → instrumented edit with synchronous
+  store checks, deletes its board). `node probe-t12.mjs [delayMs]` from `client/`; delay 0 is the
+  race-prone timing the `localDirty` guard must survive. See the "Board save vs. snapshot race"
+  convention above.
 - **E2E environment gotchas:** (1) The firebase-tools access token
   (`~/.config/configstore/firebase-tools.json`) **expires ~hourly**; a stale token makes the
   facilitator PATCH silently 401 → the "TF facilitator button appears after grant" check FAILS.
@@ -281,11 +338,21 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `window.__dsh` undefined). Run it in a quiet window (no src writes for ~2 min). (3) Deps used
   only by the suite must be in `client/package.json` — an ad-hoc `npm install` without `--save`
   gets pruned by the next install (that silently removed `playwright-core` once).
+  (4) **TG's guest join has no backend in this environment:** `server/.env`'s `WORKSHOP_PROXY_URL`
+  points at `us-central1-ai-canva-22-nbn-fee4b.cloudfunctions.net/` — a function that was **never
+  deployed** (`firebase functions:list` → none; the original value predates the project migration
+  and was `https://carbondocs.web.app/api/workshop/join`, whose tokens are minted for the legacy
+  project and can't sign into this app). The local proxy therefore 502s, the guest never gets a
+  token, and **"TG guest gets the profile step" fails (30s timeout) by environment, not by code**
+  — its landing-card check still passes. Fixing it needs a deployed Admin-SDK join endpoint for
+  `ai-canva-22-nbn-fee4b` (deploy `functions/`, or stand one up and repoint the env var); until
+  then expect **100/101**. TF/Guest were previously masked entirely by the stale `carbondocs`
+  project id in the suite's admin REST calls (fixed in `e2e.mjs` — see the E2E suite bullet).
 - **T7 can fail spuriously under model latency:** Part 1's "research generated via real
   /api/generate" check polls at most 90s (45 × 2s) for a REAL model call to land, so a slow
   generation shows up as three failures (`output 0 chars`, `token usage recorded`, `markdown output
   rendered`) while the rest of the suite passes — **re-run before hunting a regression** (observed
-  once, passed 105/105 on the next run). Its sibling check `token badge visible` is a weak assertion
+  once; the immediate re-run passed in full). Its sibling check `token badge visible` is a weak assertion
   (it searches the whole page text for `tok`), so it can pass while those three fail.
 - **UI text markers the E2E clicks by** (keep these EXACT strings when restyling — the suite
   finds buttons by `textContent`, not selectors): header `Boards (` and `New Board` (capital B)
@@ -357,6 +424,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   no-wheel zone — trackpad scroll/pinch over a box never zooms the canvas (it would fight the
   box's own scrolling); zooming still works over empty canvas space. Keep this prop if you add
   scrollable surfaces inside nodes.
+- **Board save vs. snapshot race (`localDirty`):** `boardStore.ts` keeps a module-level
+  `localDirty` + `localEditGen` pair — `scheduleSave()` marks state dirty, and
+  `saveToFirestore()` clears it only when no newer edit superseded the write it captured (one
+  `saveTimestamp` feeds BOTH the doc's `updatedAt` and `lastSavedUpdatedAt`, so `isEcho` matches
+  the optimistic pre-ack snapshot instead of missing by a `Date.now()` delta). While dirty,
+  remote `onSnapshot` updates are NOT applied, and `loadBoardFromFirestore` does NOT apply its
+  fetched doc when the fetched id is the *current* board (board switches still apply) —
+  otherwise a late snapshot or the post-reload `getDoc` landing inside the 1s debounce reverts
+  just-typed content and the queued save then persists the reverted state on every client
+  (this silently broke E2E T12's note A→B sync twice before the guard existed). Diagnose with
+  **`client/probe-t12.mjs`** — a self-cleaning standalone T12 repro with synchronous
+  instrumentation (`node probe-t12.mjs [delayMs]`; 0 reproduces the old failure, edits after
+  reload must survive).
 - **Run input gates (refuse before the model call):** `runInputBlocker(boxType, nodes, edges,
   boxData, id)` in `client/src/lib/inputs.ts` returns `null` (may run) or a user-facing reason,
   and `runBox` applies it BEFORE any model call (sets `status: "error"` with the reason and
@@ -546,16 +626,17 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     ✕s are always visible + 30px on touch via their own classes.
   - **Touch-target classes:** `.box-footer button`, `.slide-nav`, `.timer-controls button`,
     `.checklist-check` / `.checklist-row-actions button` / `.checklist-assign` /
-    `.checklist-add-*`, `.area-color-dot`/`.label-color-dot`, `.palette-row`, `.sidebar-tab`,
+    `.checklist-add-*`, `.area-color-dot`/`.label-color-dot`, `.palette-row`,
+    `.rail-btn` (46px min-height), `.bar-zoom-btn` (36px), `.area-color-swatch` (30px),
     `.help-anchor`, `.app-bar button/input`. React Flow connection handles are forced to 18px with
-    `!important` (BoxNode sets 10px inline), resize handles 20px, controls 34px.
+    `!important` (BoxNode sets 10px inline), resize handles 20px.
   - **Box bodies scroll on touch:** the standard box-card body wrapper is `box-body nodrag` +
     `touch-action: pan-y` (coarse only) so a finger scrolls long output instead of dragging the
     node. Side effect on desktop too: boxes are dragged by their header strip (consistent with the
     idea-textarea `nodrag` convention).
   - **Canvas:** empty-canvas **double-click / double-tap zooms in** ×1.6 toward the pointer via
     the app's own `onDoubleClick` on `<ReactFlow>` (`Canvas.tsx`) — target checks exclude every
-    node except an Area, `button/input/textarea/select/a`, and the Controls/Minimap/panels; it is
+    node except an Area, `button/input/textarea/select/a`, and the Minimap/CanvasBar/panels; it is
     also inert while the Area tool is active. React Flow's `zoomOnDoubleClick` deliberately stays
     `false`: its d3 listener is attached to the renderer (so it fires from inside boxes) and on
     touch screens it bypasses the event filter entirely. Note React Flow v12's default
@@ -568,7 +649,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     `env(safe-area-inset-*)`; root uses `100dvh`; `overscroll-behavior: none`; global
     `touch-action: manipulation` on buttons kills double-tap zoom; `body` is `user-select: none` on
     coarse pointers with `input`/`textarea`/`.markdown-output`/CodeMirror re-enabled.
-  - Verified with the full E2E (105/105, desktop viewport) — keep the suite green when extending.
+  - Verified with the full E2E (desktop viewport; latest score in `docs/DEVLOG.md`) — keep the
+    suite green when extending.
 - **Custom boxes (user-created templates):** users create reusable AI box templates ("✨ New
   Custom Box" in the sidebar) — name, emoji, color, prompt template, system prompt. Definitions
   are saved per-user at `users/{uid}/boxes/{boxId}` (owner-only rules; `userBoxesStore.ts` loads
@@ -606,10 +688,15 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   `isTemplate`/`teamId`/`memberUids` or template flags are silently dropped).
 - **Presence & the board roster:** `boards/{id}/presence/{uid}` docs power live cursors
   (`Cursors.tsx`) and the header roster (`PresenceRoster.tsx`). Cursor moves are throttled to one
-  write per 200ms; a **heartbeat in `boardStore.ts` re-stamps `lastActive` every 15s** while a
-  board is open (started in `subscribeToBoardUpdates`, cleared in `unsubscribeFromBoard`) so users
+  write per 200ms; presence is written **immediately when `subscribeToBoardUpdates` runs**, and a
+  **heartbeat re-stamps `lastActive` every 15s** while a
+  board is open (heartbeat cleared in `unsubscribeFromBoard`) so users
   who are online but idle stay listed — `subscribeToPresence` filters out entries stale for >30s,
-  so without the heartbeat idle users would vanish from the roster. Heartbeat-only users carry
+  so without the heartbeat idle users would vanish from the roster. The immediate stamp matters:
+  the cursor path only fires on real mouse movement (an idle/headless user may never move over
+  the pane — note events over the help card/palette/chrome never reach React Flow's wrapper), and
+  15s was long enough that a roster check could run before the first tick (E2E run #3 failed
+  exactly there). Heartbeat-only users carry
   `hasCursor: false` (PresenceUser) and `Cursors.tsx` skips them, so no stray cursor renders at
   (0,0). The roster popover (`PresenceRoster.tsx`, test ids `roster-popover`/`roster-row`/
   `you-chip`) shows online users (with a "you" marker) plus board collaborators who are offline —
