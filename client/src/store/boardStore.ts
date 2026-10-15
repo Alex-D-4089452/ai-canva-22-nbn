@@ -683,7 +683,9 @@ export const useBoardStore = create<BoardState>()(
           collaborators: [],
           nodes: keep ? state.nodes : [],
           edges: keep ? state.edges : [],
-          boxData: keep ? state.boxData : {},
+          // defaultBoxData carries undefined placeholders (imageData, documents…)
+          // which Firestore rejects — same cleanup saveToFirestore applies.
+          boxData: keep ? cleanBoxDataForFirestore(state.boxData) : {},
           createdAt: now, updatedAt: now,
         });
         set({
