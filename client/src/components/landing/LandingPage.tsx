@@ -2,6 +2,9 @@ import { useState } from "react";
 import { signInWithGoogle } from "../../lib/auth.js";
 import LandingNav from "./LandingNav.js";
 import LandingHero from "./LandingHero.js";
+import LandingWorkshop from "./LandingWorkshop.js";
+import type { WorkshopJoinState } from "./LandingWorkshop.js";
+import LandingValue from "./LandingValue.js";
 import LandingHowItWorks from "./LandingHowItWorks.js";
 import LandingFeatures from "./LandingFeatures.js";
 import LandingBoxes from "./LandingBoxes.js";
@@ -10,7 +13,12 @@ import LandingCTA from "./LandingCTA.js";
 import LandingFooter from "./LandingFooter.js";
 import { useTheme } from "./useTheme.js";
 
-export default function LandingPage() {
+interface LandingPageProps {
+  /** Guest seat-code join state, owned by App (it flips `user` on success). */
+  workshop: WorkshopJoinState;
+}
+
+export default function LandingPage({ workshop }: LandingPageProps) {
   const [signingIn, setSigningIn] = useState(false);
   const { isDark, toggle } = useTheme();
 
@@ -39,6 +47,8 @@ export default function LandingPage() {
       />
       <main>
         <LandingHero onSignIn={handleSignIn} signingIn={signingIn} />
+        <LandingWorkshop workshop={workshop} onSignIn={handleSignIn} />
+        <LandingValue />
         <LandingHowItWorks />
         <LandingFeatures />
         <LandingBoxes />
