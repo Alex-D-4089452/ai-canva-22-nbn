@@ -35,6 +35,16 @@ import {
 } from "../lib/deploy.js";
 import { parseSlidesResponse } from "../lib/slides.js";
 import { placeNewBox } from "../lib/placement.js";
+import {
+  EMPTY_HISTORY,
+  boardChangeKind,
+  isTransientPatch,
+  recordHistoryEntry,
+  redoFrom,
+  undoFrom,
+  type BoardSnapshot,
+  type HistoryStack,
+} from "../lib/history.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import { DEFAULT_TIMER_MS } from "../lib/timer.js";
 import type { CustomBoxDef } from "../lib/customBoxes.js";
@@ -79,12 +89,99 @@ function defaultBoxPosition(
 // Debounced save to Firestore — triggers 1s after the last change
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleSave() {
+  captureHistory();
   localDirty = true;
   localEditGen++;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     useBoardStore.getState().saveToFirestore();
   }, 1000);
+}
+
+// === Undo / redo history ===
+// Module-level (like localDirty) and deliberately NOT part of the store state:
+// the stacks are read through the derived `canUndo`/`canRedo` flags, so steps
+// never re-render the tree. `scheduleSave` is the single funnel every LOCAL
+// edit goes through (remote snapshots and presence sets never call it), which
+// makes it the one place a pre-edit snapshot needs to be taken.
+
+/** The board content an undo step restores. */
+let history: HistoryStack = EMPTY_HISTORY;
+/** The state the NEXT undo step would go back to; seeded on first use. */
+let historyBaseline: BoardSnapshot | null = null;
+/** The change about to be applied is run bookkeeping, not an undo step. */
+let historyTransient = false;
+/** True while undo/redo applies its own restore, so it is not recorded. */
+let historySuspended = false;
+
+function currentSnapshot(): BoardSnapshot {
+  const s = useBoardStore.getState();
+  return { nodes: s.nodes, edges: s.edges, boxData: s.boxData, boardTitle: s.boardTitle };
+}
+
+function currentBaseline(): BoardSnapshot {
+  if (!historyBaseline) historyBaseline = currentSnapshot();
+  return historyBaseline;
+}
+
+/**
+ * Called from scheduleSave (i.e. after EVERY local edit): push the pre-edit
+ * snapshot, coalescing same-kind bursts (typing, dragging) into one step.
+ */
+function captureHistory() {
+  const next = currentSnapshot();
+  if (historySuspended) {
+    historyBaseline = next;
+    return;
+  }
+  // Run bookkeeping (status flips, "Ran at", tokens) is folded into the step
+  // that produced the content: leave the baseline where it is so the next real
+  // edit still goes back past the whole run.
+  if (historyTransient) {
+    historyTransient = false;
+    return;
+  }
+  const pre = currentBaseline();
+  const kind = boardChangeKind(pre, next);
+  historyBaseline = next;
+  if (!kind) return; // selection-only — nothing worth undoing
+  history = recordHistoryEntry(history, pre, kind, Date.now());
+  syncHistoryFlags();
+}
+
+function syncHistoryFlags() {
+  const canUndo = history.undo.length > 0;
+  const canRedo = history.redo.length > 0;
+  const s = useBoardStore.getState();
+  if (s.canUndo !== canUndo || s.canRedo !== canRedo) {
+    useBoardStore.setState({ canUndo, canRedo });
+  }
+}
+
+/** History is board-scoped: any board switch (or clear) starts it over. */
+function resetHistory() {
+  history = EMPTY_HISTORY;
+  historyBaseline = currentSnapshot();
+  historyTransient = false;
+  syncHistoryFlags();
+}
+
+/** Put a snapshot back on the board and persist it like any other edit. */
+function applyHistorySnapshot(snapshot: BoardSnapshot) {
+  historySuspended = true;
+  try {
+    useBoardStore.setState({
+      nodes: snapshot.nodes,
+      edges: snapshot.edges,
+      boxData: snapshot.boxData,
+      boardTitle: snapshot.boardTitle,
+    });
+    historyBaseline = snapshot;
+    scheduleSave();
+  } finally {
+    historySuspended = false;
+  }
+  syncHistoryFlags();
 }
 
 // === Collaboration helpers ===
@@ -198,6 +295,11 @@ interface BoardState {
   collaborators: string[];
   activeUsers: PresenceUser[];
 
+  /** True while an undo step is available (drives the bottom-bar buttons). */
+  canUndo: boolean;
+  /** True while a redo step is available. */
+  canRedo: boolean;
+
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
@@ -250,6 +352,18 @@ interface BoardState {
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
 
+  /**
+   * Undo the last local board edit (Ctrl/Cmd+Z): restores the pre-edit board
+   * content — boxes, connections, typed text, moves, the board title — and
+   * saves it like any other edit. Returns false when there is nothing to undo.
+   * Board-scoped and in-memory only: history is dropped on a board switch and
+   * on reload. Run bookkeeping (status flips, "Ran at", tokens) folds into the
+   * run's own step, so undoing a run takes the box back to "not run".
+   */
+  undo: () => boolean;
+  /** Re-apply what `undo` just reversed (Ctrl+Shift+Z / Ctrl+Y). */
+  redo: () => boolean;
+
   // Board operations (Firestore)
   createNewBoard: (title?: string, opts?: { preserveContent?: boolean }) => Promise<void>;
   /** Returns true when the board was found and applied; false if the id is dead. */
@@ -281,6 +395,8 @@ export const useBoardStore = create<BoardState>()(
       boardList: [],
       collaborators: [],
       activeUsers: [],
+      canUndo: false,
+      canRedo: false,
 
       onNodesChange: (changes) => {
         set({ nodes: applyNodeChanges(changes, get().nodes) });
@@ -422,6 +538,10 @@ export const useBoardStore = create<BoardState>()(
       updateBoxData: (id, patch) => {
         const current = get().boxData[id];
         if (!current) return;
+        // Status flips, the error line, "Ran at" and token counts are run
+        // bookkeeping — they fold into the undo step of the content change
+        // they belong to instead of becoming steps of their own.
+        if (isTransientPatch(patch)) historyTransient = true;
         set({
           boxData: {
             ...get().boxData,
@@ -694,6 +814,26 @@ export const useBoardStore = create<BoardState>()(
         get().updateBoxData(id, { checklistItems: items });
       },
 
+      // === Undo / redo (Ctrl+Z / Ctrl+Shift+Z) ===
+      // The stacks live at module level (see captureHistory above); these two
+      // actions pop one, put its snapshot back and persist it like any edit.
+
+      undo: () => {
+        const step = undoFrom(history, currentSnapshot(), Date.now());
+        if (!step) return false;
+        history = step.stack;
+        applyHistorySnapshot(step.restored);
+        return true;
+      },
+
+      redo: () => {
+        const step = redoFrom(history, currentSnapshot(), Date.now());
+        if (!step) return false;
+        history = step.stack;
+        applyHistorySnapshot(step.restored);
+        return true;
+      },
+
       // --- Firestore board operations ---
 
       createNewBoard: async (title, opts) => {
@@ -726,6 +866,7 @@ export const useBoardStore = create<BoardState>()(
           ...(keep ? null : { nodes: [], edges: [], boxData: {} }),
           saveStatus: "saved",
         });
+        resetHistory();
         get().refreshBoardList();
       },
 
@@ -760,6 +901,9 @@ export const useBoardStore = create<BoardState>()(
           saveStatus: "saved",
           activeUsers: [],
         });
+        // History is board-scoped: undo must never walk back into the board
+        // we just navigated away from.
+        resetHistory();
         // Subscription is handled automatically by the useEffect in App.tsx
         // that watches currentBoardId — no need to manually subscribe here
         return true;
@@ -891,6 +1035,7 @@ export const useBoardStore = create<BoardState>()(
             nodes: [], edges: [], boxData: {},
             saveStatus: "idle",
           });
+          resetHistory();
           get().refreshBoardList();
         } catch (err) {
           console.error("Failed to delete board:", err);
@@ -906,6 +1051,8 @@ export const useBoardStore = create<BoardState>()(
           collaborators: [],
           activeUsers: [],
         });
+        // Clearing drops the board itself, so its history goes with it.
+        resetHistory();
       },
 
       // === Collaboration actions ===
@@ -982,6 +1129,8 @@ export const useBoardStore = create<BoardState>()(
         if (presenceHeartbeat) { clearInterval(presenceHeartbeat); presenceHeartbeat = null; }
         get().cleanupPresence();
         set({ activeUsers: [] });
+        // Leaving a board ends its undo history — steps never cross boards.
+        resetHistory();
       },
 
       shareBoard: async (emails) => {
@@ -1250,6 +1399,12 @@ export const useBoardStore = create<BoardState>()(
     }
   )
 );
+
+// Seed the undo baseline from the board that persist just rehydrated
+// (localStorage is synchronous, so the state above is already the stored
+// board): the first edit of a session must go back to THAT state, not to an
+// empty canvas. Board loads/switches re-seed it via resetHistory().
+resetHistory();
 
 /** Display name used for attributions (approvals, edits, rejections). */
 function actorName(): string {
