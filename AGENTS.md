@@ -197,7 +197,8 @@ and Run all render even before a board opens** (a board-less state still needs
 region containing `Canvas`, `CanvasRail` (left icon rail: **Add Box** toggles the palette,
 ▭ Area tool + its `.area-colors` picker, Notes, Help), `Sidebar` (the `.sidebar-panel` palette:
 search, role filter, collapsible sections), `Toolbar` (the "How to use" card — it shifts to
-`left-[368px]` while the palette is open), and `CanvasBar` (bottom-center: zoom −/%/+ + the
+`left-[368px]` while the palette is open), and `CanvasBar` (bottom-center: zoom −/%/+, **undo /
+redo** — the ↶/↷ buttons plus the Ctrl/Cmd+Z, Ctrl+Shift+Z / Ctrl+Y shortcuts — then the
 toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
 rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
 (`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — consumers subscribe
@@ -313,9 +314,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (32-check) verification of **every
+- **Marker check:** `client/markers-check.mjs` — fast headless (33-check) verification of **every
   text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
-  rail/palette, bottom bar, add-toast Undo, area tool + `▭ Area$`, `▶ Run` counting, Boards menu,
+  rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
+  `▶ Run` counting, Boards menu,
   box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
   `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
   `node markers-check.mjs` from `client/` after any chrome restyle, then the full suites; it saves
@@ -329,6 +331,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   store checks, deletes its board). `node probe-t12.mjs [delayMs]` from `client/`; delay 0 is the
   race-prone timing the `localDirty` guard must survive. See the "Board save vs. snapshot race"
   convention above.
+- **Undo probe:** `client/probe-undo.mjs` — self-cleaning check of Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y
+  against the real dev app with the fake user (add → undo → redo, a typing burst undone as one
+  step, **Ctrl+Z inside a textarea left to the browser's own text undo**, walking the stack dry,
+  board-title rename undone). `node probe-undo.mjs` from `client/`; no Firebase/Ollama needed.
 - **E2E environment gotchas:** (1) The firebase-tools access token
   (`~/.config/configstore/firebase-tools.json`) **expires ~hourly**; a stale token makes the
   facilitator PATCH silently 401 → the "TF facilitator button appears after grant" check FAILS.
@@ -369,6 +375,44 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
+- **New-box placement (no explicit position):** `addBox`/`addCustomBox` called WITHOUT a position
+  (palette, canvas-rail Note, custom-box instances) drop the box in the **middle of the visible
+  viewport**, then move it to the nearest free box-sized tile around that centre (right first,
+  then down) so repeated adds fan out instead of stacking invisibly. Pure logic in
+  `client/src/lib/placement.ts` (`viewportCenter`, `placeNewBox`, `coversAnotherBox`,
+  unit-tested); `Canvas.tsx` publishes a **reader of the flow-space centre**
+  (`uiStore.setViewportCenterReader` / `readViewportCenter` — a function, not a value, so
+  pan/zoom never re-renders store subscribers), and `boardStore.defaultBoxPosition()` falls back
+  to the old fixed top-left area when no canvas has reported a centre yet (e.g. the seeded
+  starter board). Areas never count as collisions (they are background a box may sit on), and
+  callers that pass an explicit `position` (agent-loop children, the seeded idea/research pair)
+  are unaffected.
+- **Undo / redo (Ctrl+Z):** every LOCAL board edit is undoable — `Ctrl/Cmd+Z` (undo),
+  `Ctrl+Shift+Z` / `Ctrl+Y` (redo), plus ↶/↷ buttons in `CanvasBar`. Pure logic lives in
+  **`client/src/lib/history.ts`** (`boardChangeKind`, `recordHistoryEntry`, `undoFrom`/
+  `redoFrom`, `isTransientPatch`; unit-tested in `history.test.ts`); `boardStore.ts` keeps the
+  stacks at MODULE level (`history` + `historyBaseline`, alongside `localDirty`) and exposes only
+  derived `canUndo`/`canRedo` flags that `CanvasBar` subscribes to, so steps never re-render the
+  tree. Sharp edges, all deliberate:
+  - **Snapshot steps:** each step stores references to `{nodes, edges, boxData, boardTitle}` — the
+    store is immutable, so keeping 50 steps costs nothing but references.
+  - **`scheduleSave()` is the ONE recording funnel:** every local edit calls it, remote snapshots
+    and presence sets never do, so a collaborator's change is never recorded as your step.
+    `captureHistory()` takes the pre-edit snapshot there and classifies it (`topology` / `node` /
+    `data` / `title`; a selection-only change is ignored).
+  - **Coalescing:** same-kind edits within 800ms collapse into ONE step (typing burst, node
+    drag) — except `topology`, where every added/removed box stays its own step.
+  - **Runs are not steps of their own:** an `updateBoxData` patch touching only
+    `status`/`error`/`ranAt`/`tokens` is marked transient (`isTransientPatch`) and folded into the
+    step of the content change, so undoing a run takes the box back to "not run" instead of
+    stranding it mid-run.
+  - **Board-scoped and in-memory:** `resetHistory()` drops it on every board load / create /
+    clear / delete and on `unsubscribeFromBoard`; it is never persisted (empty after reload), and
+    undo steps never cross boards. Applying a step goes through `applyHistorySnapshot`
+    (`historySuspended` so the restore isn't recorded) and then saves like any other edit.
+  - **Editable fields keep their own undo:** the global keydown handler in `CanvasBar` ignores
+    `input`/`textarea`/`select`/`[contenteditable]`/`.cm-editor` targets, so native text undo
+    keeps working while typing. Behaviour is verified by `client/probe-undo.mjs`.
 - **Agent box (🤖, first worker in the palette):** users type a task and Run — the LLM acts as an
   autonomous controller that manipulates the BOARD: each controller turn returns exactly ONE JSON
   action (`add_box` / `connect` / `run_box` / `finish`), executed with the regular store actions,
