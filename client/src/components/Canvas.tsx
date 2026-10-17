@@ -19,6 +19,7 @@ import { useBoardStore } from "../store/boardStore.js";
 import { useUIStore } from "../store/uiStore.js";
 import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { viewportCenter } from "../lib/placement.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
@@ -59,6 +60,20 @@ export default function Canvas() {
 
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow();
   const rfStore = useStoreApi();
+
+  // A box added from the palette/rail lands in the MIDDLE of what the user is
+  // looking at: publish a reader of the flow-space viewport centre into
+  // uiStore (boardStore.addBox calls it via `placeNewBox`). It is a reader,
+  // not a value, so panning/zooming never re-renders the canvas tree.
+  const setViewportCenterReader = useUIStore((s) => s.setViewportCenterReader);
+  useEffect(() => {
+    setViewportCenterReader(() => {
+      const { width, height, transform } = rfStore.getState();
+      if (!width || !height) return null;
+      return viewportCenter(transform, width, height);
+    });
+    return () => setViewportCenterReader(null);
+  }, [setViewportCenterReader, rfStore]);
 
   // Track mouse movement and update presence
   const onMouseMove = useCallback(

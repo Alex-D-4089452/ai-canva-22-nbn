@@ -34,6 +34,7 @@ import {
   validateDeploySet,
 } from "../lib/deploy.js";
 import { parseSlidesResponse } from "../lib/slides.js";
+import { placeNewBox } from "../lib/placement.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import { DEFAULT_TIMER_MS } from "../lib/timer.js";
 import type { CustomBoxDef } from "../lib/customBoxes.js";
@@ -47,11 +48,32 @@ import {
 } from "../lib/firestore.js";
 import type { PresenceUser } from "../types/index.js";
 import { useAuthStore } from "./authStore.js";
+import { useUIStore } from "./uiStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Position for a box the caller didn't pin: centred in the visible viewport
+ * (Canvas publishes the flow-space centre through uiStore), nudged off boxes
+ * it would otherwise cover by `placeNewBox`. Falls back to the old fixed
+ * top-left area when no canvas has reported a centre yet — e.g. the seeded
+ * starter board created before the canvas mounts.
+ */
+function defaultBoxPosition(
+  nodes: Node[],
+  size: { width: number; height: number }
+): { x: number; y: number } {
+  const readCenter = useUIStore.getState().readViewportCenter;
+  return (
+    placeNewBox(nodes, readCenter ? readCenter() : null, size) || {
+      x: 200 + Math.random() * 200,
+      y: 150 + Math.random() * 100,
+    }
+  );
 }
 
 // Debounced save to Firestore — triggers 1s after the last change
@@ -180,12 +202,17 @@ interface BoardState {
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
 
+  /**
+   * Add a box to the board. Omit `position` and it lands in the middle of the
+   * visible viewport (see `defaultBoxPosition` / `lib/placement.ts`).
+   */
   addBox: (
     type: BoxType,
     position?: { x: number; y: number }
   ) => string;
   updateBoxData: (id: string, patch: Partial<BoxData>) => void;
   addArea: (rect: { x: number; y: number; width: number; height: number }, fill: string, border: string) => string;
+  /** Instantiate a custom template; like `addBox`, a missing `position` centres it. */
   addCustomBox: (def: CustomBoxDef, position?: { x: number; y: number }) => string;
   setAreaColor: (id: string, fill: string, border: string) => void;
   setBoxName: (id: string, name: string) => void;
@@ -281,10 +308,12 @@ export const useBoardStore = create<BoardState>()(
         const node: Node = {
           id,
           type,
-          position: position || {
-            x: 200 + Math.random() * 200,
-            y: 150 + Math.random() * 100,
-          },
+          position:
+            position ||
+            defaultBoxPosition(get().nodes, {
+              width: meta.defaultWidth,
+              height: meta.defaultHeight,
+            }),
           data: {
             boxType: type,
             title: `${meta.label} Box`,
@@ -356,10 +385,12 @@ export const useBoardStore = create<BoardState>()(
         const node: Node = {
           id,
           type: "custom",
-          position: position || {
-            x: 200 + Math.random() * 200,
-            y: 150 + Math.random() * 100,
-          },
+          position:
+            position ||
+            defaultBoxPosition(get().nodes, {
+              width: meta.defaultWidth,
+              height: meta.defaultHeight,
+            }),
           data: {
             boxType: "custom",
             title: def.label + " Box",
