@@ -1,15 +1,22 @@
-import { useState } from "react";
+import { useUIStore } from "../store/uiStore.js";
 
 /**
  * Canvas help card ("How to use") — bottom-left, dismissible to a "?" pill.
  * Note: the E2E suite locates this card by finding a `rounded-xl` div whose
  * text includes "How to use" — keep both markers when restyling.
+ * Visibility lives in uiStore (the rail's Help button toggles it).
  */
 export default function Toolbar() {
-  const [open, setOpen] = useState(true);
+  const open = useUIStore((s) => s.helpOpen);
+  const setOpen = useUIStore((s) => s.setHelp);
+  const paletteOpen = useUIStore((s) => s.paletteOpen);
 
   return (
-    <div className="help-anchor absolute bottom-4 left-4 z-10">
+    <div
+      className={
+        "help-anchor absolute bottom-4 z-10 " + (paletteOpen ? "left-[368px]" : "left-20")
+      }
+    >
       {open ? (
         <div className="rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-xl shadow-slate-900/10 p-4 w-[300px]">
           <div className="flex items-center justify-between mb-3">
@@ -26,8 +33,8 @@ export default function Toolbar() {
           <ol className="space-y-2.5">
             {[
               <>
-                Add boxes from the panel on the right (toggle with{" "}
-                <span className="font-medium text-slate-700">+ Add Box</span>).
+                Add boxes from the panel on the left (toggle with{" "}
+                <span className="font-medium text-slate-700">Add Box</span> on the rail).
               </>,
               <>
                 Type your idea in an{" "}

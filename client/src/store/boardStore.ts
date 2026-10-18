@@ -57,6 +57,8 @@ function makeId(): string {
 // Debounced save to Firestore — triggers 1s after the last change
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleSave() {
+  localDirty = true;
+  localEditGen++;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     useBoardStore.getState().saveToFirestore();
@@ -83,6 +85,16 @@ function getColorForEmail(email: string): string {
 // Track last local save time to prevent onSnapshot echo
 let lastSaveTime = 0;
 let lastSavedUpdatedAt = 0;
+// Pending local edits: set by scheduleSave, cleared when saveToFirestore
+// finishes writing the state it captured. While true, remote snapshots are
+// NOT applied — they reflect the server BEFORE our debounced write lands, so
+// applying one reverts just-typed content and the save then persists the
+// reverted state (the T12 "note edit syncs" bug; repro: probe-t12.mjs).
+// localEditGen distinguishes "this save wrote everything" from "the user
+// typed more while the write was in flight" (only clear the flag for the
+// former — the newer edit has its own save scheduled).
+let localDirty = false;
+let localEditGen = 0;
 
 // Throttle presence updates to max 1 write per 200ms
 let presenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -671,7 +683,9 @@ export const useBoardStore = create<BoardState>()(
           collaborators: [],
           nodes: keep ? state.nodes : [],
           edges: keep ? state.edges : [],
-          boxData: keep ? state.boxData : {},
+          // defaultBoxData carries undefined placeholders (imageData, documents…)
+          // which Firestore rejects — same cleanup saveToFirestore applies.
+          boxData: keep ? cleanBoxDataForFirestore(state.boxData) : {},
           createdAt: now, updatedAt: now,
         });
         set({
@@ -695,6 +709,16 @@ export const useBoardStore = create<BoardState>()(
           return false;
         }
         console.log("[load] Board collaborators from Firestore:", board.collaborators);
+        // Unsaved local edits for THIS board are newer than the fetched
+        // document — the typical case is the first keystrokes after a page
+        // reload landing before this getDoc resolves (~0.5–2s). Applying
+        // would revert them and the queued save would persist the reverted
+        // state; keep local (the pending save already carries it). Board
+        // SWITCHES (fetched id ≠ current board) still apply normally.
+        if (localDirty && boardId === get().currentBoardId) {
+          console.log("[load] Keeping local state — unsaved local changes pending");
+          return true;
+        }
         set({
           currentBoardId: board.id,
           boardTitle: board.title,
@@ -713,10 +737,25 @@ export const useBoardStore = create<BoardState>()(
       saveToFirestore: async () => {
         const state = get();
         const user = useAuthStore.getState().user;
-        if (!user || !state.currentBoardId) return;
+        // Edits made AFTER this point schedule their own save — this one only
+        // writes the state it just captured, so it may clear localDirty only
+        // when no newer edit exists.
+        const editGenAtStart = localEditGen;
+        const clearDirtyIfCurrent = () => {
+          if (localEditGen === editGenAtStart) localDirty = false;
+        };
+        if (!user || !state.currentBoardId) {
+          clearDirtyIfCurrent();
+          return;
+        }
+        // ONE timestamp for the write and for lastSavedUpdatedAt: the
+        // optimistic (pre-ack) snapshot of our own write carries this exact
+        // updatedAt, so isEcho matches from the first delivery instead of
+        // missing by the Date.now() delta between the old two calls.
+        const saveTimestamp = Date.now();
         set({ saveStatus: "saving" });
-        lastSaveTime = Date.now();
-        lastSavedUpdatedAt = Date.now();
+        lastSaveTime = saveTimestamp;
+        lastSavedUpdatedAt = saveTimestamp;
         console.log("[save] email:", user.email, "| uid:", user.uid, "| boardId:", state.currentBoardId);
         console.log("[save] collaborators in store:", state.collaborators);
         try {
@@ -729,7 +768,6 @@ export const useBoardStore = create<BoardState>()(
           // Only save board CONTENT — do NOT include collaborators.
           // Collaborators are managed by shareBoard/unshareBoard (arrayUnion/arrayRemove).
           // Including collaborators here could overwrite the real list and break access.
-          const saveTimestamp = Date.now();
           await updateBoardData(state.currentBoardId, {
             title: state.boardTitle,
             nodes: state.nodes,
@@ -738,6 +776,7 @@ export const useBoardStore = create<BoardState>()(
             updatedAt: saveTimestamp,
           });
           lastSavedUpdatedAt = saveTimestamp;
+          clearDirtyIfCurrent();
           console.log("[save] SUCCESS | updatedAt:", saveTimestamp, "| user:", user.email);
           set({ saveStatus: "saved" });
         } catch (err: any) {
@@ -763,16 +802,19 @@ export const useBoardStore = create<BoardState>()(
                 updatedAt: saveTimestamp,
               });
               lastSavedUpdatedAt = saveTimestamp;
+              clearDirtyIfCurrent();
               console.log("[save] RECREATED missing board doc", state.currentBoardId);
               set({ saveStatus: "saved" });
               return;
             } catch (err2) {
               console.error("Firestore save (recreate) failed:", err2);
+              clearDirtyIfCurrent();
               set({ saveStatus: "error" });
               return;
             }
           }
           console.error("Firestore save failed:", err);
+          clearDirtyIfCurrent();
           set({ saveStatus: "error" });
         }
       },
@@ -845,6 +887,15 @@ export const useBoardStore = create<BoardState>()(
 
         // Subscribe to board document changes (real-time sync)
         boardUnsub = subscribeToBoard(boardId, (board) => {
+          // Pending local edits are NEWER than this snapshot: our debounced
+          // write has not landed yet, so the snapshot reflects the server as
+          // it was before the edit. Applying it would revert just-typed
+          // content — and the queued save would then persist the reverted
+          // state (silently losing the edit on every client).
+          if (localDirty) {
+            console.log("[sync] Skipping remote update — unsaved local changes pending");
+            return;
+          }
           // Echo prevention: compare the snapshot's updatedAt with our last saved updatedAt.
           // If they match, this is our own save echoing back — skip it.
           // If they differ, it's another user's update — apply it.
@@ -869,7 +920,7 @@ export const useBoardStore = create<BoardState>()(
         // Presence heartbeat: even without mouse movement, refresh
         // lastActive every 15s so the online roster stays accurate.
         if (presenceHeartbeat) clearInterval(presenceHeartbeat);
-        presenceHeartbeat = setInterval(async () => {
+        const stampPresence = async () => {
           const user = useAuthStore.getState().user;
           const bid = get().currentBoardId;
           if (!user || !bid) return;
@@ -885,7 +936,13 @@ export const useBoardStore = create<BoardState>()(
           } catch {
             // best-effort
           }
-        }, 15000);
+        };
+        // Write presence IMMEDIATELY — a user who just opened the board should
+        // appear on the roster at once, not only after the first 15s tick
+        // (the cursor path needs mouse movement, which an idle user may never
+        // make).
+        void stampPresence();
+        presenceHeartbeat = setInterval(stampPresence, 15000);
       },
 
       unsubscribeFromBoard: () => {

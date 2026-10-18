@@ -29,6 +29,46 @@ current state).
 
 ---
 
+## 2026-10-15 — Canvas UI restyle (dark bar, pipeline strip, left rail/palette, status pills)
+
+- **Done:** restyled the whole canvas chrome to the reference design — dark app bar + **Run all**
+  (SVG glyph, sequential via `lib/pipeline.ts` `pipelineOrder()`), **PipelineStrip** (states from
+  new pure `lib/status.ts` `boxStatus()`), left **CanvasRail** + **Sidebar** palette
+  (descriptions/+✓ via CSS pseudo-elements so `endsWith(label)` rows hold), floating **status
+  pills** (`.box-pill`), dotted edges, bottom-center **CanvasBar** (replaces `<Controls />`), new
+  non-persisted **`store/uiStore.ts`**, dark `Button` variants. New pure libs + tests
+  `lib/status.ts`/`lib/pipeline.ts`; new tools **`markers-check.mjs`** (32 checks + screenshot),
+  **`chrome.mjs`** (shared Chrome resolver — suites hardcoded a macOS path), **`probe-t12.mjs`**,
+  **`probe-presence.mjs`**. Real bugs fixed while verifying: `createNewBoard(preserveContent)`
+  now cleans `boxData` for Firestore; `e2e.mjs` facilitator grant + guest delete targeted legacy
+  **`carbondocs`** not `ai-canva-22-nbn-fee4b`; **T12 note A→B sync** was a save/snapshot race →
+  module-level `localDirty`/`localEditGen` guards in `boardStore.ts` (skip snapshot apply + 
+  same-board load while dirty; one `saveTimestamp` feeds `updatedAt`+`lastSavedUpdatedAt` so
+  `isEcho` matches) — probe passes at delay 0 and 25s; **TG guest join is environment-blocked**
+  (no backend answers `/api/workshop/join` for this project — `WORKSHOP_PROXY_URL` targets a
+  never-deployed function; Render returns 501, old carbondocs endpoint would mint wrong-project
+  tokens; fix needs a deployed join endpoint — offer a `functions/` deploy, Blaze, user consent
+  required). E2E **run #3 = 98/101** (T12 + TF green; TG ×3 environment; roster ×2 because B's
+  own presence doc didn't exist yet — first heartbeat at 15s and headless mouse moves landed on
+  the open help card, never reaching React Flow). Post-run fixes: **presence stamped immediately
+  on `subscribeToBoardUpdates`** (not only every 15s); **header dropdowns were clipped by the
+  pipeline strip** (both z-40, strip later → won; strip lowered to `z-30`, header keeps `z-40`,
+  hit-test guard in markers-check); user-reported regressions restored verbatim from HEAD — the
+  **type-tinted `.box-header`** (`meta.color + "20"`) and the in-card **run-status strip**
+  (`.run-status`, "Not run yet"/"Ran at …") — with two new markers checks; probe-presence mouse
+  moves moved off the help card onto the empty pane. Final verification before the re-run: `tsc`
+  clean, 259 unit tests, markers **32/32**, ui-smoke **18/18**. AGENTS.md updated (design rules +
+  chrome layering, presence stamp, markers 32, probe-presence bullet, stale "105/105" claims).
+  E2E **run #4 = 100/101**: every fix landed (T12 note sync ✓, roster "both users" + "2 online" ✓
+  with `activeEmails:[b,a]`, TF ✓); the single failure is **TG's profile step = environment**
+  (landing-card check passes; no `/api/workshop/join` backend exists for this project).
+- **In flight:** — all suites green; **everything is uncommitted on top of `173b362`**.
+- **Next steps:** commit the work. Optional decisions for the user: (a) deploy `functions/` to
+  give TG a real join endpoint (Blaze, production change — needed for TG green);
+  (b) `probe-presence.mjs` re-run if the cursor-write path needs re-checking (it now aims at the
+  empty pane instead of the help card). The redundant dev instance (5174/3002) was stopped at
+  session end; keep the pre-existing 5173/3001.
+
 ## 2026-10-14 — Landing page redesign: light + dark themes
 
 - **Done:** restyled the whole landing page to the new reference design, in **both light and dark

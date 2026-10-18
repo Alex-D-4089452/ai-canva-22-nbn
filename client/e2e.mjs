@@ -13,6 +13,7 @@
  * Run: node e2e.mjs   (from client/, dev server on 5173 must be running)
  */
 import { chromium } from "playwright-core";
+import { resolveChrome } from "./chrome.mjs";
 
 const APP = "http://localhost:5173";
 const results = [];
@@ -23,7 +24,7 @@ const check = (name, ok, detail = "") => {
 const safe = async (name, fn) => { try { return await fn(); } catch (e) { return check(name, false, "ERROR: " + e.message.slice(0, 60)); } };
 
 const browser = await chromium.launch({
-  executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  executablePath: resolveChrome() || undefined,
   headless: true,
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -777,7 +778,13 @@ await pageA.goto(APP, { waitUntil: "load" });
       }),
       { label: "B sees A's note edit", timeout: 15000 }
     ).catch(() => null);
-    check("T12 note edit syncs A → B live", !!bSawEdit);
+    // On failure, capture A's side (local content + save state) so a flaky
+    // cloud round-trip is distinguishable from a broken edit→save path.
+    const t12dbg = bSawEdit ? "" : await pageA.evaluate((id) => {
+      const s = window.__dsh.useBoardStore.getState();
+      return JSON.stringify({ local: s.boxData[id]?.content, save: s.saveStatus, board: s.currentBoardId });
+    }, noteId).catch(() => "n/a");
+    check("T12 note edit syncs A → B live", !!bSawEdit, t12dbg);
 
     // B adds a Timer box via its real palette, then starts it; A must see the
     // new box AND the running timer with attribution (full cross-user sync).
@@ -1230,7 +1237,9 @@ try {
   // no token — facilitator checks will be skipped gracefully
 }
 const fsRest = (method, path, body) =>
-  fetch(`https://firestore.googleapis.com/v1/projects/carbondocs/databases/(default)/documents${path}`, {
+  // Must target the project the CLIENT uses (client/src/lib/firebase.ts) —
+  // grants written to the legacy carbondocs project are invisible to the app.
+  fetch(`https://firestore.googleapis.com/v1/projects/ai-canva-22-nbn-fee4b/databases/(default)/documents${path}`, {
     method,
     headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -1474,8 +1483,10 @@ await safe("TF facilitator flow", async () => {
         check("TG guest sees the team board in their board list", listHasTeam);
 
         // Cleanup: delete the guest auth user (REST) + close context.
+        // (Same project as the client — a carbondocs URL here silently 404s
+        // and leaks the guest account into ai-canva's Identity Toolkit.)
         if (guestUid && adminToken) {
-          await fetch("https://identitytoolkit.googleapis.com/v1/projects/carbondocs/accounts:delete", {
+          await fetch("https://identitytoolkit.googleapis.com/v1/projects/ai-canva-22-nbn-fee4b/accounts:delete", {
             method: "POST",
             headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ localId: guestUid }),

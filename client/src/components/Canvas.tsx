@@ -16,9 +16,9 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
+import { useUIStore } from "../store/uiStore.js";
 import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
-import { Button } from "./ui/Button.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
@@ -91,9 +91,12 @@ export default function Canvas() {
   }, [cleanupPresence]);
 
   // === Area drawing tool ===
+  // Activation + color live in uiStore (the buttons are on the left canvas
+  // rail); the in-progress draft rectangle is drawn here on the canvas.
   const addArea = useBoardStore((s) => s.addArea);
-  const [areaTool, setAreaTool] = useState(false);
-  const [areaColorIdx, setAreaColorIdx] = useState(0);
+  const areaTool = useUIStore((s) => s.areaTool);
+  const areaColorIdx = useUIStore((s) => s.areaColorIdx);
+  const setAreaTool = useUIStore((s) => s.setAreaTool);
   const [draft, setDraft] = useState<{ start: { x: number; y: number }; current: { x: number; y: number } } | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -246,12 +249,13 @@ export default function Canvas() {
       // panning the canvas or moving nodes.
       panOnDrag={!areaTool}
       nodesDraggable={!areaTool}
-      className={areaTool ? "area-tool-active" : undefined}
+      className={"board-flow" + (areaTool ? " area-tool-active" : "")}
       fitView
       fitViewOptions={{ padding: 0.3 }}
       defaultEdgeOptions={{
-        animated: true,
-        style: { stroke: "#cbd5e1", strokeWidth: 2 },
+        // Quiet dotted connectors (the reference design's "· · · ·" edges);
+        // the connection handles are already colored dots in the box color.
+        style: { stroke: "#94a3b8", strokeWidth: 2, strokeDasharray: "1 6", strokeLinecap: "round" },
       }}
       proOptions={{ hideAttribution: true }}
       // Treat every node as a "no wheel" zone: when the cursor is over a box,
@@ -259,37 +263,8 @@ export default function Canvas() {
       // box's own scrolling). Zooming still works over empty canvas space.
       noWheelClassName="react-flow__node"
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
-      <Controls />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="#cbd5e1" />
       <Cursors />
-      {/* Area drawing tool */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-        <Button
-          size="xs"
-          variant={areaTool ? "primary" : "secondary"}
-          onClick={() => { setAreaTool((t) => !t); setDraft(null); }}
-          title="Draw a rectangular area under the boxes"
-          className="shadow-md"
-        >
-          ▭ {areaTool ? "Drawing areas — Esc to stop" : "Area"}
-        </Button>
-        {areaTool && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur px-2 py-1.5 shadow-md border border-slate-200">
-            {AREA_COLORS.map((c, i) => (
-              <button
-                key={c.fill}
-                onClick={() => setAreaColorIdx(i)}
-                title={`Draw color — ${c.name}`}
-                className={
-                  "w-5 h-5 rounded-md border transition hover:scale-110 " +
-                  (i === areaColorIdx ? "border-slate-600 scale-110" : "border-slate-300")
-                }
-                style={{ backgroundColor: c.fill, borderColor: i === areaColorIdx ? c.border : undefined }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
       {/* Draft rectangle preview (viewport-transformed like Cursors) */}
       {draftRect && <AreaDraft rect={draftRect} />}
       <MiniMap

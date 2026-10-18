@@ -7,6 +7,7 @@ import { BOX_TYPES, LABEL_COLORS } from "../types/index.js";
 import type { BoxType } from "../types/index.js";
 import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../lib/code.js";
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
+import { boxStatus, type StatusTone } from "../lib/status.js";
 import { runStatusLabel } from "../lib/runStatus.js";
 import CodeChangePanel from "./CodeChangePanel.js";
 import DeployPanel from "./DeployPanel.js";
@@ -105,6 +106,15 @@ function connectedSourceLabel(
   }
   return (src.data?.title as string) || "";
 }
+
+/** Glyph shown inside the floating status pill, per tone. */
+const PILL_GLYPH: Record<StatusTone, string> = {
+  success: "✓",
+  info: "●",
+  warning: "⚠",
+  danger: "⚠",
+  idle: "○",
+};
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
   // Legacy boards may still carry the old `summarize` spelling (the box was
@@ -249,6 +259,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const ranAt =
     boxData.ranAt ?? boxData.handoffGeneratedAt ?? boxData.alignmentRanAt;
   const hasRun = ranAt !== undefined || boxData.status === "done";
+  // Floating status pill (renders just above the card): upload / run /
+  // connection state, shared with the pipeline strip via lib/status.ts.
+  const pill = boxStatus(boxType, boxData, upstreamCount);
   // Input gates (mirrors runInputBlocker in lib/inputs.ts): Alignment Check
   // needs two connected upstream boxes; Cartoon/Handoff/Jargon/Slides one;
   // UI/Stitch a typed description or an upstream box; Agent a typed task.
@@ -528,6 +541,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         minHeight={isTimer ? 150 : isChecklist ? 200 : 160}
         isVisible={!!selected}
       />
+      {/* Floating status pill above the card: upload / run / connection
+          state (collab boxes are annotations — they get no pill). */}
+      {!isUtility && (
+        <div className={"box-pill box-pill-" + pill.tone}>
+          <span className="box-pill-glyph" aria-hidden>
+            {PILL_GLYPH[pill.tone]}
+          </span>
+          {pill.text}
+        </div>
+      )}
       <div
         className={"box-node" + (selected ? " selected" : "")}
         style={{ borderColor: meta.color }}
@@ -543,11 +566,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
       {/* Header */}
       <div
-        className="flex items-center justify-between px-3 py-2 rounded-t-[10px]"
+        className="box-header flex items-center justify-between px-3 py-2"
         style={{ backgroundColor: meta.color + "20" }}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-base flex-shrink-0">{meta.icon}</span>
+          <span
+            className="box-icon-tile flex-shrink-0"
+            style={{ backgroundColor: meta.color + "1F" }}
+          >
+            {meta.icon}
+          </span>
           {isEditingName ? (
             <input
               autoFocus
@@ -573,7 +601,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 setNameDraft(data.title as string || meta.label + " Box");
                 setIsEditingName(true);
               }}
-              className="font-semibold text-slate-700 text-sm truncate cursor-text hover:bg-white/40 rounded px-1 py-0.5 transition"
+              className="font-semibold text-slate-800 text-[13px] truncate cursor-text hover:bg-slate-100 rounded px-1 py-0.5 transition"
               title="Click to rename"
             >
               {(data.title as string) || meta.label + " Box"}
@@ -1451,7 +1479,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       {/* Run status — "Not run yet" / "Ran at <date>" (AI boxes only; the
           Handoff/Alignment banners used to carry their own date label). */}
       {!isInputBox && !isUtility && (
-        <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px]">
+        <div className="run-status px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px]">
           <span
             className={
               "inline-block w-1.5 h-1.5 rounded-full " +
