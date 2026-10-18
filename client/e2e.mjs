@@ -1382,22 +1382,19 @@ await safe("TF facilitator flow", async () => {
       const pageG = await ctxG.newPage();
       await pageG.goto(APP, { waitUntil: "load" });
       await pageG.waitForTimeout(1500);
-      // Open the code modal from the landing.
-      await pageG.evaluate(() => {
-        const btn = Array.from(document.querySelectorAll("button")).find((b) =>
-          (b.textContent || "").includes("Have a workshop code?")
-        );
-        btn && btn.click();
-      });
-      await pageG.waitForTimeout(400);
-      const modalOpened = await pageG.evaluate(() => !!document.querySelector("input[placeholder='CODE']"));
-      check("TG guest code modal opens on the landing", modalOpened);
+      // The guest seat-code card is inline on the landing (no modal anymore).
+      const codeCardVisible = await pageG.evaluate(
+        () => !!document.querySelector("input[placeholder='CODE']")
+      );
+      check("TG guest code card shows on the landing", codeCardVisible);
       await pageG.evaluate((code) => {
         const inp = document.querySelector("input[placeholder='CODE']");
         const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
         setter.call(inp, code);
         inp.dispatchEvent(new Event("input", { bubbles: true }));
-        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Join");
+        const btn = Array.from(document.querySelectorAll("button")).find(
+          (b) => b.textContent.trim() === "Join workshop"
+        );
         btn && btn.click();
       }, seatCode.code);
       // The guest signs in via the custom token, then gets the profile modal.

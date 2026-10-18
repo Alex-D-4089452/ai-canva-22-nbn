@@ -292,8 +292,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   and `🧑‍🏫 Facilitator`; palette rows keep the box label as the button's trailing text
   (`textContent.trim().endsWith(label)` — a leading icon tile is fine); the help card keeps the
   text `How to use` inside a div whose class includes `rounded-xl`; canvas buttons `▶ Run`,
-  `▶ Start`, `⏹ Stop`, and `▭ Area` (exact suffix match when inactive); the join modal's `Join`
-  button (`trim() === "Join"`), the landing pill `Have a workshop code?`, and `Join my team`;
+  `▶ Start`, `⏹ Stop`, and `▭ Area` (exact suffix match when inactive); the landing's inline
+  workshop-card `Join workshop` button (`trim() === "Join workshop"`, beside the
+  `input[placeholder='CODE']`), and `Join my team`;
   the roster test ids `roster-popover`/`roster-row`/`you-chip`; the idea textarea placeholder
   contains `your idea`; the box footer token text contains `tok`. All were re-verified after the
   enterprise UI makeover (76/75-equivalent behavior — header extraction kept every marker).
@@ -481,10 +482,20 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   real API).
 - **Landing page:** the logged-out entry is a full marketing page in
   `client/src/components/landing/` (`LandingPage.tsx` composes `LandingNav`, `LandingHero`,
-  `LandingHowItWorks`, `LandingFeatures`, `LandingBoxes`, `LandingRoles`, `LandingCTA`,
-  `LandingFooter`). It reuses `BOX_TYPES` for the box showcase, uses a `Reveal` scroll-fade wrapper
-  (`useReveal.ts`), and keeps the dark indigo/cyan theme from `index.css` (`.landing-bg`,
-  `.gradient-text`, `.glass-card`). `App.tsx` renders it when `!user`.
+  `LandingWorkshop`, `LandingValue`, `LandingHowItWorks`, `LandingFeatures` (the "AI drafts. A
+  person decides." panel), `LandingBoxes`, `LandingRoles`, `LandingCTA`, `LandingFooter`). It has
+  **light + dark themes**: `useTheme.ts` follows `prefers-color-scheme` by default and the nav's
+  ☀️/🌙 toggle overrides it (persisted in `localStorage["landing-theme"]`), applying the `dark`
+  class on the landing root — hence `darkMode: "class"` in `tailwind.config.js` (scoped to the
+  landing; the app chrome stays light-only). `.landing-bg` is the only landing-specific class left
+  in `index.css` (page background + the `.fade-in`/`.reveal`/`.float` animation primitives;
+  `.glass-card`/`.gradient-text`/`.pipeline-arrow` were removed with the redesign). It reuses
+  `BOX_TYPES` for the box showcase (all built-in types, with All/Input/Workers/Collaborate filter
+  pills; the `custom` runtime type is excluded), uses a `Reveal` scroll-fade wrapper
+  (`useReveal.ts`). `App.tsx` renders it when `!user` and passes the **guest workshop join state**
+  down: the seat-code card is now inline in `LandingWorkshop` (`#workshop`), replacing the old
+  floating "🎟️ Have a workshop code?" pill + modal; `?code=XXXX` in the URL prefills the card and
+  scrolls to it, while App keeps owning the join handlers (they flip `user` on success).
 - **Code editor:** the UI Design / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
   + `@uiw/codemirror-theme-vscode`). It is **lazy-loaded** via `React.lazy` in `BoxNode.tsx` so

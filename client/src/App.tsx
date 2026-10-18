@@ -61,7 +61,6 @@ export default function App() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -119,13 +118,20 @@ export default function App() {
     go();
   }, [user, pendingJoin, loadBoardFromFirestore]);
 
-  // Auto-open the join modal when the URL carries ?code=XXXX.
+  // Pre-fill + scroll to the workshop section when the URL carries ?code=XXXX
+  // (the join card now lives inline on the landing page — no modal).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = (params.get("code") || "").toUpperCase();
     if (/^[A-Z2-9]{8}$/.test(code)) {
       setJoinCode(code);
-      setShowJoinModal(true);
+      setTimeout(
+        () =>
+          document
+            .getElementById("workshop")
+            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        400
+      );
     }
   }, []);
 
@@ -306,61 +312,21 @@ export default function App() {
     await loadBoardFromFirestore(info.boardId);
   };
 
-  // Not logged in — show landing page with the workshop code entry.
+  // Not logged in — show the landing page with the inline workshop code entry.
   if (!user) {
     return (
-      <div className="relative">
-        <LandingPage />
-        {/* Workshop guest join — no account needed, just a seat code. */}
-        {!showJoinModal && (
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
-          >
-            🎟️ Have a workshop code?
-          </button>
-        )}
-        {showJoinModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span>🎟️</span> Join your workshop
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Enter the code your facilitator gave you — no account needed.
-              </p>
-              <input
-                autoFocus
-                className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-center font-mono text-lg tracking-[0.3em] uppercase focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                placeholder="CODE"
-                maxLength={8}
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z2-9]/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && handleJoinCode()}
-              />
-              {joinError && <p className="mt-2 text-xs text-red-600">{joinError}</p>}
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => {
-                    setJoinError("");
-                    setShowJoinModal(false);
-                  }}
-                  className="flex-1 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
-                >
-                  Sign in instead
-                </button>
-                <button
-                  onClick={handleJoinCode}
-                  disabled={joinCode.length !== 8 || joining}
-                  className="flex-1 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
-                >
-                  {joining ? "Joining…" : "Join"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <LandingPage
+        workshop={{
+          code: joinCode,
+          onCodeChange: (code) => {
+            setJoinCode(code);
+            setJoinError("");
+          },
+          onJoin: handleJoinCode,
+          joining,
+          error: joinError,
+        }}
+      />
     );
   }
 

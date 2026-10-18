@@ -29,6 +29,28 @@ current state).
 
 ---
 
+## 2026-10-14 — Landing page redesign: light + dark themes
+
+- **Done:** restyled the whole landing page to the new reference design, in **both light and dark
+  themes**. `tailwind.config.js` got `darkMode: "class"`; new `landing/useTheme.ts` follows
+  `prefers-color-scheme` by default with a ☀️/🌙 nav toggle (persisted in
+  `localStorage["landing-theme"]`, also syncs `document.body` background so overscroll doesn't
+  flash). New sections: `LandingWorkshop` (the guest seat-code card is now **inline** on the
+  page — App passes its join state down and the floating "🎟️ Have a workshop code?" pill + modal
+  are gone; `?code=XXXX` prefills + scrolls to `#workshop`), `LandingValue` (green/blue/black
+  highlight cards), and `LandingFeatures` was replaced by the "AI drafts. A person decides."
+  principles panel. `LandingHero` is now a blue gradient panel with a board-mockup collage +
+  floating presence card; `LandingHowItWorks` got numbered circles with a dashed connector;
+  `LandingBoxes` renders all built-in types with All/Input/Workers/Collaborate filter pills;
+  `LandingRoles` is the asymmetric team layout; `LandingCTA` is the green panel; `LandingFooter`
+  has link columns (blue in light, near-black in dark). Removed dead landing CSS
+  (`.glass-card`/`.gradient-text`/`.pipeline-arrow`). `e2e.mjs` TG guest flow updated to the
+  inline card (`Join workshop` button). Build green, client tests 205/205, both themes
+  screenshot-verified against the reference (no page errors; toggle persists).
+- **In flight:** —
+- **Next steps:** run the full E2E suite (needs dev server + fresh firebase-tools token) to
+  confirm the TG guest join path end-to-end, since its two landing selectors changed.
+
 ## 2026-10-08 — New box: unified Input box (`media`)
 
 - **Done:** added a 4th input box type **Input** (`media`, 📥) that unifies Idea + Image +
