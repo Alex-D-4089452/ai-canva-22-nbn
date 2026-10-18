@@ -29,6 +29,22 @@ current state).
 
 ---
 
+## 2026-10-18 - Squash-merged the QoL and export PRs into main
+
+- **Done:** resolved the mid-flight `main` → `feature/quality-of-life` merge (9 conflicted files —
+  all hunks taken from the branch, which supersedes main's text; main's only unique line was a dead
+  `sidebarOpen` declaration in `App.tsx`, dropped) and the `main` → `feature/export-box-outputs`
+  merge (`docs/DEVLOG.md` only). Squashed both into main as single-line conventional commits:
+  **`8661ef4 feat: quality of life (#19)`** and **`7824bd3 feat: export box outputs (#20)`**.
+  Re-verified the two restyle squash-merges: `feature/landing-page-restyling` == `7afc5a3` (#17)
+  and `feature/canvas-board-restyling` == `7c8c7d1` (#18), byte-identical trees. **Verified on
+  main:** `npm test` 37 server + 251 client green, `npm run build` clean, markers-check **33/33**,
+  `probe-undo.mjs` **12/12**, `ui-smoke.mjs` **18/18**, `probe-t12.mjs` full pass (reload +
+  live sync + save + cleanup), `/api/health` all keys configured.
+- **In flight:** -
+- **Next steps:** full `e2e.mjs` not re-run (needs a quiet window + fresh firebase-tools token);
+  no open PRs remain.
+
 ## 2026-10-17 - AI-generated note in every downloaded markdown file
 
 - **Done:** `outcomeText` (`client/src/lib/download.ts`) now closes every exported file with an
