@@ -577,8 +577,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   is why the real contract came from `https://here.now/openapi.json`.
 - **Downloading a box's outcome:** `client/src/lib/download.ts` (`outcomeText`, `outcomeFilename`,
   `slugifyFilename` pure + `downloadText` DOM) backs the `💾 Save` button in the box footer for every
-  text-output box (research, summarise, prd, custom, agent, slides).
-  Filenames: the type's name otherwise (`research.md`, `summary.md`, `prd.md`, …), and the
+  text-output box (research, summarise, prd, custom, agent, slides,
+  and the NBN trio handoff/alignment/jargon — added 2026-10-17; a text box with generated
+  markdown belongs in `hasDownloadableOutcome`, which is the button's only type gate).
+  Filenames: the type's name otherwise (`research.md`, `summary.md`, `prd.md`,
+  `handoff-brief.md`, …), and the
   slugified label for custom boxes. Slides download as a Markdown deck built from `slides[]`. The
   file is the artifact text only — version history lives in the box's own 🕘 panel (where present).
   UI/Stitch keep their own 💾 Save (HTML) and Cartoon its image download;

@@ -29,6 +29,17 @@ current state).
 
 ---
 
+## 2026-10-17 — Markdown Save button for the NBN worker boxes
+
+- **Done:** the box-footer `💾 Save` (Markdown export) now also covers **Handoff Brief /
+  Alignment Check / Jargon Translator** — they render generated markdown like the other text
+  boxes but were missing from `hasDownloadableOutcome` in `client/src/lib/download.ts`. Added
+  filenames `handoff-brief.md` / `alignment-check.md` / `jargon-translation.md`; tests extended
+  (`download.test.ts`, client suite 250/250 green). No `BoxNode.tsx` change needed — the button
+  was only gated on `hasDownloadableOutcome(boxType) && outcome`.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-16 — Ctrl+Z undo / redo for board edits
 
 - **Done:** every local board edit is now undoable — `Ctrl/Cmd+Z` undo, `Ctrl+Shift+Z` / `Ctrl+Y`
