@@ -14,6 +14,9 @@ const OUTCOME_FILENAMES: Partial<Record<BoxType, string>> = {
   prd: "prd.md",
   agent: "agent-answer.md",
   slides: "slides.md",
+  handoff: "handoff-brief.md",
+  alignment: "alignment-check.md",
+  jargon: "jargon-translation.md",
 };
 
 /** Lowercases, strips diacritics/punctuation and collapses runs of dashes. */
@@ -55,7 +58,7 @@ function slidesToMarkdown(data: BoxData): string {
 
 /** True when this box type has an outcome that can be downloaded as text. */
 export function hasDownloadableOutcome(type: BoxType | string): boolean {
-  return ["research", "summarise", "prd", "agent", "slides", "custom"].includes(type);
+  return ["research", "summarise", "prd", "agent", "slides", "custom", "handoff", "alignment", "jargon"].includes(type);
 }
 
 /**

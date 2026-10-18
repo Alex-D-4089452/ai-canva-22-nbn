@@ -28,13 +28,16 @@ describe("outcomeFilename", () => {
     expect(outcomeFilename("prd", "PRD Box")).toBe("prd.md");
     expect(outcomeFilename("agent", "Agent Box")).toBe("agent-answer.md");
     expect(outcomeFilename("slides", "Slides Box")).toBe("slides.md");
+    expect(outcomeFilename("handoff", "Handoff Brief Box")).toBe("handoff-brief.md");
+    expect(outcomeFilename("alignment", "Alignment Check Box")).toBe("alignment-check.md");
+    expect(outcomeFilename("jargon", "Jargon Translator Box")).toBe("jargon-translation.md");
     expect(outcomeFilename("custom", "Security Review Lite")).toBe("security-review-lite.md");
   });
 });
 
 describe("hasDownloadableOutcome", () => {
   it("covers the text-output family only", () => {
-    for (const type of ["research", "summarise", "prd", "agent", "slides", "custom"]) {
+    for (const type of ["research", "summarise", "prd", "agent", "slides", "custom", "handoff", "alignment", "jargon"]) {
       expect(hasDownloadableOutcome(type)).toBe(true);
     }
     for (const type of ["idea", "image", "documents", "cartoon", "ui", "stitch", "note", "label", "timer", "checklist"]) {
@@ -46,6 +49,12 @@ describe("hasDownloadableOutcome", () => {
 describe("outcomeText", () => {
   it("returns the generated output for text boxes, newline terminated", () => {
     expect(outcomeText("research", data({ output: "# Findings" }))).toBe("# Findings\n");
+  });
+
+  it("exports the NBN worker boxes' generated markdown the same way", () => {
+    expect(outcomeText("handoff", data({ output: "## Brief\n- item" }))).toBe("## Brief\n- item\n");
+    expect(outcomeText("alignment", data({ output: "Both artefacts align." }))).toBe("Both artefacts align.\n");
+    expect(outcomeText("jargon", data({ output: "## Terms Simplified" }))).toBe("## Terms Simplified\n");
   });
 
   it("returns nothing when the box has not run yet", () => {
