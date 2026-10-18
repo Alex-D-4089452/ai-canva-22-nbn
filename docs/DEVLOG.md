@@ -29,6 +29,48 @@ current state).
 
 ---
 
+## 2026-10-16 — Ctrl+Z undo / redo for board edits
+
+- **Done:** every local board edit is now undoable — `Ctrl/Cmd+Z` undo, `Ctrl+Shift+Z` / `Ctrl+Y`
+  redo, and ↶/↷ buttons in `CanvasBar` (dimmed while their stack is empty, new `.bar-history-btn`
+  CSS next to the zoom group). New pure `client/src/lib/history.ts` + `history.test.ts` (14
+  tests): snapshot steps over `{nodes, edges, boxData, boardTitle}` (the store is immutable, so a
+  step is four references), `boardChangeKind` (topology / node / data / title; selection-only
+  changes ignored so clicking a box is never a step), same-kind coalescing within 800ms (typing
+  burst, drag) with topology never coalescing, 50-step cap, `undoFrom`/`redoFrom` (new edits
+  clear redo; an undo closes the coalescing window of the step below), `isTransientPatch`
+  (`status`/`error`/`ranAt`/`tokens` fold into the run's own step, so undoing a run returns the
+  box to "not run" instead of a half-run state). Store wiring: `scheduleSave()` is the single
+  recording funnel — every local edit calls it, remote snapshots/presence never do — with
+  module-level `history`/`historyBaseline` next to `localDirty`, derived `canUndo`/`canRedo`
+  flags (only state exposed, so steps never re-render the tree), `resetHistory()` on every board
+  load/create/clear/delete + `unsubscribeFromBoard` (+ once at import to seed the synchronously
+  rehydrated baseline), and `applyHistorySnapshot` guarded by `historySuspended`. The keydown
+  handler lives in `CanvasBar` and skips `input`/`textarea`/`[contenteditable]`/CodeMirror
+  targets, so native text undo keeps working while typing.
+- **In flight:** —
+- **Next steps:** full E2E not re-run (needs a quiet window + fresh firebase-tools token; the
+  suite never presses Ctrl+Z, and the new bar buttons use their own class so the toast's
+  `.bar-undo` marker checks stay honest). Verification so far: `tsc` clean, 249 client + 37
+  server unit tests green, markers-check **33/33** (one new check), `probe-undo.mjs` **12/12**.
+
+## 2026-10-16 — New boxes land in the middle of the viewport
+
+- **Done:** a box added with no explicit position (palette, canvas-rail Note, custom-box
+  instances) is centred on the visible viewport instead of the old fixed random spot near flow
+  (200–400, 150–250). New pure `client/src/lib/placement.ts` — `viewportCenter(transform, w, h)`,
+  `placeNewBox(nodes, center, size)` (centered, then moved to the nearest free box-sized tile
+  around that centre: right first, then down, so repeated adds fan out instead of stacking;
+  areas never collide), `coversAnotherBox` — plus `placement.test.ts` (13 tests). Wiring:
+  `Canvas.tsx` publishes a *reader* (function, not value — pan/zoom never re-renders subscribers)
+  of the flow-space centre into `uiStore.readViewportCenter`; `boardStore.defaultBoxPosition()`
+  uses it for `addBox`/`addCustomBox` and still falls back to the old fixed area when no canvas
+  has reported a centre (seeded starter board). Agent-loop children and the App-seeded
+  idea/research pair keep their explicit positions.
+- **In flight:** —
+- **Next steps:** —; full E2E not re-run (needs a quiet window + fresh firebase-tools token —
+  its JS clicks aren't hit-test-sensitive, and markers-check stayed 32/32).
+
 ## 2026-10-15 — Canvas UI restyle (dark bar, pipeline strip, left rail/palette, status pills)
 
 - **Done:** restyled the whole canvas chrome to the reference design — dark app bar + **Run all**

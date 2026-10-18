@@ -64,7 +64,6 @@ export default function App() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
   const [joining, setJoining] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [adminView, setAdminView] = useState(false);

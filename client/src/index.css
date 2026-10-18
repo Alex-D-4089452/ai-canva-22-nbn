@@ -639,6 +639,19 @@ select,
 .bar-undo:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+/* Undo / redo (history) — dimmed while there is nothing to step through. */
+.bar-history-btn {
+  font-size: 17px;
+  line-height: 1;
+}
+.bar-history-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.bar-history-btn:disabled:hover {
+  background: transparent;
+  color: #cbd5e1;
+}
 
 /* The board canvas sits on a light cool grey so white cards pop. */
 .board-flow {

@@ -62,6 +62,10 @@ check(
 check("pipeline strip under the header", !!(await page.$(".pipeline-strip")));
 check("pipeline chips show real steps", (await page.$$(".strip-chip")).length >= 2);
 check("bottom canvas bar with zoom level", /%/.test(await page.textContent(".canvas-bar .bar-zoom-level").catch(() => "")));
+check(
+  "bottom bar has undo + redo history buttons",
+  (await page.$$(".canvas-bar .bar-history-btn")).length === 2
+);
 check("left canvas rail present", !!(await page.$(".canvas-rail")));
 
 // ---------- Palette row contract (T3/T14) ----------
