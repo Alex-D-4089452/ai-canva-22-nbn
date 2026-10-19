@@ -295,6 +295,29 @@ select,
 .strip-tone-danger .strip-status { color: #b91c1c; }
 .strip-tone-idle .strip-status { color: #64748b; }
 
+/* ===== Input rules slide-over (opened from the pipeline strip) ===== */
+
+.input-rules-panel {
+  animation: inputRulesSlideIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.input-rules-backdrop {
+  animation: inputRulesFadeIn 0.22s ease-out;
+}
+@keyframes inputRulesSlideIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes inputRulesFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .input-rules-panel,
+  .input-rules-backdrop {
+    animation: none;
+  }
+}
+
 /* ===== Left canvas rail (Add / Area / Notes / Help) ===== */
 
 .canvas-rail {
