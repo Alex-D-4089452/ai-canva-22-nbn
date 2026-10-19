@@ -1,4 +1,7 @@
+import { useState } from "react";
 import Reveal from "./Reveal.js";
+import InputRulesPanel from "../InputRulesPanel.js";
+import { ShieldCheck } from "../ui/ShieldCheck.js";
 
 /**
  * "AI drafts. A person decides." — the dark principles panel. Black in both
@@ -25,6 +28,8 @@ const PRINCIPLES = [
 ];
 
 export default function LandingFeatures() {
+  const [rulesOpen, setRulesOpen] = useState(false);
+
   return (
     <section id="features" className="py-16 md:py-20">
       <div className="mx-auto max-w-6xl px-5">
@@ -56,21 +61,33 @@ export default function LandingFeatures() {
               ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/[0.05] px-5 py-4">
-              <p className="text-sm text-slate-300">
-                No black boxes: every prompt is visible and every artefact is
-                yours to keep.
-              </p>
-              <a
-                href="#boxes"
-                className="text-sm font-semibold text-emerald-400 transition hover:text-emerald-300"
+            {/* Data-safety banner (mirrors the pipeline strip's note in the app). */}
+            <div className="mt-8 flex flex-col gap-4 rounded-2xl bg-white/[0.06] px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+              <div className="flex items-start gap-3.5 sm:items-center">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-500 text-zinc-950">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <p className="text-[13px] leading-relaxed text-slate-300 md:text-sm">
+                  <span className="font-semibold text-white">
+                    Only add synthetic or de-identified material.
+                  </span>{" "}
+                  Never upload customer, service, account or network details to any box.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRulesOpen(true)}
+                className="w-fit shrink-0 rounded text-[13px] font-semibold text-emerald-400 underline decoration-emerald-500/50 underline-offset-2 transition hover:text-emerald-300 hover:decoration-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 md:text-sm"
+                aria-haspopup="dialog"
               >
-                See every box type →
-              </a>
+                Read the input rules
+              </button>
             </div>
           </div>
         </Reveal>
       </div>
+
+      <InputRulesPanel open={rulesOpen} onClose={() => setRulesOpen(false)} />
     </section>
   );
 }

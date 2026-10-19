@@ -57,8 +57,9 @@ export default function LandingFooter({ onSignIn }: LandingFooterProps) {
               <span className="text-base font-bold">AI Canva</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-blue-100 dark:text-slate-400">
-              A collaborative AI whiteboard: place boxes, connect them, and run
-              pipelines from idea to working code.
+              We acknowledge the Traditional Owners and Custodians of Country
+              throughout Australia and pay our respects to Elders past and
+              present.
             </p>
           </div>
 
@@ -88,7 +89,8 @@ export default function LandingFooter({ onSignIn }: LandingFooterProps) {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-blue-500/50 pt-6 text-xs text-blue-100 md:flex-row md:items-center dark:border-white/10 dark:text-slate-500">
           <p>
-            © {new Date().getFullYear()} AI Canva · Built with React, Firebase &amp; Ollama
+            AI Canva for nbn® is a capstone prototype. It isn't an official nbn
+            product.
           </p>
           <p>Runs on your models · Your boards, your data</p>
         </div>
