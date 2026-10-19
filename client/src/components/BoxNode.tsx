@@ -391,6 +391,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const hasUploadedImage = boxData.imageData && boxData.imageData.length > 0;
   const slides = boxData.slides || [];
   const hasSlides = slides.length > 0;
+  // Has this box produced AI content of any kind (text, image, deck or code)?
+  // Drives the standing "AI-generated, verify before acting" tag in the run
+  // status strip — the one row every run-able box shares, so the disclosure
+  // lands consistently whatever the output renderer is.
+  const hasAiOutput = Boolean(
+    (boxData.output && boxData.output.trim()) ||
+      (boxData.outputImage && boxData.outputImage.length) ||
+      (boxData.slides && boxData.slides.length) ||
+      (boxData.code && boxData.code.trim())
+  );
   const currentSlide = Math.min(slideIndex, slides.length - 1);
   const slide = hasSlides ? slides[currentSlide] : null;
 
@@ -1477,7 +1487,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       </div>
 
       {/* Run status — "Not run yet" / "Ran at <date>" (AI boxes only; the
-          Handoff/Alignment banners used to carry their own date label). */}
+          Handoff/Alignment banners used to carry their own date label).
+          Once the box has AI content, a standing disclosure tag joins the row:
+          "AI-generated, verify before acting". */}
       {!isInputBox && !isUtility && (
         <div className="run-status px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[11px]">
           <span
@@ -1501,6 +1513,14 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           >
             {isRunning ? "Running…" : runStatusLabel(ranAt, hasRun)}
           </span>
+          {hasAiOutput && !isRunning && (
+            <span
+              className="ai-disclosure ml-auto flex-shrink-0"
+              title="This content was produced by an AI model. Check it before you rely on or share it."
+            >
+              AI-generated, verify before acting
+            </span>
+          )}
         </div>
       )}
 
