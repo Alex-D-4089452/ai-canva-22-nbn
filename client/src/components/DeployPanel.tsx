@@ -47,7 +47,7 @@ export default function DeployPanel({ id, boxType }: { id: string; boxType: BoxT
             {new Date(live.deployedAt).toLocaleString()}
           </span>
         ) : (
-          <span className="text-[10px] text-slate-400">{blocked || `${files.length} file(s) ready to publish`}</span>
+          <span className="text-[10px] text-slate-500">{blocked || `${files.length} file(s) ready to publish`}</span>
         )}
         <span className="flex-1" />
         <button

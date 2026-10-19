@@ -177,6 +177,25 @@ select,
   100% { transform: translateX(400%); }
 }
 
+/* Standing AI disclosure tag in a box's run-status row — quiet amber so it
+   reads as a caution without competing with the status dot/text beside it. */
+.ai-disclosure {
+  display: inline-flex;
+  align-items: center;
+  max-width: 62%;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ===== App chrome (header / tools) ===== */
 
 /* The app bar is dark (near-black), per the reference design: white-alpha
@@ -294,6 +313,29 @@ select,
 .strip-tone-danger .strip-num { background: #ef4444; color: #fff; }
 .strip-tone-danger .strip-status { color: #b91c1c; }
 .strip-tone-idle .strip-status { color: #64748b; }
+
+/* ===== Input rules slide-over (opened from the pipeline strip) ===== */
+
+.input-rules-panel {
+  animation: inputRulesSlideIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.input-rules-backdrop {
+  animation: inputRulesFadeIn 0.22s ease-out;
+}
+@keyframes inputRulesSlideIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes inputRulesFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .input-rules-panel,
+  .input-rules-backdrop {
+    animation: none;
+  }
+}
 
 /* ===== Left canvas rail (Add / Area / Notes / Help) ===== */
 
@@ -916,11 +958,12 @@ html {
     user-select: text;
   }
 
-  /* Connection handles: 10px dots are ungrabbable with a finger. Growth is
-     centered (handles translate ±50%), so edges still anchor correctly. */
+  /* Connection handles: the 14px desktop dots are ungrabbable with a finger.
+     Growth is centered (handles translate ±50%), so edges still anchor
+     correctly. */
   .react-flow__handle {
-    width: 18px !important;
-    height: 18px !important;
+    width: 22px !important;
+    height: 22px !important;
   }
   /* Resize corner handles. */
   .react-flow__resize-control.handle {
@@ -961,9 +1004,9 @@ html {
     font-size: 14px;
   }
   .box-delete {
-    width: 30px;
-    height: 30px;
-    font-size: 15px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 
   /* Minimum comfortable touch targets. */

@@ -180,7 +180,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
       {/* The shared list */}
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
         {list.length === 0 && (
-          <p className="checklist-empty px-1 pt-2 text-[11px] leading-snug text-slate-400">
+          <p className="checklist-empty px-1 pt-2 text-[11px] leading-snug text-slate-500">
             No tasks yet. Add the first one above — everyone on this board sees this list and
             can tick tasks off.
           </p>
@@ -236,7 +236,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                     "checklist-assign nodrag max-w-[110px] rounded-full border px-1 py-0 text-[10px] font-medium transition focus:outline-none " +
                     (item.assignee
                       ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                      : "border-slate-200 bg-white text-slate-400")
+                      : "border-slate-200 bg-white text-slate-500")
                   }
                   value={item.assignee}
                   onChange={(e) =>
@@ -256,7 +256,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                   )}
                 </select>
                 {item.done && item.doneBy && (
-                  <span className="checklist-done-by text-[10px] text-slate-400">
+                  <span className="checklist-done-by text-[10px] text-slate-500">
                     ✓ {checklistDisplayName(item.doneBy)}
                   </span>
                 )}
@@ -266,7 +266,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                 visible on touch devices via .touch-visible). */}
             <div className="checklist-row-actions touch-visible flex flex-shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
               <button
-                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
+                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
                 title="Move up"
                 disabled={index === 0}
                 onClick={() => mutate((current) => moveChecklistItem(current, item.id, -1))}
@@ -274,7 +274,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                 ▲
               </button>
               <button
-                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
+                className="checklist-move flex h-5 w-5 items-center justify-center rounded text-[9px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-30"
                 title="Move down"
                 disabled={index === list.length - 1}
                 onClick={() => mutate((current) => moveChecklistItem(current, item.id, 1))}
@@ -282,7 +282,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
                 ▼
               </button>
               <button
-                className="checklist-delete flex h-5 w-5 items-center justify-center rounded text-[10px] text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                className="checklist-delete flex h-5 w-5 items-center justify-center rounded text-[10px] text-slate-500 transition hover:bg-red-50 hover:text-red-500"
                 title="Delete this task"
                 onClick={() => mutate((current) => removeChecklistItem(current, item.id))}
               >

@@ -1,6 +1,32 @@
 import Reveal from "./Reveal.js";
 
-const STEPS = [
+/**
+ * "How it works" — three numbered steps with a dashed connector.
+ *
+ * Steps 2 and 3 carry the app's status vocabulary as illustrative chips
+ * (Not run yet / Running / Done / Needs re-run) and the reviewed-by pill.
+ * The review feature itself is NOT implemented yet — these are static UI
+ * only, mirroring the box cards' real status pills so the landing promises
+ * nothing the canvas does not already show.
+ */
+
+type ChipTone = "idle" | "running" | "done" | "warning";
+
+interface StatusChip {
+  tone: ChipTone;
+  label: string;
+}
+
+interface Step {
+  n: number;
+  title: string;
+  body: string;
+  circle: string;
+  chips?: StatusChip[];
+  reviewedBy?: { name: string; time: string };
+}
+
+const STEPS: Step[] = [
   {
     n: 1,
     title: "Place boxes",
@@ -10,16 +36,66 @@ const STEPS = [
   {
     n: 2,
     title: "Connect them",
-    body: "Draw edges to chain boxes into a pipeline. Content flows box-to-box, and prompts reference upstream outputs by name.",
+    body: "Draw a line between boxes, or pick from a list. Content flows from one box to the next, and each box shows where it's up to.",
     circle: "bg-blue-600 text-white",
+    chips: [
+      { tone: "idle", label: "Not run yet" },
+      { tone: "running", label: "Running" },
+      { tone: "done", label: "Done" },
+      { tone: "warning", label: "Needs re-run" },
+    ],
   },
   {
     n: 3,
     title: "Run and review",
-    body: "Hit run and watch research become a PRD, then a working React prototype — previewed right in the box, ready to edit.",
+    body: "Run the pipeline, read each result full size and mark it reviewed before you share it.",
     circle: "bg-emerald-500 text-zinc-950",
+    reviewedBy: { name: "Sophie D.", time: "6:58 pm" },
   },
 ];
+
+/** Chip chrome per tone (light + dark theme). */
+const CHIP_TONE: Record<ChipTone, string> = {
+  idle: "border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400",
+  running:
+    "border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-400/25 dark:bg-indigo-400/10 dark:text-indigo-300",
+  done: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300",
+  warning:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300",
+};
+
+/** Glyph shown before each chip's label — matches the canvas status pills. */
+function ChipGlyph({ tone }: { tone: ChipTone }) {
+  if (tone === "running") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3 w-3 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36" strokeLinecap="round" />
+        <path d="M21 3v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (tone === "done") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
+        <path d="m4.5 12.5 5 5 10-11" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (tone === "warning") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5v5.5" strokeLinecap="round" />
+        <circle cx="12" cy="16.4" r="0.6" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
 
 export default function LandingHowItWorks() {
   return (
@@ -68,6 +144,36 @@ export default function LandingHowItWorks() {
               <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 {step.body}
               </p>
+
+              {step.chips && (
+                <div className="mt-4 flex max-w-sm flex-wrap gap-1.5">
+                  {step.chips.map((chip) => (
+                    <span
+                      key={chip.label}
+                      className={
+                        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none " +
+                        CHIP_TONE[chip.tone]
+                      }
+                    >
+                      <ChipGlyph tone={chip.tone} />
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {step.reviewedBy && (
+                <div className="mt-4">
+                  <span className="inline-flex max-w-sm items-center gap-2 rounded-full bg-zinc-950 px-3.5 py-1.5 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 dark:bg-white/[0.08] dark:ring-white/15">
+                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500 text-zinc-950">
+                      <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.4" aria-hidden="true">
+                        <path d="m4.5 12.5 5 5 10-11" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    Reviewed by {step.reviewedBy.name} · {step.reviewedBy.time}
+                  </span>
+                </div>
+              )}
             </Reveal>
           ))}
         </div>

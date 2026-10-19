@@ -29,6 +29,62 @@ current state).
 
 ---
 
+## 2026-10-19 - Box cards: AI verification tag, darker secondary text, bigger controls
+
+- **Done:** every box that holds AI content now carries an **"AI-generated, verify before acting"**
+  tag in its run-status row (`.ai-disclosure` in `index.css`, amber pill, right-aligned; `hasAiOutput`
+  = output / outputImage / slides / code, withheld mid-run and before the first output). Readability
+  pass: header type label → slate-600, token row → slate-500 (total slate-600), placeholder/empty-state
+  copy in box bodies → slate-500 (`BoxNode`, `ChecklistPanel`, `CodeChangePanel`, `DeployPanel`), with
+  the dark-surface texts (timer card, code diff, editor fallback) deliberately left slate-400. Controls
+  enlarged: header ✕ is now red (`text-red-500`, 28px / 36px on touch), footer ⚙ is a 36×36 square
+  (`text-lg`), and the React Flow connection dots are 14px (22px on touch). Verified: build green,
+  251 client tests, markers-check **33/33**, headless probe measuring the computed sizes/colours +
+  canvas/box screenshots.
+- **In flight:** —
+- **Next steps:** full `e2e.mjs` / `ui-smoke.mjs` not re-run (E2E needs a quiet window + a fresh
+  firebase-tools token).
+
+## 2026-10-19 - Landing "How it works": canvas status chips + review pill
+
+- **Done:** `LandingHowItWorks` step 2 now mirrors the canvas status tones as chips (`Not run yet` /
+  `Running` / `Done` / `Needs re-run`) and step 3 a "Reviewed by Sophie D. · 6:58 pm" pill, with the
+  body copy of those steps matched to the reference design (light + dark landing themes both
+  screenshot-checked). The review pill is illustrative only — no store wiring, no review feature.
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-19 - Landing data-safety banner + compliance footer texts
+
+- **Done:** `LandingFeatures`' bottom banner (was "No black boxes … See every box type →") is now
+  the data-safety notice from the reference design: emerald disc + shield-tick glyph, "Only add
+  synthetic or de-identified material. Never upload customer, service, account or network details
+  to any box.", and a green "Read the input rules" link that opens the shared `InputRulesPanel`
+  slide-over. `ShieldCheck` was rewritten to the symmetric Lucide `shield-check` geometry (24×24
+  viewBox) after the first hand-rolled path rendered visibly skewed, and it is now shared by the
+  strip, the panel header and this banner. `LandingFooter`: the brand blurb is replaced by the
+  **Acknowledgement of Country** and the © line by "AI Canva for nbn® is a capstone prototype.
+  It isn't an official nbn product." Verified: build green, 251 client tests, markers-check
+  **33/33**, headless probes (banner text/icon, panel open + Escape close, footer strings).
+- **In flight:** —
+- **Next steps:** full `e2e.mjs` not re-run (needs a quiet window + fresh firebase-tools token).
+
+## 2026-10-19 - Pipeline strip: data-safety note + Input rules slide-over
+
+- **Done:** replaced the old right-hand lock note in the pipeline strip ("🔒 Private to you ·
+  changes auto-save" / "🔒 Shared with your team · updates live") with a data-safety note: green
+  shield-tick glyph + "Synthetic or de-identified material only" + an **Input rules** link. The link
+  opens the new `client/src/components/InputRulesPanel.tsx` — a right-hand slide-over (portal to
+  `document.body`, `role=dialog`, backdrop click / Escape / ✕ / "Got it" close, focus moved to ✕,
+  five rules + a "where it goes" note). Glyph is `components/ui/ShieldCheck.tsx`; slide/fade
+  keyframes in `index.css` (`.input-rules-panel` / `.input-rules-backdrop`, disabled under
+  `prefers-reduced-motion`). The note is always shown now (the sentence collapses below `md`, the
+  link stays); `collaborators` is no longer read by the strip. Verified: build green, 251 client
+  tests, markers-check **33/33**, headless probe (note renders, panel opens right 448px, Escape
+  closes, 900px viewport keeps the link).
+- **In flight:** —
+- **Next steps:** full `e2e.mjs` not re-run (needs a quiet window + fresh firebase-tools token).
+
 ## 2026-10-18 - Squash-merged the QoL and export PRs into main
 
 - **Done:** resolved the mid-flight `main` → `feature/quality-of-life` merge (9 conflicted files —

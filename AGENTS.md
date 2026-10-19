@@ -132,7 +132,10 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
 
 The app chrome follows a consistent "enterprise but modern" language: a **near-black app bar**
 (`.app-bar`, `#0b0d12`, blurred) over a **pipeline strip** (`components/PipelineStrip.tsx` — the
-live box-order breadcrumb under the header), a **left icon rail** + **left "Add a box" palette
+live box-order breadcrumb under the header, with a **data-safety note** on the right: shield glyph +
+"Synthetic or de-identified material only" + an **Input rules** link that opens the
+`components/InputRulesPanel.tsx` right-hand slide-over (portal to `document.body`, closes on
+backdrop click / Escape / ✕, focus moved to ✕), a **left icon rail** + **left "Add a box" palette
 panel** on the canvas, a light **dotted** canvas with floating status pills on the box cards, and
 a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives:
 
@@ -181,6 +184,16 @@ style**, so existing boards only grow when a box is added. Box text is sized cen
 (16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it
 wins) and `.box-body textarea` (15px), with markdown headings at 20/18/16 (h1/h2/h3). Prefer
 extending those scoped rules over sprinkling `text-xs`/`text-sm` onto body content.
+
+**Box card secondary text & control sizes (readability pass, 2026-10-19):** muted copy on the
+white card bottoms out at **slate-500** — header type label `text-slate-600`, token row slate-500
+with the `…tok` total in slate-600, run-status "Ran at …" slate-500, empty-state/placeholder copy
+in box bodies slate-500 (`BoxNode`, `ChecklistPanel`, `CodeChangePanel`, `DeployPanel`). Text on the
+**dark surfaces inside a body** (timer card, code-change diff `<pre>`, editor-loading fallback)
+stays slate-400 — keep light-on-dark text as-is when restyling. The destructive **header ✕** is
+`text-red-500` at 28px (36px on coarse pointers), the footer **⚙** is a 36×36 square (`text-lg`),
+and React Flow **connection dots are 14px** inline in `BoxNode.tsx` (both handles; 22px on coarse
+pointers via `index.css`).
 
 **`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
 boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
@@ -517,7 +530,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   shift. The Handoff Brief's "Generated:" and Alignment Check's "Ran:" banner labels
   were removed in favour of the strip: it falls back to legacy `handoffGeneratedAt` /
   `alignmentRanAt`, and a `status: "done"` box with no timestamp at all renders a bare "Ran"
-  (its date predates the field).
+  (its date predates the field). Once the box holds AI content (output / generated image / slides
+  / code — `hasAiOutput`) the same strip carries the standing disclosure tag **"AI-generated,
+  verify before acting"** (`.ai-disclosure` in `index.css`, amber pill, right-aligned via `ml-auto`);
+  it is withheld while a run is in flight and before the first output.
 - **Role filter (palette profiles):** each box type carries `roles: BoxRole[]`
   (`everyone`/`designer`/`developer`/`product` — `BoxRole` in `types/core.ts`, the tags on each
   box in `types/boxes/`); the View dropdown in
@@ -625,7 +641,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (`useReveal.ts`). `App.tsx` renders it when `!user` and passes the **guest workshop join state**
   down: the seat-code card is now inline in `LandingWorkshop` (`#workshop`), replacing the old
   floating "🎟️ Have a workshop code?" pill + modal; `?code=XXXX` in the URL prefills the card and
-  scrolls to it, while App keeps owning the join handlers (they flip `user` on success).
+  scrolls to it, while App keeps owning the join handlers (they flip `user` on success). Two
+  **data/compliance texts** live in the landing: `LandingFeatures`' bottom banner is the
+  data-safety notice ("Only add synthetic or de-identified material. Never upload customer,
+  service, account or network details to any box." + a "Read the input rules" link that opens the
+  same `InputRulesPanel` used by the pipeline strip), and `LandingFooter` carries the
+  **Acknowledgement of Country** (in the brand-blurb slot) plus the disclaimer line
+  "AI Canva for nbn® is a capstone prototype. It isn't an official nbn product." (in the old
+  ©-line slot) — keep these exact strings when restyling.
 - **Code editor:** the UI Design / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
   + `@uiw/codemirror-theme-vscode`). It is **lazy-loaded** via `React.lazy` in `BoxNode.tsx` so
