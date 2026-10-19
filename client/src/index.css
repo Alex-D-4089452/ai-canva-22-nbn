@@ -958,11 +958,12 @@ html {
     user-select: text;
   }
 
-  /* Connection handles: 10px dots are ungrabbable with a finger. Growth is
-     centered (handles translate ±50%), so edges still anchor correctly. */
+  /* Connection handles: the 14px desktop dots are ungrabbable with a finger.
+     Growth is centered (handles translate ±50%), so edges still anchor
+     correctly. */
   .react-flow__handle {
-    width: 18px !important;
-    height: 18px !important;
+    width: 22px !important;
+    height: 22px !important;
   }
   /* Resize corner handles. */
   .react-flow__resize-control.handle {
@@ -1003,9 +1004,9 @@ html {
     font-size: 14px;
   }
   .box-delete {
-    width: 30px;
-    height: 30px;
-    font-size: 15px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 
   /* Minimum comfortable touch targets. */

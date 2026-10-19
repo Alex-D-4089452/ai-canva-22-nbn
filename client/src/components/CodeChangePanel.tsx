@@ -69,7 +69,7 @@ export default function CodeChangePanel({ id, boxType }: { id: string; boxType: 
               <span className="text-[10px] tabular-nums">
                 <span className="text-emerald-700 font-semibold">+{stats.added}</span>{" "}
                 <span className="text-rose-700 font-semibold">−{stats.removed}</span>
-                <span className="text-slate-400"> vs v{previous?.version}</span>
+                <span className="text-slate-500"> vs v{previous?.version}</span>
               </span>
             )}
             {previous && (
@@ -117,7 +117,7 @@ export default function CodeChangePanel({ id, boxType }: { id: string; boxType: 
                   return (
                     <div key={version.version} className="flex items-center gap-1.5 text-[10px]">
                       <span className="font-mono text-slate-500 w-6">v{version.version}</span>
-                      <span className="text-slate-400 whitespace-nowrap">
+                      <span className="text-slate-500 whitespace-nowrap">
                         {version.source === "edited" ? "↩️" : "✨"}{" "}
                         {delta ? `+${delta.added} −${delta.removed}` : "build"}
                       </span>
@@ -160,7 +160,7 @@ export default function CodeChangePanel({ id, boxType }: { id: string; boxType: 
         </div>
       )}
 
-      <p className="text-[10px] text-slate-400">
+      <p className="text-[10px] text-slate-500">
         The AI rewrites the whole component, so the diff and the version history are the check — nothing is
         verified for you beyond the preview.
       </p>
