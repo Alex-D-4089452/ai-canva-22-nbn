@@ -168,8 +168,13 @@ function Header({
     <header className="app-bar flex items-center justify-between gap-3 px-4 h-14 relative z-40">
       {/* ---- Left: brand + board identity ---- */}
       <div className="flex items-center gap-3 min-w-0">
-        <div className="logo-tile" aria-hidden>
-          🎨
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="logo-tile" aria-hidden>
+            🎨
+          </div>
+          <span className="hidden sm:inline text-[15px] font-bold tracking-tight text-white">
+            relay
+          </span>
         </div>
 
         {currentBoardId ? (
