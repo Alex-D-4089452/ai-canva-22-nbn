@@ -90,7 +90,7 @@ export default function LandingRoles({ onSignIn, signingIn }: LandingRolesProps)
                 <div>
                   <p className="text-xs tracking-widest text-amber-500">★★★★★</p>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                    “AI Canva is really useful for turning a messy workshop into
+                    “relay is really useful for turning a messy workshop into
                     a plan the whole team can see and edit.”
                   </p>
                 </div>

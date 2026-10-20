@@ -25,7 +25,7 @@ export default function LandingNav({
         <a href="#top" className="flex items-center gap-2.5">
           <span className="logo-tile items-center justify-center text-base">🎨</span>
           <span className="text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
-            AI Canva
+            relay
           </span>
         </a>
 
