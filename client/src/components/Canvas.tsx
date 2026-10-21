@@ -19,6 +19,7 @@ import { useBoardStore } from "../store/boardStore.js";
 import { useUIStore } from "../store/uiStore.js";
 import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { MODIFIER_KEYS, staleModifierKeys } from "../lib/modifiers.js";
 import { viewportCenter } from "../lib/placement.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
@@ -239,6 +240,64 @@ export default function Canvas() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // React Flow latches its Shift/Ctrl/Cmd selection keys from window
+  // keydown/keyup events. OS/browser shortcuts (Win+Shift+S, Cmd+Shift+5, …)
+  // can swallow the keyup, so the next pane drag draws a selection box and
+  // panning/node dragging stop. Reconcile the latched keys against real
+  // pointer events, and drop an interrupted marquee when focus is lost.
+  useEffect(() => {
+    const pressed = new Set<string>();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (MODIFIER_KEYS.has(e.key)) pressed.add(e.key);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      pressed.delete(e.key);
+    };
+    // A pointerup outside the pane / browser can leave the marquee or pan
+    // state active. With no button down (or after focus loss) it is stale.
+    const clearInterruptedInteraction = () => {
+      const s = rfStore.getState();
+      if (s.userSelectionActive || s.userSelectionRect || s.paneDragging) {
+        rfStore.setState({
+          userSelectionActive: false,
+          userSelectionRect: null,
+          paneDragging: false,
+        });
+      }
+    };
+    const reconcile = (e: PointerEvent) => {
+      for (const { key, code } of staleModifierKeys(pressed, e)) {
+        pressed.delete(key);
+        // React Flow (and our own keyup tracker) listen on window.
+        window.dispatchEvent(new KeyboardEvent("keyup", { key, code, bubbles: true }));
+      }
+      if (e.buttons === 0) clearInterruptedInteraction();
+    };
+    const onBlur = () => {
+      pressed.clear();
+      clearInterruptedInteraction();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onBlur();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("pointermove", reconcile, true);
+    window.addEventListener("pointerdown", reconcile, true);
+    window.addEventListener("pointercancel", clearInterruptedInteraction, true);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("pointermove", reconcile, true);
+      window.removeEventListener("pointerdown", reconcile, true);
+      window.removeEventListener("pointercancel", clearInterruptedInteraction, true);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [rfStore]);
 
   const draftRect = draft ? normalizeRect(draft.start, draft.current) : null;
 
