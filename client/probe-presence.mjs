@@ -60,8 +60,9 @@ const snapshot = (tag) =>
 
 log("before moves:", JSON.stringify(await snapshot("before")));
 
-// Two mouse moves over the EMPTY pane — (500,350) sits under the default-open
-// "How to use" card, whose events never reach the React Flow wrapper.
+// Two mouse moves over the EMPTY pane — (500,350) may sit under the "How to
+// use" card when it is open, and events over the card never reach React Flow's
+// wrapper. The card starts closed now, so this path stays clear by default.
 await page.mouse.move(800, 130, { steps: 10 });
 await page.waitForTimeout(400);
 await page.mouse.move(860, 160, { steps: 5 });

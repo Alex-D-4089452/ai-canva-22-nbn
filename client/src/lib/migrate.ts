@@ -166,7 +166,7 @@ export function exportBoardsJson(boards: BoardDoc[]): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ai-canva-boards-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `relay-boards-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

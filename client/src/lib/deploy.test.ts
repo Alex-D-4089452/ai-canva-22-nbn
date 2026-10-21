@@ -79,7 +79,7 @@ describe("deploySiteTitle", () => {
   it("names the site after the box and describes where it came from", () => {
     const title = deploySiteTitle("ui", data({ content: "a counter with   big buttons" }), "Counter Box", "Demo board");
     expect(title.displayName).toBe("Counter Box");
-    expect(title.displayDescription).toContain("AI Canva (UI Design box)");
+    expect(title.displayDescription).toContain("relay (UI Design box)");
     expect(title.displayDescription).toContain("Demo board");
     expect(title.displayDescription).toContain("a counter with big buttons"); // whitespace collapsed
     expect(deploySiteTitle("ui", data(), "", "").displayName).toBe("UI Design Box");

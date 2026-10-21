@@ -29,6 +29,60 @@ current state).
 
 ---
 
+## 2026-10-21 — NBN palette section and help tips
+
+- **Done:** the Add a box palette now has an **NBN** section directly below Inputs holding
+  Handoff Brief, Alignment Check and Jargon Translator; they were removed from Workers while
+  keeping `category: "worker"` for pipeline/landing behavior. The help card's bottom tips now
+  describe the three NBN boxes instead of Cartoon/Slides/Code. Updated markers-check (**38/38**),
+  the E2E section assertion, AGENTS.md and docs/BOX_TYPES.md. Full E2E **104/105** — the only
+  failure remains the known environment-only TG guest join.
+- **In flight:** -
+- **Next steps:** -
+
+## 2026-10-21 — Start canvas overlays closed
+
+- **Done:** `uiStore` now defaults `paletteOpen` and `helpOpen` to false, so the "Add a box"
+  palette and "How to use" card no longer cover a freshly opened board; the rail's Add Box and
+  Help buttons open them independently. Updated markers-check (**36/36**) and the E2E suite to
+  assert the closed defaults, open the palette through the rail in fresh contexts, and cover the
+  Help toggle. Full E2E **104/105** — the only failure is the known environment-only TG guest
+  join (no deployed workshop/join function).
+- **In flight:** -
+- **Next steps:** -
+
+## 2026-10-21 - Finish the relay rename sweep
+
+- **Done:** replaced the remaining **AI Canva** display strings with **relay** across the README,
+  top-level docs, onboarding/deployment prose, app chrome (Admin Board), generated StackBlitz and
+  here.now metadata, the Agent prompt, Stitch project names, and the board-export filename.
+  Renamed the markers screenshot to `relay-restyle.png`. Kept repo/package/Firebase/API/localStorage
+  identifiers and deployed URLs unchanged; course handouts and historical DEVLOG entries still use
+  the old name by request.
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-21 — Apply relay blue to key actions
+
+- **Done:** the header Run all button, the pipeline-strip Input rules link and the Boards-menu
+  New Board row now use the logo blue (`#1a73e8`); added a `brand` Button variant and switched
+  `MenuItem`'s `accent` styling to the brand blue.
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-21 — Rebrand the UI to relay
+
+- **Done:** replaced "AI Canva" with lowercase **relay** on the named surfaces. The landing
+  nav/footer use the new wordmark (`components/ui/RelayLogo.tsx` — theme-neutral `re`, brand-blue
+  `l`, theme-neutral `ay`; all-white on the blue footer); the board app bar swaps the purple 🎨
+  tile for the blue relay mark (`public/relay-mark.svg`), which is also the favicon (SVG + 32px
+  PNG fallback); the HTML page title and iOS web-app title are `relay`. Repo, package, Firebase
+  project and API identifiers are unchanged.
+- **In flight:** —
+- **Next steps:** secondary user-facing "AI Canva" strings outside the named surfaces are untouched
+  (Admin Board subtitle, StackBlitz/here.now generated metadata, Agent system prompt) if a fuller
+  sweep is wanted.
+
 ## 2026-10-19 - Box cards: AI verification tag, darker secondary text, bigger controls
 
 - **Done:** every box that holds AI content now carries an **"AI-generated, verify before acting"**

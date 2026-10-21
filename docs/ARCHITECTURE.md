@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how AI Canva is structured. It's a **client-side, React Flow canvas** that
+This document explains how relay is structured. It's a **client-side, React Flow canvas** that
 talks to a **Node backend** for AI generation and to **Firebase** for accounts, real-time
 sync, and **Cloudflare R2** for file blobs (board images/documents).
 

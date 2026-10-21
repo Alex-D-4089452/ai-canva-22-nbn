@@ -7,8 +7,9 @@ import type { Point } from "../lib/placement.js";
  * card, the Area drawing tool, the transient bottom-bar toast, and the reader
  * that tells `addBox` where the middle of the canvas currently is.
  *
- * Deliberately NOT persisted: these are per-session view toggles, and the
- * palette must come back open on reload (the E2E suite expects it).
+ * Deliberately NOT persisted: these are per-session view toggles. Both panels
+ * start closed so a fresh canvas is unobstructed; the rail's Add Box and Help
+ * buttons open them independently.
  *
  * Nothing in App.tsx subscribes to this store — every consumer (Sidebar,
  * CanvasRail, CanvasBar, Toolbar, Canvas) subscribes itself, so a toast or a
@@ -57,8 +58,8 @@ function clearToastTimer() {
 }
 
 export const useUIStore = create<UIState>()((set) => ({
-  paletteOpen: true,
-  helpOpen: true,
+  paletteOpen: false,
+  helpOpen: false,
   areaTool: false,
   areaColorIdx: 0,
   toast: null,

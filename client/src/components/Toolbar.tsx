@@ -68,17 +68,20 @@ export default function Toolbar() {
           </ol>
 
           <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-            <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-pink-600">🎨 Cartoon</span> — connect an Image box
-              to cartoonify it, or an Idea box for text-to-image.
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              NBN cross-functional boxes
             </p>
             <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-orange-500">📊 Slides</span> — connect Research
-              boxes to generate a navigable pitch deck.
+              <span className="font-semibold text-blue-700">📦 Handoff Brief</span> — package one
+              role's work into a clear brief for the next role.
             </p>
             <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-cyan-600">💻 Code</span> — connect a PRD or
-              Research box for a live React prototype.
+              <span className="font-semibold text-amber-700">✅ Alignment Check</span> — connect two
+              artefacts to compare them and surface gaps or drift.
+            </p>
+            <p className="text-[11px] text-slate-500 leading-snug">
+              <span className="font-semibold text-violet-600">🔁 Jargon Translator</span> — turn
+              role-specific language into plain terms for the next team.
             </p>
           </div>
 

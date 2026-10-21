@@ -1,3 +1,5 @@
+import { RelayWordmark } from "../ui/RelayLogo.js";
+
 interface LandingNavProps {
   onSignIn: () => void;
   signingIn: boolean;
@@ -22,11 +24,8 @@ export default function LandingNav({
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-[#0a0a0c]/80">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-        <a href="#top" className="flex items-center gap-2.5">
-          <span className="logo-tile items-center justify-center text-base">🎨</span>
-          <span className="text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
-            AI Canva
-          </span>
+        <a href="#top" className="flex items-center">
+          <RelayWordmark className="text-[17px]" />
         </a>
 
         <nav className="hidden items-center gap-6 md:flex">

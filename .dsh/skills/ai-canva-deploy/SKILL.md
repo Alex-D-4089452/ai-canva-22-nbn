@@ -1,11 +1,11 @@
 ---
 name: ai-canva-deploy
-description: Deploy the ai-canva project (a React + Firebase + Ollama-powered whiteboard app) to production on Firebase Hosting and Cloud Functions. Use when the user asks to deploy or re-deploy the app, when a build+deploy for production is requested, when Firebase hosting/function/rules deploys come up, or when verifying live hosting and API URLs. Invokes scripts/deploy.sh and the steps in docs/DEPLOYMENT.md.
+description: Deploy the relay project (a React + Firebase + Ollama-powered whiteboard app) to production on Firebase Hosting and Cloud Functions. Use when the user asks to deploy or re-deploy the app, when a build+deploy for production is requested, when Firebase hosting/function/rules deploys come up, or when verifying live hosting and API URLs. Invokes scripts/deploy.sh and the steps in docs/DEPLOYMENT.md.
 ---
 
-# Deploying AI Canva
+# Deploying relay
 
-AI Canva is a collaborative AI whiteboard: a Vite React client, an Express-style API,
+relay is a collaborative AI whiteboard: a Vite React client, an Express-style API,
 Firebase (Auth + Firestore) for accounts and board sync, and Cloudflare R2 for file blobs
 (images/documents). Production hosting and
 the API run on Firebase. This skill is the agent-facing deployment playbook; run it when asked

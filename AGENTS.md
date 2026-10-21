@@ -1,4 +1,4 @@
-# AI Canva — Project Memory
+# relay — Project Memory
 
 This file is auto-loaded into the AI agent's context at the start of every session (DeepSeek
 Harness reads `AGENTS.md` / `CLAUDE.md` from the project root). It captures durable project
@@ -11,9 +11,17 @@ alone.
 
 ## What this project is
 
-**AI Canva** is a collaborative, AI-powered whiteboard for building visual AI pipelines. Users
+**relay** is a collaborative, AI-powered whiteboard for building visual AI pipelines. Users
 place "boxes" on a React Flow canvas, connect them, and run AI prompts that flow content from box
 to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / Stitch UI.
+
+**Display name:** the product is branded **relay** (lowercase) in the UI — landing nav/footer,
+in-app header, and page title. The wordmark is `client/src/components/ui/RelayLogo.tsx`
+(brand-blue `l` + theme-neutral `re`/`ay`); the blue `r` tile is `client/public/relay-mark.svg`,
+which is also the favicon. Repository slug, package names, Firebase project IDs, API URLs and
+localStorage keys intentionally remain `ai-canva-22-nbn` / `ai-canva-*`; do not rename those for
+a UI rebrand. Course handouts under `docs/course/` and historical DEVLOG entries still use the
+old name; update them only if explicitly asked.
 
 - **Client:** React + Vite + React Flow canvas, Zustand store, Tailwind CSS.
 - **Backend:** Node/Express for local dev; the same API packaged as a Firebase Cloud Function for
@@ -140,8 +148,8 @@ panel** on the canvas, a light **dotted** canvas with floating status pills on t
 a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives:
 
 - **`client/src/components/ui/Button.tsx`** — the only button styling in the chrome.
-  Variants: `primary` (indigo-600 — the single loud color, used for Share, Run all and the
-  area tool's active state), `secondary` (white + 1px slate border — the default),
+  Variants: `primary` (indigo-600 — the general loud color), `brand` (relay blue `#1a73e8` —
+  the dark-bar Run all action), `secondary` (white + 1px slate border — the default),
   `ghost` (transparent, for role-gated views), `danger`, plus **dark-surface variants**
   `onDark` (translucent white pill for the dark bar — Boards menu), `outlineLight` /
   `ghostLight` (Share, Admin/Facilitator on the dark bar; focus ring offset `#0b0d12`);
@@ -149,17 +157,17 @@ a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives
   focus ring. Use it instead of hand-rolled Tailwind button class strings.
 - **`client/src/components/ui/Menu.tsx`** — dropdown primitive (`Menu` + `MenuItem`
   + `MenuDivider`/`MenuLabel`). Closes on outside click + Escape; pass children as
-  a function `(close) => …` so items can dismiss the menu after acting. Used by the
-  Boards menu and the account menu; the presence roster popover follows the same
-  outside-click/Escape contract.
+  a function `(close) => …` so items can dismiss the menu after acting. `MenuItem`'s
+  `accent` row is the brand-blue primary action (New Board). Used by the Boards menu and
+  the account menu; the presence roster popover follows the same outside-click/Escape contract.
 
-Design rules: one accent (indigo) over slate neutrals; 1px borders + layered soft
-shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, dark + blurred,
-`z-40`); box cards are `.box-node` (1px type-colored border set inline, indigo
-selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` — the 2026-10-15
-restyle briefly flattened it to white and the run-status strip below disappeared; both restored
-and guarded by markers-check) and a tinted `.box-icon-tile`;
-`.logo-tile` is the only gradient; `.save-dot` states map
+Design rules: one primary accent (indigo) over slate neutrals, with the relay brand blue
+(`#1a73e8`) reserved for the logo, Run all, the New Board menu row and the Input rules link.
+1px borders + layered soft shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar
+(`.app-bar`, dark + blurred, `z-40`); box cards are `.box-node` (1px type-colored border set
+inline, indigo selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` —
+the 2026-10-15 restyle briefly flattened it to white and the run-status strip below disappeared;
+both restored and guarded by markers-check) and a tinted `.box-icon-tile`; `.save-dot` states map
 `saveStatus`; thin scrollbars and the rounded minimap styling live
 in `client/src/index.css` (React Flow's `<Controls />` is gone — the custom `CanvasBar`
 owns zoom). Palette rows use a 28×28 icon tile tinted with the box
@@ -214,8 +222,10 @@ search, role filter, collapsible sections), `Toolbar` (the "How to use" card —
 redo** — the ↶/↷ buttons plus the Ctrl/Cmd+Z, Ctrl+Shift+Z / Ctrl+Y shortcuts — then the
 toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
 rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
-(`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — consumers subscribe
-themselves and **App must not** (the 6s-dismiss toast would re-render the whole canvas tree).
+(`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — `paletteOpen` and `helpOpen`
+**start closed** on every load so a fresh canvas is unobstructed; the rail's Add Box and Help
+buttons open them independently. Consumers subscribe themselves and **App must not** (the
+6s-dismiss toast would re-render the whole canvas tree).
 Shared pure logic: `lib/status.ts` `boxStatus()` drives both each card's floating `.box-pill`
 and the strip's chip state; `lib/pipeline.ts` `pipelineOrder()` (Kahn topo sort, x-tiebreak,
 cycle fallback) orders the strip **and** the sequential **Run all** loop in Header (skips boxes
@@ -327,18 +337,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (33-check) verification of **every
+- **Marker check:** `client/markers-check.mjs` — fast headless (38-check) verification of **every
   text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
   rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
   box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
   `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
   `node markers-check.mjs` from `client/` after any chrome restyle, then the full suites; it saves
-  a canvas screenshot to the OS temp dir (`ai-canva-restyle.png`) for visual review.
+  a canvas screenshot to the OS temp dir (`relay-restyle.png`) for visual review.
 - **Presence probe:** `client/probe-presence.mjs` — self-cleaning sign-in probe for the roster
   path (own presence doc appears immediately on subscribe; cursor writes are checked by moving the
-  mouse over the EMPTY pane — never over the default-open help card, whose events don't reach
-  React Flow). `node probe-presence.mjs` from `client/`; deletes the board it creates.
+  mouse over the EMPTY pane — never over the help card (closed by default, but it would swallow
+  the events if opened), whose events don't reach React Flow). `node probe-presence.mjs` from
+  `client/`; deletes the board it creates.
 - **T12 sync probe:** `client/probe-t12.mjs` — standalone, self-cleaning repro of the E2E's
   "note edit syncs A → B live" (real sign-in → note → reload → instrumented edit with synchronous
   store checks, deletes its board). `node probe-t12.mjs [delayMs]` from `client/`; delay 0 is the
@@ -542,8 +553,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
   a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
 - **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🔁 Jargon Translator —
-  types `handoff`/`alignment`/`jargon`, palette section
-  "Workers", `category: "worker"`):** generic text-AI boxes (they fall through `runBox`'s else
+  types `handoff`/`alignment`/`jargon`, their own **"NBN" palette section directly below
+  Inputs**, though they keep `category: "worker"` for pipeline/landing purposes):** generic
+  text-AI boxes (they fall through `runBox`'s else
   branch) that each render a **metadata banner** above the markdown output via their own block in
   `BoxNode.tsx` (each excluded from the generic text block's guard). Shared pieces: the
   banner's **`Source:`** label is `connectedSourceLabel()` (module-level in `BoxNode.tsx`) —
@@ -552,9 +564,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   written by the text branch of `runBox`. Handoff's From/To are editable inputs
   (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
   never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
-  heading** so a numbered source list copied into the translated artefact can't inflate it. None
-  of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier and was
-  removed — don't reintroduce `"decision"`/`decisionCount` references.)
+  heading** so a numbered source list copied into the translated artefact can't inflate it. The
+  help card's bottom tips cover these three NBN boxes (replacing the old Cartoon/Slides/Code
+  tips). None of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier
+  and was removed — don't reintroduce `"decision"`/`decisionCount` references.)
 - **AI change requests in the UI Design box:** once `boxData.code` exists, the box shows a
   **"Request a change…"** field + **✏️ Apply change** (`CodeChangePanel.tsx`), backed by the
   `applyChangeRequest` store action. The model rewrites the WHOLE component (the only reliable way to
@@ -647,7 +660,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   service, account or network details to any box." + a "Read the input rules" link that opens the
   same `InputRulesPanel` used by the pipeline strip), and `LandingFooter` carries the
   **Acknowledgement of Country** (in the brand-blurb slot) plus the disclaimer line
-  "AI Canva for nbn® is a capstone prototype. It isn't an official nbn product." (in the old
+  "relay for nbn® is a capstone prototype. It isn't an official nbn product." (in the old
   ©-line slot) — keep these exact strings when restyling.
 - **Code editor:** the UI Design / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
@@ -787,7 +800,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## dsh GUI plugins
 
 `dsh-plugins/` hosts out-of-tree plugins for the **DeepSeek Harness Web GUI** (the harness this
-agent runs in — `dsh web`, profile at `~/.dsh/profiles/web`). These are NOT part of the ai-canva
+agent runs in — `dsh web`, profile at `~/.dsh/profiles/web`). These are NOT part of the relay
 app; the directory just lives in this repo so the plugins stay under version control.
 
 - **`dsh-plugins/session-monitor/`** — floating **Sessions Monitor** window (contributed into the

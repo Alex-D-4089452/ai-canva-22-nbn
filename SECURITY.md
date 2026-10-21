@@ -1,6 +1,6 @@
 # Security Policy
 
-We take the security of AI Canva seriously. Thanks for helping keep it safe for everyone.
+We take the security of relay seriously. Thanks for helping keep it safe for everyone.
 
 ## Supported versions
 

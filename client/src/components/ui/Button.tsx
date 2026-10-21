@@ -5,13 +5,15 @@ import type { ButtonHTMLAttributes } from "react";
  * chrome (header, sidebar, canvas tools).
  *
  * Enterprise-clean by design:
- *  - exactly one loud color (indigo `primary`), used sparingly;
+ *  - a single loud color per context: indigo `primary` for general actions and
+ *    relay brand blue `brand` for the top-bar Run all action;
  *  - everything else is quiet neutrals (white / slate — or white-alpha on the
  *    dark app bar: `onDark` / `outlineLight` / `ghostLight`);
  *  - consistent heights, radii, and a visible keyboard focus ring.
  */
 export type ButtonVariant =
   | "primary"
+  | "brand"
   | "secondary"
   | "ghost"
   | "danger"
@@ -24,6 +26,10 @@ const VARIANT: Record<ButtonVariant, string> = {
   primary:
     "bg-indigo-600 text-white border border-indigo-600 shadow-sm " +
     "hover:bg-indigo-500 hover:border-indigo-500",
+  brand:
+    "bg-[#1a73e8] text-white border border-[#1a73e8] shadow-sm " +
+    "hover:bg-[#1667d6] hover:border-[#1667d6] " +
+    "focus-visible:!ring-[#1a73e8]/50 focus-visible:ring-offset-[#0b0d12]",
   secondary:
     "bg-white text-slate-600 border border-slate-200 shadow-sm " +
     "hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900",
@@ -49,6 +55,7 @@ const VARIANT: Record<ButtonVariant, string> = {
 /** Pressed / toggled state (e.g. an open panel or active view). */
 const ACTIVE: Record<ButtonVariant, string> = {
   primary: "bg-indigo-700 border-indigo-700 text-white hover:bg-indigo-700",
+  brand: "bg-[#1557b0] border-[#1557b0] text-white hover:bg-[#1557b0]",
   secondary:
     "bg-slate-900 border-slate-900 text-white " +
     "hover:bg-slate-800 hover:border-slate-800 hover:text-white",

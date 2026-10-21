@@ -172,7 +172,7 @@ describe("deploySite", () => {
 
     const result = await deploySite({
       files: [{ path: "index.html", content: "<h1>hi</h1>" }],
-      displayName: "AI Canva — Code Box",
+      displayName: "relay — Code Box",
     });
 
     expect(result.siteUrl).toBe("https://bright-canvas-a7k2.here.now/");
@@ -192,7 +192,7 @@ describe("deploySite", () => {
     ]);
     expect(calls[0].body).toMatchObject({
       files: [{ path: "index.html", size: Buffer.byteLength("<h1>hi</h1>"), contentType: "text/html; charset=utf-8" }],
-      displayName: "AI Canva — Code Box",
+      displayName: "relay — Code Box",
     });
     expect(calls[2].body).toEqual({ versionId: "ver_1" });
   });

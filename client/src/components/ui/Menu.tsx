@@ -67,7 +67,7 @@ interface MenuItemProps {
   description?: ReactNode;
   onClick?: () => void;
   danger?: boolean;
-  /** Indigo-tinted row for the primary action (e.g. "New board"). */
+  /** Brand-blue row for the primary action (e.g. "New Board"). */
   accent?: boolean;
   /** Marks the currently-selected entry (e.g. the open board). */
   active?: boolean;
@@ -83,7 +83,7 @@ export function MenuItem({ icon, label, description, onClick, danger, accent, ac
         (danger
           ? "text-red-600 hover:bg-red-50"
           : accent
-            ? "text-indigo-600 hover:bg-indigo-50"
+            ? "text-[#1a73e8] hover:bg-[#1a73e8]/5"
             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900") +
         (active ? " bg-indigo-50/70" : "")
       }

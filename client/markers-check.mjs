@@ -54,10 +54,76 @@ await page.waitForTimeout(2500);
 
 // ---------- Shell markers ----------
 check("app shell renders + `Add Box` present", !!(await page.$(".react-flow")) && /Add Box/.test(await bodyText()));
+
+// Both overlays start closed; the rail buttons open them independently.
+const overlaysClosed = await page.evaluate(() => {
+  const panel = document.querySelector(".sidebar-panel");
+  const help = Array.from(document.querySelectorAll("div")).find(
+    (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+  );
+  return {
+    palette: !!panel && !panel.classList.contains("translate-x-0"),
+    help: !help,
+  };
+});
+check("add-box palette starts closed", overlaysClosed.palette);
+check("help card starts closed", overlaysClosed.help);
+
+const paletteOpened = await page.evaluate(() => {
+  const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent.trim().endsWith("Add Box")
+  );
+  if (!btn) return false;
+  btn.click();
+  return true;
+});
+await page.waitForTimeout(300);
+check(
+  "Add Box opens the palette (without opening help)",
+  paletteOpened &&
+    (await page.evaluate(() => {
+      const panel = document.querySelector(".sidebar-panel");
+      const help = Array.from(document.querySelectorAll("div")).find(
+        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+      );
+      return !!panel && panel.classList.contains("translate-x-0") && !help;
+    }))
+);
+
 const sections = await bodyText();
 check(
-  "palette sections INPUTS/WORKERS/COLLABORATION",
-  /INPUTS/i.test(sections) && /WORKERS/i.test(sections) && /COLLABORATION/i.test(sections)
+  "palette sections INPUTS/NBN/WORKERS/COLLABORATION",
+  /INPUTS/i.test(sections) &&
+    /NBN/i.test(sections) &&
+    /WORKERS/i.test(sections) &&
+    /COLLABORATION/i.test(sections)
+);
+const nbnSection = await page.evaluate(() => {
+  const headers = Array.from(document.querySelectorAll(".palette-section"));
+  const title = (h) => (h.textContent || "").replace(/\s+/g, " ").trim();
+  const labelsIn = (index) => {
+    const container = headers[index]?.parentElement;
+    return container
+      ? Array.from(container.querySelectorAll(".palette-title")).map((el) => el.textContent.trim())
+      : [];
+  };
+  const titles = headers.map(title);
+  const inputs = titles.findIndex((t) => t.startsWith("Inputs"));
+  const nbn = titles.findIndex((t) => t.startsWith("NBN"));
+  const workers = titles.findIndex((t) => t.startsWith("Workers"));
+  const nbnLabels = labelsIn(nbn);
+  const workerLabels = labelsIn(workers);
+  const expected = ["Handoff Brief", "Alignment Check", "Jargon Translator"];
+  return {
+    belowInputs: nbn === inputs + 1,
+    complete: expected.every((label) => nbnLabels.includes(label)),
+    movedOutOfWorkers: expected.every((label) => !workerLabels.includes(label)),
+  };
+});
+check(
+  "NBN section sits below Inputs and holds the three NBN boxes",
+  nbnSection.belowInputs && nbnSection.complete && nbnSection.movedOutOfWorkers,
+  JSON.stringify(nbnSection)
 );
 check("pipeline strip under the header", !!(await page.$(".pipeline-strip")));
 check("pipeline chips show real steps", (await page.$$(".strip-chip")).length >= 2);
@@ -111,13 +177,39 @@ if (toastVisible) {
 }
 
 // ---------- Help card (TA marker) ----------
+const helpOpened = await page.evaluate(() => {
+  const btn = Array.from(document.querySelectorAll(".canvas-rail button")).find(
+    (b) => b.textContent.trim().endsWith("Help")
+  );
+  if (!btn) return false;
+  btn.click();
+  return true;
+});
+await page.waitForTimeout(300);
 check(
-  "help card: rounded-xl div containing 'How to use' with a button",
+  "Help opens the help card independently",
+  helpOpened &&
+    (await page.evaluate(() => {
+      const panel = Array.from(document.querySelectorAll("div")).find(
+        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+      );
+      const palette = document.querySelector(".sidebar-panel");
+      return !!(panel && panel.querySelector("button") && palette?.classList.contains("translate-x-0"));
+    }))
+);
+check(
+  "help card highlights the three NBN boxes",
   await page.evaluate(() => {
     const panel = Array.from(document.querySelectorAll("div")).find(
       (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
     );
-    return !!(panel && panel.querySelector("button"));
+    const text = panel?.textContent || "";
+    return (
+      text.includes("NBN cross-functional boxes") &&
+      ["Handoff Brief", "Alignment Check", "Jargon Translator"].every((label) =>
+        text.includes(label)
+      )
+    );
   })
 );
 
@@ -254,7 +346,7 @@ check(
 );
 
 // ---------- Screenshot for visual review ----------
-await page.screenshot({ path: path.join(os.tmpdir(), "ai-canva-restyle.png"), fullPage: false });
+await page.screenshot({ path: path.join(os.tmpdir(), "relay-restyle.png"), fullPage: false });
 
 // Page errors after the fake-user seed are expected noise (Firestore
 // permission rejections, exactly as the E2E suite documents) — report only.
@@ -263,5 +355,5 @@ if (pageErrors.length) console.log(`INFO - page errors (expected fake-user noise
 await browser.close();
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} marker checks passed.`);
-console.log(`Screenshot: ${path.join(os.tmpdir(), "ai-canva-restyle.png")}`);
+console.log(`Screenshot: ${path.join(os.tmpdir(), "relay-restyle.png")}`);
 process.exit(failed.length ? 1 : 0);

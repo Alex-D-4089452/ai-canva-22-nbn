@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { RelayWordmark } from "../ui/RelayLogo.js";
 
 interface LandingFooterProps {
   onSignIn: () => void;
@@ -52,10 +53,7 @@ export default function LandingFooter({ onSignIn }: LandingFooterProps) {
       <div className="mx-auto max-w-6xl px-5 py-14">
         <div className="grid gap-10 md:grid-cols-[1.2fr_repeat(3,1fr)]">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="logo-tile items-center justify-center text-base">🎨</span>
-              <span className="text-base font-bold">AI Canva</span>
-            </div>
+            <RelayWordmark monochrome className="text-base" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-blue-100 dark:text-slate-400">
               We acknowledge the Traditional Owners and Custodians of Country
               throughout Australia and pay our respects to Elders past and
@@ -89,7 +87,7 @@ export default function LandingFooter({ onSignIn }: LandingFooterProps) {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-blue-500/50 pt-6 text-xs text-blue-100 md:flex-row md:items-center dark:border-white/10 dark:text-slate-500">
           <p>
-            AI Canva for nbn® is a capstone prototype. It isn't an official nbn
+            relay for nbn® is a capstone prototype. It isn't an official nbn
             product.
           </p>
           <p>Runs on your models · Your boards, your data</p>

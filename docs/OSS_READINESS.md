@@ -4,7 +4,7 @@ The repo is functional, but there are a few items to address before running it a
 **source** and open **deployment**. This page documents them as actionable issues — nothing here
 changes the code automatically. Each item maps to a recommended GitHub issue.
 
-> **Why these matter:** AI Canva has paid AI backends (Ollama / fal.ai / Stitch) and a Firebase
+> **Why these matter:** relay has paid AI backends (Ollama / fal.ai / Stitch) and a Firebase
 > backend with auth and shared boards. Left as-is, a public instance could let anyone burn your
 > API quota, read other users' boards, or write to your storage bucket.
 
