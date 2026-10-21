@@ -368,7 +368,7 @@ function Header({
             )}
 
             <Button
-              variant="primary"
+              variant="brand"
               onClick={handleRunAll}
               disabled={runAllBusy}
               title="Run every ready box in board order"
