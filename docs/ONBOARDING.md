@@ -1,6 +1,6 @@
 # Onboarding & Environment Setup
 
-Welcome! 👋 This guide gets you from **nothing installed** to a **running AI Canva** on your own
+Welcome! 👋 This guide gets you from **nothing installed** to a **running relay** on your own
 machine, then shows you where to look and what to try first. It's written for students and
 newcomers, so every step is spelled out. If you already know your way around, the quick checklist
 at the end is all you need.
@@ -47,8 +47,8 @@ All three should print a version (not an error).
 ## Step 1 — Clone the repository
 
 ```bash
-git clone <your-repo-url> ai-canva
-cd ai-canva
+git clone <your-repo-url> relay
+cd relay
 ```
 
 > If you're forking on GitHub for your own work, click **Fork** first, then clone *your* fork.
@@ -108,7 +108,7 @@ You'll know the server is up when you see `[server] Running on http://localhost:
 
 ## Step 5 — Sign in and try it
 
-AI Canva uses **Google sign-in**. To actually enter the canvas you need an account.
+relay uses **Google sign-in**. To actually enter the canvas you need an account.
 
 - **Fastest:** the repo already contains a Firebase config in `client/src/lib/firebase.ts`
   pointing at a shared demo project. If that project allows your sign-in, you can log in
@@ -211,7 +211,7 @@ Once it runs, try these to build confidence:
 ## Quick start (cheat sheet)
 
 ```bash
-git clone <your-repo-url> ai-canva && cd ai-canva
+git clone <your-repo-url> relay && cd relay
 npm install && npm run install:all
 cp server/.env.example server/.env   # then edit: OLLAMA_API_KEY or OLLAMA_HOST
 npm run dev                          # open http://localhost:5173

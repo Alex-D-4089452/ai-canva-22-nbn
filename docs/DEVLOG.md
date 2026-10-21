@@ -29,6 +29,17 @@ current state).
 
 ---
 
+## 2026-10-21 — Finish the relay rename sweep
+
+- **Done:** replaced the remaining **AI Canva** display strings with **relay** across the README,
+  top-level docs, onboarding/deployment prose, app chrome (Admin Board), generated StackBlitz and
+  here.now metadata, the Agent prompt, Stitch project names, and the board-export filename.
+  Renamed the markers screenshot to `relay-restyle.png`. Kept repo/package/Firebase/API/localStorage
+  identifiers and deployed URLs unchanged; course handouts and historical DEVLOG entries still use
+  the old name by request.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-21 — Apply relay blue to key actions
 
 - **Done:** the header Run all button, the pipeline-strip Input rules link and the Boards-menu

@@ -1,6 +1,6 @@
 # Deployment
 
-You can run AI Canva three ways:
+You can run relay three ways:
 
 1. **Local development** — Vite + the local Express server (see the [README](../README.md)).
 2. **Production on Render (recommended, Spark/free Firebase)** — API as a Render Web Service,

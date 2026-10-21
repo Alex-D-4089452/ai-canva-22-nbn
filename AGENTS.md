@@ -1,4 +1,4 @@
-# AI Canva — Project Memory
+# relay — Project Memory
 
 This file is auto-loaded into the AI agent's context at the start of every session (DeepSeek
 Harness reads `AGENTS.md` / `CLAUDE.md` from the project root). It captures durable project
@@ -11,15 +11,17 @@ alone.
 
 ## What this project is
 
-**AI Canva** is a collaborative, AI-powered whiteboard for building visual AI pipelines. Users
+**relay** is a collaborative, AI-powered whiteboard for building visual AI pipelines. Users
 place "boxes" on a React Flow canvas, connect them, and run AI prompts that flow content from box
 to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / Stitch UI.
 
 **Display name:** the product is branded **relay** (lowercase) in the UI — landing nav/footer,
 in-app header, and page title. The wordmark is `client/src/components/ui/RelayLogo.tsx`
 (brand-blue `l` + theme-neutral `re`/`ay`); the blue `r` tile is `client/public/relay-mark.svg`,
-which is also the favicon. Repository, package, Firebase project and API identifiers
-intentionally remain `ai-canva-22-nbn` / `AI Canva`; do not rename those for a UI rebrand.
+which is also the favicon. Repository slug, package names, Firebase project IDs, API URLs and
+localStorage keys intentionally remain `ai-canva-22-nbn` / `ai-canva-*`; do not rename those for
+a UI rebrand. Course handouts under `docs/course/` and historical DEVLOG entries still use the
+old name; update them only if explicitly asked.
 
 - **Client:** React + Vite + React Flow canvas, Zustand store, Tailwind CSS.
 - **Backend:** Node/Express for local dev; the same API packaged as a Firebase Cloud Function for
@@ -340,7 +342,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
   `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
   `node markers-check.mjs` from `client/` after any chrome restyle, then the full suites; it saves
-  a canvas screenshot to the OS temp dir (`ai-canva-restyle.png`) for visual review.
+  a canvas screenshot to the OS temp dir (`relay-restyle.png`) for visual review.
 - **Presence probe:** `client/probe-presence.mjs` — self-cleaning sign-in probe for the roster
   path (own presence doc appears immediately on subscribe; cursor writes are checked by moving the
   mouse over the EMPTY pane — never over the default-open help card, whose events don't reach
@@ -653,7 +655,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   service, account or network details to any box." + a "Read the input rules" link that opens the
   same `InputRulesPanel` used by the pipeline strip), and `LandingFooter` carries the
   **Acknowledgement of Country** (in the brand-blurb slot) plus the disclaimer line
-  "AI Canva for nbn® is a capstone prototype. It isn't an official nbn product." (in the old
+  "relay for nbn® is a capstone prototype. It isn't an official nbn product." (in the old
   ©-line slot) — keep these exact strings when restyling.
 - **Code editor:** the UI Design / Stitch boxes use an editable CodeMirror 6 editor
   (`client/src/components/CodeEditor.tsx`, `@uiw/react-codemirror` + `@codemirror/lang-javascript`
@@ -793,7 +795,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## dsh GUI plugins
 
 `dsh-plugins/` hosts out-of-tree plugins for the **DeepSeek Harness Web GUI** (the harness this
-agent runs in — `dsh web`, profile at `~/.dsh/profiles/web`). These are NOT part of the ai-canva
+agent runs in — `dsh web`, profile at `~/.dsh/profiles/web`). These are NOT part of the relay
 app; the directory just lives in this repo so the plugins stay under version control.
 
 - **`dsh-plugins/session-monitor/`** — floating **Sessions Monitor** window (contributed into the

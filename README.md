@@ -1,4 +1,4 @@
-# AI Canva
+# relay
 
 > Build AI pipelines visually. Place boxes on a canvas, connect them, and run AI prompts that flow content from box to box.
 
@@ -12,7 +12,7 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 
 | Guide                                                | What it covers                                                 |
 | ---------------------------------------------------- | -------------------------------------------------------------- |
-| [Project Overview](docs/OVERVIEW.md)                 | What AI Canva is, how it works, and what you can learn from it |
+| [Project Overview](docs/OVERVIEW.md)                 | What relay is, how it works, and what you can learn from it    |
 | [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step        |
 | [Architecture](docs/ARCHITECTURE.md)                 | Deep dive into the client, backend, and Firebase layers        |
 | [Box Types](docs/BOX_TYPES.md)                       | Every box and how to add a new one                             |
@@ -23,23 +23,23 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 
 ### 📘 Course guides
 
-Course materials for using AI Canva as a teaching/learning project. A complete set of briefs and how-to guides that build on the same codebase:
+Course materials for using relay as a teaching/learning project. A complete set of briefs and how-to guides that build on the same codebase:
 
 | Guide                                                                              | What it covers                                                                                   |
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | [Intro Message for Students](docs/course/00_intro_message.md)                      | Kick-off message to post to your class                                                           |
-| [What is AI Canva?](docs/course/01_what_is_ai_canva.md)                            | Beginner's intro: the big idea, box types, how it works, architecture                            |
+| [What is relay?](docs/course/01_what_is_ai_canva.md)                               | Beginner's intro: the big idea, box types, how it works, architecture                            |
 | [Student Brief — One Box per Student](docs/course/02_student_brief_one_box.md)     | Individual assignment: each student designs & builds one box                                     |
-| [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md)    | Group project: turn AI Canva into a security/compliance support tool                             |
-| [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md)     | Group project: turn AI Canva into a UX design support tool for healthcare                        |
+| [Group Brief — Cybersecurity & Compliance](docs/course/03_cyber_group_brief.md)    | Group project: turn relay into a security/compliance support tool                                |
+| [Group Brief — UX for Telstra Health](docs/course/04_ux_health_group_brief.md)     | Group project: turn relay into a UX design support tool for healthcare                           |
 | [How to Build a Box](docs/course/05_how_to_build_a_box.md)                         | Step-by-step: add a new box + branching/code-management rules for beginners                      |
-| [Group Brief — Telstra Innovation Lab](docs/course/06_telstra_innovation_brief.md) | Group project: turn AI Canva into an innovation accelerator (market research, rapid prototyping) |
+| [Group Brief — Telstra Innovation Lab](docs/course/06_telstra_innovation_brief.md) | Group project: turn relay into an innovation accelerator (market research, rapid prototyping)    |
 | [Group Brief — NBN Collaboration](docs/course/07_nbn_collab_brief.md)              | Group project: help non-technical roles (UX/BA/product/content) collaborate faster               |
 
 > Each guide also ships as a print-friendly **HTML handout** (`docs/course/*.html`) — open in any
 > browser and use _Print → Save as PDF_ for a clean handout.
 
-> **Teaching with this project?** Point students at the [What is AI Canva?](docs/course/01_what_is_ai_canva.md)
+> **Teaching with this project?** Point students at the [What is relay?](docs/course/01_what_is_ai_canva.md)
 > guide first, then the [How to Build a Box](docs/course/05_how_to_build_a_box.md) walkthrough and the
 > relevant project brief (individual or group).
 
@@ -190,7 +190,7 @@ When signed in with Google, your boards live in Firestore.
 ## 🗂️ Project structure
 
 ```
-ai-canva/
+relay/
 ├── client/                 # Vite React app
 │   └── src/
 │       ├── components/      # Canvas, BoxNode, Sidebar, Toolbar, modals, LandingPage

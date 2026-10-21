@@ -1,11 +1,11 @@
-# AI Canva — Project Overview
+# relay — Project Overview
 
-> **What is this project?** AI Canva is an open-source, **collaborative AI whiteboard** where you
+> **What is this project?** relay is an open-source, **collaborative AI whiteboard** where you
 > build visual "pipelines" of AI-powered boxes. You drop boxes on a canvas, connect them, and run
 > AI prompts that flow content from box to box — turning a rough idea into researched notes, a
 > product spec, a pitch deck, and even a working React prototype.
 
-This document is the **overall documentation** for AI Canva. It explains the project at a level
+This document is the **overall documentation** for relay. It explains the project at a level
 suitable for **students** and **instructors** using the codebase as a learning ground, and it
 points to deeper, practical guides for setup, architecture, and deployment.
 
@@ -13,7 +13,7 @@ points to deeper, practical guides for setup, architecture, and deployment.
 
 ## 1. The big idea
 
-Most AI apps are single-purpose chat boxes. AI Canva turns AI into a **visual, modular
+Most AI apps are single-purpose chat boxes. relay turns AI into a **visual, modular
 pipeline**. Think of it as a flowchart where each node is a tool:
 
 ```
@@ -136,7 +136,7 @@ Three layers worth understanding:
 
 ## 7. Why this is a great training project
 
-As a student, working on AI Canva lets you touch a **real, deployed, multi-service app** — not a
+As a student, working on relay lets you touch a **real, deployed, multi-service app** — not a
 toy. Depending on your focus, you can learn:
 
 - **Frontend:** React components, hooks, a single central store, TypeScript, Tailwind.

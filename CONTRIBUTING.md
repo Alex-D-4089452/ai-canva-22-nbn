@@ -1,4 +1,4 @@
-# Contributing to AI Canva
+# Contributing to relay
 
 Thanks for your interest in contributing! 🎨 We welcome bug reports, feature ideas, documentation, and code.
 

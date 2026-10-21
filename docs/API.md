@@ -178,7 +178,7 @@ code becomes a URL at `https://{slug}.here.now/`.
 {
   "files": [{ "path": "index.html", "content": "<!DOCTYPE html>…" }],
   "displayName": "Counter Box",
-  "displayDescription": "Published from AI Canva (UI Design box)"
+  "displayDescription": "Published from relay (UI Design box)"
 }
 ```
 
