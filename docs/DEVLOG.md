@@ -29,7 +29,18 @@ current state).
 
 ---
 
-## 2026-10-21 — Finish the relay rename sweep
+## 2026-10-21 — Start canvas overlays closed
+
+- **Done:** `uiStore` now defaults `paletteOpen` and `helpOpen` to false, so the "Add a box"
+  palette and "How to use" card no longer cover a freshly opened board; the rail's Add Box and
+  Help buttons open them independently. Updated markers-check (**36/36**) and the E2E suite to
+  assert the closed defaults, open the palette through the rail in fresh contexts, and cover the
+  Help toggle. Full E2E **104/105** — the only failure is the known environment-only TG guest
+  join (no deployed workshop/join function).
+- **In flight:** -
+- **Next steps:** -
+
+## 2026-10-21 - Finish the relay rename sweep
 
 - **Done:** replaced the remaining **AI Canva** display strings with **relay** across the README,
   top-level docs, onboarding/deployment prose, app chrome (Admin Board), generated StackBlitz and

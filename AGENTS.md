@@ -222,8 +222,10 @@ search, role filter, collapsible sections), `Toolbar` (the "How to use" card —
 redo** — the ↶/↷ buttons plus the Ctrl/Cmd+Z, Ctrl+Shift+Z / Ctrl+Y shortcuts — then the
 toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
 rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
-(`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — consumers subscribe
-themselves and **App must not** (the 6s-dismiss toast would re-render the whole canvas tree).
+(`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — `paletteOpen` and `helpOpen`
+**start closed** on every load so a fresh canvas is unobstructed; the rail's Add Box and Help
+buttons open them independently. Consumers subscribe themselves and **App must not** (the
+6s-dismiss toast would re-render the whole canvas tree).
 Shared pure logic: `lib/status.ts` `boxStatus()` drives both each card's floating `.box-pill`
 and the strip's chip state; `lib/pipeline.ts` `pipelineOrder()` (Kahn topo sort, x-tiebreak,
 cycle fallback) orders the strip **and** the sequential **Run all** loop in Header (skips boxes
@@ -335,7 +337,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (33-check) verification of **every
+- **Marker check:** `client/markers-check.mjs` — fast headless (36-check) verification of **every
   text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
   rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
@@ -345,8 +347,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   a canvas screenshot to the OS temp dir (`relay-restyle.png`) for visual review.
 - **Presence probe:** `client/probe-presence.mjs` — self-cleaning sign-in probe for the roster
   path (own presence doc appears immediately on subscribe; cursor writes are checked by moving the
-  mouse over the EMPTY pane — never over the default-open help card, whose events don't reach
-  React Flow). `node probe-presence.mjs` from `client/`; deletes the board it creates.
+  mouse over the EMPTY pane — never over the help card (closed by default, but it would swallow
+  the events if opened), whose events don't reach React Flow). `node probe-presence.mjs` from
+  `client/`; deletes the board it creates.
 - **T12 sync probe:** `client/probe-t12.mjs` — standalone, self-cleaning repro of the E2E's
   "note edit syncs A → B live" (real sign-in → note → reload → instrumented edit with synchronous
   store checks, deletes its board). `node probe-t12.mjs [delayMs]` from `client/`; delay 0 is the

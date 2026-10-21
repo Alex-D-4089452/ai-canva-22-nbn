@@ -54,6 +54,42 @@ await page.waitForTimeout(2500);
 
 // ---------- Shell markers ----------
 check("app shell renders + `Add Box` present", !!(await page.$(".react-flow")) && /Add Box/.test(await bodyText()));
+
+// Both overlays start closed; the rail buttons open them independently.
+const overlaysClosed = await page.evaluate(() => {
+  const panel = document.querySelector(".sidebar-panel");
+  const help = Array.from(document.querySelectorAll("div")).find(
+    (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+  );
+  return {
+    palette: !!panel && !panel.classList.contains("translate-x-0"),
+    help: !help,
+  };
+});
+check("add-box palette starts closed", overlaysClosed.palette);
+check("help card starts closed", overlaysClosed.help);
+
+const paletteOpened = await page.evaluate(() => {
+  const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent.trim().endsWith("Add Box")
+  );
+  if (!btn) return false;
+  btn.click();
+  return true;
+});
+await page.waitForTimeout(300);
+check(
+  "Add Box opens the palette (without opening help)",
+  paletteOpened &&
+    (await page.evaluate(() => {
+      const panel = document.querySelector(".sidebar-panel");
+      const help = Array.from(document.querySelectorAll("div")).find(
+        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+      );
+      return !!panel && panel.classList.contains("translate-x-0") && !help;
+    }))
+);
+
 const sections = await bodyText();
 check(
   "palette sections INPUTS/WORKERS/COLLABORATION",
@@ -111,14 +147,25 @@ if (toastVisible) {
 }
 
 // ---------- Help card (TA marker) ----------
+const helpOpened = await page.evaluate(() => {
+  const btn = Array.from(document.querySelectorAll(".canvas-rail button")).find(
+    (b) => b.textContent.trim().endsWith("Help")
+  );
+  if (!btn) return false;
+  btn.click();
+  return true;
+});
+await page.waitForTimeout(300);
 check(
-  "help card: rounded-xl div containing 'How to use' with a button",
-  await page.evaluate(() => {
-    const panel = Array.from(document.querySelectorAll("div")).find(
-      (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
-    );
-    return !!(panel && panel.querySelector("button"));
-  })
+  "Help opens the help card independently",
+  helpOpened &&
+    (await page.evaluate(() => {
+      const panel = Array.from(document.querySelectorAll("div")).find(
+        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+      );
+      const palette = document.querySelector(".sidebar-panel");
+      return !!(panel && panel.querySelector("button") && palette?.classList.contains("translate-x-0"));
+    }))
 );
 
 // ---------- Area tool (TA) ----------

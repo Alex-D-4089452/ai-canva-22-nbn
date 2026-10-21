@@ -47,6 +47,35 @@ await page.evaluate((u) => {
 }, FAKE);
 await page.waitForTimeout(2000);
 check("T2 app shell renders after login", !!(await page.$(".react-flow")) && /Add Box/.test(await bodyText()));
+const overlaysClosed = await page.evaluate(() => {
+  const palette = document.querySelector(".sidebar-panel");
+  const help = Array.from(document.querySelectorAll("div")).find(
+    (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+  );
+  return {
+    palette: !!palette && !palette.classList.contains("translate-x-0"),
+    help: !help,
+  };
+});
+check("T2 add-box palette starts closed", overlaysClosed.palette);
+check("T2 help card starts closed", overlaysClosed.help);
+const paletteOpened = await page.evaluate(() => {
+  const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent.trim().endsWith("Add Box")
+  );
+  if (!btn) return false;
+  btn.click();
+  return true;
+});
+await page.waitForTimeout(300);
+check(
+  "T2 Add Box opens the palette",
+  paletteOpened &&
+    (await page.evaluate(() => {
+      const palette = document.querySelector(".sidebar-panel");
+      return !!palette && palette.classList.contains("translate-x-0");
+    }))
+);
 check("T2 palette sections: Inputs/Workers/Collaboration", /INPUTS/i.test(await bodyText()) && /WORKERS/i.test(await bodyText()) && /COLLABORATION/i.test(await bodyText()));
 check("T2 starter board seeded (idea + research)", await safe("T2 starter", async () => {
   const nodes = await page.evaluate(() => window.__dsh.useBoardStore.getState().nodes);
@@ -187,16 +216,7 @@ await safe("T6 timer flow", async () => {
 
 // ---------- TA: Area drawing tool end-to-end ----------
 await safe("TA areas flow", async () => {
-  // Dismiss the "How to use" panel so it doesn't block canvas drags.
-  await page.evaluate(() => {
-    const panel = Array.from(document.querySelectorAll("div")).find((d) =>
-      (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
-    );
-    const x = panel && panel.querySelector("button");
-    x && x.click();
-  });
-  await page.waitForTimeout(300);
-
+  // Help starts closed (uiStore), so it cannot block the canvas drag.
   // Activate the area tool via the real toolbar button.
   const activated = await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll("button")).find((b) =>
@@ -373,6 +393,21 @@ const waitFor = async (fn, { timeout = 20000, every = 500, label = "" } = {}) =>
     if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for ${label}`);
     await new Promise((r) => setTimeout(r, every));
   }
+};
+
+// The palette starts closed (uiStore); open it before driving palette rows so
+// the fresh-context flows exercise the same visible UI a user sees.
+const openPalette = async (page) => {
+  const opened = await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll(".canvas-rail button")).find((b) =>
+      (b.textContent || "").trim().endsWith("Add Box")
+    );
+    if (!btn) return false;
+    btn.click();
+    return true;
+  });
+  if (opened) await page.waitForTimeout(350);
+  return opened;
 };
 
 // ---------- TD: Documents box — upload, extraction, and prompt flow ----------
@@ -698,6 +733,7 @@ await pageA.goto(APP, { waitUntil: "load" });
   check("T9 real board created in Firestore", !!boardId, boardId || "none");
   const saveStatus = await pageA.evaluate(() => window.__dsh.useBoardStore.getState().saveStatus);
   check("T9 board saved (saveStatus)", saveStatus === "saved", saveStatus);
+  check("T9 Add Box opens the palette for a real user", await openPalette(pageA));
 
   // ----- T10: real persistence across a page reload -----
   // Add a note through the real palette, type, let the debounced save land,
@@ -743,6 +779,7 @@ await pageA.goto(APP, { waitUntil: "load" });
       { label: "session restore", timeout: 30000 }
     ).then(() => true).catch(() => false));
     check("T10 board reloads from Firestore with the note", !!back, `pre-reload content=${JSON.stringify(savedBeforeReload)}`);
+    await openPalette(pageA);
   }
 
   // ----- T11: second real user opens the same board via ?board= -----
@@ -761,6 +798,7 @@ await pageA.goto(APP, { waitUntil: "load" });
       { label: "B loads shared board", timeout: 45000 }
     ).catch(() => null);
     check("T11 user B opens A's board via ?board= link", !!joined);
+    await openPalette(pageB);
 
     // ----- T12: live cross-user sync — note edit, timer, presence -----
     // A edits the note; B must see the new text via the onSnapshot sync.
@@ -1134,6 +1172,8 @@ await pageA.goto(APP, { waitUntil: "load" });
     // Persistence: reload — the definition must still be listed in the
     // PALETTE (not the board instance, which shares the name).
     await pageA.reload({ waitUntil: "load" });
+    await pageA.waitForSelector(".canvas-rail button");
+    await openPalette(pageA);
     const persisted = await waitFor(
       () => pageA.evaluate(() => {
         // The palette entry is a BUTTON whose text is exactly the def label;
