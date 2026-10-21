@@ -76,7 +76,7 @@ check(
       return !!palette && palette.classList.contains("translate-x-0");
     }))
 );
-check("T2 palette sections: Inputs/Workers/Collaboration", /INPUTS/i.test(await bodyText()) && /WORKERS/i.test(await bodyText()) && /COLLABORATION/i.test(await bodyText()));
+check("T2 palette sections: Inputs/NBN/Workers/Collaboration", /INPUTS/i.test(await bodyText()) && /NBN/i.test(await bodyText()) && /WORKERS/i.test(await bodyText()) && /COLLABORATION/i.test(await bodyText()));
 check("T2 starter board seeded (idea + research)", await safe("T2 starter", async () => {
   const nodes = await page.evaluate(() => window.__dsh.useBoardStore.getState().nodes);
   const types = nodes.map((n) => n.data.boxType || n.type);

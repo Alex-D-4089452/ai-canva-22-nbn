@@ -92,8 +92,38 @@ check(
 
 const sections = await bodyText();
 check(
-  "palette sections INPUTS/WORKERS/COLLABORATION",
-  /INPUTS/i.test(sections) && /WORKERS/i.test(sections) && /COLLABORATION/i.test(sections)
+  "palette sections INPUTS/NBN/WORKERS/COLLABORATION",
+  /INPUTS/i.test(sections) &&
+    /NBN/i.test(sections) &&
+    /WORKERS/i.test(sections) &&
+    /COLLABORATION/i.test(sections)
+);
+const nbnSection = await page.evaluate(() => {
+  const headers = Array.from(document.querySelectorAll(".palette-section"));
+  const title = (h) => (h.textContent || "").replace(/\s+/g, " ").trim();
+  const labelsIn = (index) => {
+    const container = headers[index]?.parentElement;
+    return container
+      ? Array.from(container.querySelectorAll(".palette-title")).map((el) => el.textContent.trim())
+      : [];
+  };
+  const titles = headers.map(title);
+  const inputs = titles.findIndex((t) => t.startsWith("Inputs"));
+  const nbn = titles.findIndex((t) => t.startsWith("NBN"));
+  const workers = titles.findIndex((t) => t.startsWith("Workers"));
+  const nbnLabels = labelsIn(nbn);
+  const workerLabels = labelsIn(workers);
+  const expected = ["Handoff Brief", "Alignment Check", "Jargon Translator"];
+  return {
+    belowInputs: nbn === inputs + 1,
+    complete: expected.every((label) => nbnLabels.includes(label)),
+    movedOutOfWorkers: expected.every((label) => !workerLabels.includes(label)),
+  };
+});
+check(
+  "NBN section sits below Inputs and holds the three NBN boxes",
+  nbnSection.belowInputs && nbnSection.complete && nbnSection.movedOutOfWorkers,
+  JSON.stringify(nbnSection)
 );
 check("pipeline strip under the header", !!(await page.$(".pipeline-strip")));
 check("pipeline chips show real steps", (await page.$$(".strip-chip")).length >= 2);
@@ -166,6 +196,21 @@ check(
       const palette = document.querySelector(".sidebar-panel");
       return !!(panel && panel.querySelector("button") && palette?.classList.contains("translate-x-0"));
     }))
+);
+check(
+  "help card highlights the three NBN boxes",
+  await page.evaluate(() => {
+    const panel = Array.from(document.querySelectorAll("div")).find(
+      (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+    );
+    const text = panel?.textContent || "";
+    return (
+      text.includes("NBN cross-functional boxes") &&
+      ["Handoff Brief", "Alignment Check", "Jargon Translator"].every((label) =>
+        text.includes(label)
+      )
+    );
+  })
 );
 
 // ---------- Area tool (TA) ----------

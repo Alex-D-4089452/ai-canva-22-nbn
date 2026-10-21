@@ -19,9 +19,24 @@ import CustomBoxModal from "./CustomBoxModal.js";
  * bottom-bar toast with a single-step Undo.
  */
 
-const SECTIONS: { title: string; category: BoxCategory }[] = [
+/**
+ * Palette-only grouping. NBN boxes keep `category: "worker"` (they are normal
+ * pipeline workers); `types` just lifts them into their own section below
+ * Inputs, and `exclude` keeps them out of the general Workers section.
+ */
+const NBN_TYPES: BoxType[] = ["handoff", "alignment", "jargon"];
+
+interface PaletteSection {
+  title: string;
+  category: BoxCategory;
+  types?: BoxType[];
+  exclude?: BoxType[];
+}
+
+const SECTIONS: PaletteSection[] = [
   { title: "Inputs", category: "input" },
-  { title: "Workers", category: "worker" },
+  { title: "NBN", category: "worker", types: NBN_TYPES },
+  { title: "Workers", category: "worker", exclude: NBN_TYPES },
   { title: "Collaboration", category: "collab" },
   { title: "Custom", category: "custom" },
 ];
@@ -107,12 +122,14 @@ export default function Sidebar() {
     return label.toLowerCase().includes(q) || description.toLowerCase().includes(q);
   };
 
-  const boxesByCategory = (cat: BoxCategory) =>
+  const boxesForSection = (section: PaletteSection) =>
     (Object.entries(BOX_TYPES) as [BoxType, typeof BOX_TYPES[BoxType]][])
-      .filter(
-        ([, meta]) =>
-          meta.category === cat && boxVisible(meta) && matchesQuery(meta.label, meta.description)
-      );
+      .filter(([type, meta]) => {
+        if (section.types) return section.types.includes(type);
+        if (section.exclude?.includes(type)) return false;
+        return meta.category === section.category;
+      })
+      .filter(([, meta]) => boxVisible(meta) && matchesQuery(meta.label, meta.description));
 
   const visibleCustomDefs = customDefs.filter((def) =>
     matchesQuery(def.label, def.description || "")
@@ -127,7 +144,7 @@ export default function Sidebar() {
         sum +
         (s.category === "custom"
           ? visibleCustomDefs.length
-          : boxesByCategory(s.category).filter(([t]) => t !== "custom").length),
+          : boxesForSection(s).filter(([t]) => t !== "custom").length),
       0
     ) + 1; // the "New Custom Box" entry is always there
 
@@ -204,7 +221,7 @@ export default function Sidebar() {
             // The static "custom" meta is a runtime fallback, never a
             // palette item — the Custom section lists the user's saved
             // definitions instead.
-            const boxes = boxesByCategory(section.category).filter(([t]) => t !== "custom");
+            const boxes = boxesForSection(section).filter(([t]) => t !== "custom");
             const isCustom = section.category === "custom";
             const defs = isCustom ? visibleCustomDefs : [];
             if (!isCustom && boxes.length === 0) return null;

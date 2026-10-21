@@ -13,6 +13,10 @@ Boxes fall into three categories:
   no Run button, no settings panel, and no connection handles.
 
 > A fourth `custom` category holds the user's own saved box templates (see "Custom boxes").
+>
+> The three NBN cross-functional boxes (Handoff Brief, Alignment Check, Jargon Translator) keep
+> `category: "worker"` but get their own **NBN** section in the Add a box palette, directly below
+> Inputs.
 
 ---
 

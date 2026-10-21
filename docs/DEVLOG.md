@@ -29,6 +29,17 @@ current state).
 
 ---
 
+## 2026-10-21 — NBN palette section and help tips
+
+- **Done:** the Add a box palette now has an **NBN** section directly below Inputs holding
+  Handoff Brief, Alignment Check and Jargon Translator; they were removed from Workers while
+  keeping `category: "worker"` for pipeline/landing behavior. The help card's bottom tips now
+  describe the three NBN boxes instead of Cartoon/Slides/Code. Updated markers-check (**38/38**),
+  the E2E section assertion, AGENTS.md and docs/BOX_TYPES.md. Full E2E **104/105** — the only
+  failure remains the known environment-only TG guest join.
+- **In flight:** -
+- **Next steps:** -
+
 ## 2026-10-21 — Start canvas overlays closed
 
 - **Done:** `uiStore` now defaults `paletteOpen` and `helpOpen` to false, so the "Add a box"

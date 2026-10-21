@@ -337,7 +337,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (36-check) verification of **every
+- **Marker check:** `client/markers-check.mjs` — fast headless (38-check) verification of **every
   text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
   rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
@@ -553,8 +553,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   saved profile silently resets on reload). This is a discovery-only label — a pure UI filter, never
   a permission. Add sensible `roles` tags when adding a box; see `docs/BOX_TYPES.md`.
 - **NBN cross-functional boxes (📦 Handoff Brief / ✅ Alignment Check / 🔁 Jargon Translator —
-  types `handoff`/`alignment`/`jargon`, palette section
-  "Workers", `category: "worker"`):** generic text-AI boxes (they fall through `runBox`'s else
+  types `handoff`/`alignment`/`jargon`, their own **"NBN" palette section directly below
+  Inputs**, though they keep `category: "worker"` for pipeline/landing purposes):** generic
+  text-AI boxes (they fall through `runBox`'s else
   branch) that each render a **metadata banner** above the markdown output via their own block in
   `BoxNode.tsx` (each excluded from the generic text block's guard). Shared pieces: the
   banner's **`Source:`** label is `connectedSourceLabel()` (module-level in `BoxNode.tsx`) —
@@ -563,9 +564,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   written by the text branch of `runBox`. Handoff's From/To are editable inputs
   (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
   never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
-  heading** so a numbered source list copied into the translated artefact can't inflate it. None
-  of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier and was
-  removed — don't reintroduce `"decision"`/`decisionCount` references.)
+  heading** so a numbered source list copied into the translated artefact can't inflate it. The
+  help card's bottom tips cover these three NBN boxes (replacing the old Cartoon/Slides/Code
+  tips). None of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier
+  and was removed — don't reintroduce `"decision"`/`decisionCount` references.)
 - **AI change requests in the UI Design box:** once `boxData.code` exists, the box shows a
   **"Request a change…"** field + **✏️ Apply change** (`CodeChangePanel.tsx`), backed by the
   `applyChangeRequest` store action. The model rewrites the WHOLE component (the only reliable way to
