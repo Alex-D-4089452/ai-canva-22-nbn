@@ -29,6 +29,19 @@ current state).
 
 ---
 
+## 2026-10-21 — Rebrand the UI to relay
+
+- **Done:** replaced "AI Canva" with lowercase **relay** on the named surfaces. The landing
+  nav/footer use the new wordmark (`components/ui/RelayLogo.tsx` — brand-blue `r` + theme-neutral
+  `elay`, all-white on the blue footer); the board app bar swaps the purple 🎨 tile for the blue
+  relay mark (`public/relay-mark.svg`), which is also the favicon (SVG + 32px PNG fallback); the
+  HTML page title and iOS web-app title are `relay`. Repo, package, Firebase project and API
+  identifiers are unchanged.
+- **In flight:** —
+- **Next steps:** secondary user-facing "AI Canva" strings outside the named surfaces are untouched
+  (Admin Board subtitle, StackBlitz/here.now generated metadata, Agent system prompt) if a fuller
+  sweep is wanted.
+
 ## 2026-10-19 - Box cards: AI verification tag, darker secondary text, bigger controls
 
 - **Done:** every box that holds AI content now carries an **"AI-generated, verify before acting"**

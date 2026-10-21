@@ -15,6 +15,12 @@ alone.
 place "boxes" on a React Flow canvas, connect them, and run AI prompts that flow content from box
 to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / Stitch UI.
 
+**Display name:** the product is branded **relay** (lowercase) in the UI — landing nav/footer,
+in-app header, and page title. The wordmark is `client/src/components/ui/RelayLogo.tsx`
+(brand-blue `r` + theme-neutral `elay`); the blue `r` tile is `client/public/relay-mark.svg`,
+which is also the favicon. Repository, package, Firebase project and API identifiers
+intentionally remain `ai-canva-22-nbn` / `AI Canva`; do not rename those for a UI rebrand.
+
 - **Client:** React + Vite + React Flow canvas, Zustand store, Tailwind CSS.
 - **Backend:** Node/Express for local dev; the same API packaged as a Firebase Cloud Function for
   production.
@@ -158,8 +164,9 @@ shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, dar
 `z-40`); box cards are `.box-node` (1px type-colored border set inline, indigo
 selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` — the 2026-10-15
 restyle briefly flattened it to white and the run-status strip below disappeared; both restored
-and guarded by markers-check) and a tinted `.box-icon-tile`;
-`.logo-tile` is the only gradient; `.save-dot` states map
+and guarded by markers-check) and a tinted `.box-icon-tile`; the relay logo
+(`components/ui/RelayLogo.tsx` wordmark + `public/relay-mark.svg` mark/favicon) is the only
+brand-blue element; `.save-dot` states map
 `saveStatus`; thin scrollbars and the rounded minimap styling live
 in `client/src/index.css` (React Flow's `<Controls />` is gone — the custom `CanvasBar`
 owns zoom). Palette rows use a 28×28 icon tile tinted with the box
