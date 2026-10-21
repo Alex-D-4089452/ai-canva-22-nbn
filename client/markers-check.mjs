@@ -69,6 +69,77 @@ const overlaysClosed = await page.evaluate(() => {
 check("add-box palette starts closed", overlaysClosed.palette);
 check("help card starts closed", overlaysClosed.help);
 
+// Regression: OS/browser shortcuts (Win+Shift+S, Cmd+Shift+5) can swallow the
+// keyup React Flow relies on, latching Shift-selection mode. A later pane drag
+// must pan, not leave a selection box stuck.
+const emptyPoint = await page.evaluate(() => {
+  const pane = document.querySelector(".react-flow__pane");
+  if (!pane) return null;
+  const r = pane.getBoundingClientRect();
+  for (let y = r.bottom - 90; y > r.top + 90; y -= 40) {
+    for (let x = r.left + 130; x < r.right - 90; x += 40) {
+      const el = document.elementFromPoint(x, y);
+      if (
+        el &&
+        pane.contains(el) &&
+        !el.closest(
+          ".react-flow__node, .react-flow__edge, .react-flow__minimap, .react-flow__controls, .react-flow__panel, button, input, textarea, select, a"
+        )
+      ) {
+        return { x, y };
+      }
+    }
+  }
+  return null;
+});
+let staleShiftOk = false;
+let staleShiftDetail = "no empty canvas point";
+if (emptyPoint) {
+  await page.evaluate(() =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", code: "ShiftLeft", bubbles: true }))
+  );
+  await page.mouse.move(emptyPoint.x - 30, emptyPoint.y - 20);
+  await page.mouse.move(emptyPoint.x, emptyPoint.y);
+  await page.waitForTimeout(80);
+  const viewportBefore = await page.evaluate(
+    () => document.querySelector(".react-flow__viewport")?.getAttribute("style") || ""
+  );
+  await page.mouse.down();
+  await page.mouse.move(emptyPoint.x + 80, emptyPoint.y - 40, { steps: 8 });
+  const selectionVisible = await page.evaluate(
+    () => !!document.querySelector(".react-flow__selection")
+  );
+  await page.mouse.up();
+  const viewportAfter = await page.evaluate(
+    () => document.querySelector(".react-flow__viewport")?.getAttribute("style") || ""
+  );
+  staleShiftOk = !selectionVisible && viewportBefore !== viewportAfter;
+  staleShiftDetail = `selection=${selectionVisible}, moved=${viewportBefore !== viewportAfter}`;
+  if (staleShiftOk) {
+    // Put the board back where it started for the screenshot + later checks.
+    await page.mouse.move(emptyPoint.x + 80, emptyPoint.y - 40);
+    await page.mouse.down();
+    await page.mouse.move(emptyPoint.x, emptyPoint.y, { steps: 8 });
+    await page.mouse.up();
+  }
+}
+check("stale Shift clears before the next drag (pan, no selection box)", staleShiftOk, staleShiftDetail);
+
+// The reconciliation must not break a REAL Shift-drag selection.
+if (emptyPoint) {
+  await page.keyboard.down("Shift");
+  await page.mouse.move(emptyPoint.x, emptyPoint.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyPoint.x + 70, emptyPoint.y - 30, { steps: 6 });
+  const realShiftSelection = await page.evaluate(
+    () => !!document.querySelector(".react-flow__selection")
+  );
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await page.mouse.click(emptyPoint.x, emptyPoint.y);
+  check("real Shift still draws a selection box", realShiftSelection);
+}
+
 const paletteOpened = await page.evaluate(() => {
   const btn = Array.from(document.querySelectorAll("button")).find((b) =>
     b.textContent.trim().endsWith("Add Box")
@@ -78,16 +149,22 @@ const paletteOpened = await page.evaluate(() => {
   return true;
 });
 await page.waitForTimeout(300);
+const paletteState = await page.evaluate(() => {
+  const panel = document.querySelector(".sidebar-panel");
+  const help = Array.from(document.querySelectorAll("div")).find(
+    (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+  );
+  return {
+    panel: !!panel,
+    open: panel?.classList.contains("translate-x-0"),
+    help: !!help,
+    helpText: help?.textContent?.slice(0, 60),
+  };
+});
 check(
   "Add Box opens the palette (without opening help)",
-  paletteOpened &&
-    (await page.evaluate(() => {
-      const panel = document.querySelector(".sidebar-panel");
-      const help = Array.from(document.querySelectorAll("div")).find(
-        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
-      );
-      return !!panel && panel.classList.contains("translate-x-0") && !help;
-    }))
+  paletteOpened && paletteState.panel && paletteState.open && !paletteState.help,
+  JSON.stringify({ paletteOpened, ...paletteState })
 );
 
 const sections = await bodyText();
