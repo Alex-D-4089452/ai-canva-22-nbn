@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { RelayWordmark } from "../ui/RelayLogo.js";
 
 interface LandingFooterProps {
   onSignIn: () => void;
@@ -52,10 +53,7 @@ export default function LandingFooter({ onSignIn }: LandingFooterProps) {
       <div className="mx-auto max-w-6xl px-5 py-14">
         <div className="grid gap-10 md:grid-cols-[1.2fr_repeat(3,1fr)]">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="logo-tile items-center justify-center text-base">🎨</span>
-              <span className="text-base font-bold">relay</span>
-            </div>
+            <RelayWordmark monochrome className="text-base" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-blue-100 dark:text-slate-400">
               We acknowledge the Traditional Owners and Custodians of Country
               throughout Australia and pay our respects to Elders past and
