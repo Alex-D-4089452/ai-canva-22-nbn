@@ -105,7 +105,7 @@ export function deploySiteTitle(
   const request = (data?.content || "").trim().replace(/\s+/g, " ");
   const name = `${boxTitle || `${kind} Box`}`.slice(0, 80);
   const parts = [
-    `Published from AI Canva (${kind} box)`,
+    `Published from relay (${kind} box)`,
     boardTitle ? `board: ${boardTitle}` : "",
     request ? `request: ${request.slice(0, 120)}` : "",
   ].filter(Boolean);

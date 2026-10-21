@@ -65,7 +65,7 @@ root.render(
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Canva Prototype</title>
+    <title>relay Prototype</title>
   </head>
   <body>
     <div id="root"></div>
@@ -103,8 +103,8 @@ export default defineConfig({
  */
 export function toStackBlitzProject(code: string): Project {
   return {
-    title: "AI Canva Prototype",
-    description: "A React prototype generated with AI Canva",
+    title: "relay Prototype",
+    description: "A React prototype generated with relay",
     template: "node",
     files: toReactProject(code),
   };

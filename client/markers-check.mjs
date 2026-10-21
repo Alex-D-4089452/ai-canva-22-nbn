@@ -254,7 +254,7 @@ check(
 );
 
 // ---------- Screenshot for visual review ----------
-await page.screenshot({ path: path.join(os.tmpdir(), "ai-canva-restyle.png"), fullPage: false });
+await page.screenshot({ path: path.join(os.tmpdir(), "relay-restyle.png"), fullPage: false });
 
 // Page errors after the fake-user seed are expected noise (Firestore
 // permission rejections, exactly as the E2E suite documents) — report only.
@@ -263,5 +263,5 @@ if (pageErrors.length) console.log(`INFO - page errors (expected fake-user noise
 await browser.close();
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} marker checks passed.`);
-console.log(`Screenshot: ${path.join(os.tmpdir(), "ai-canva-restyle.png")}`);
+console.log(`Screenshot: ${path.join(os.tmpdir(), "relay-restyle.png")}`);
 process.exit(failed.length ? 1 : 0);

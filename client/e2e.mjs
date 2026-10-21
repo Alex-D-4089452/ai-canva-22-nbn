@@ -1,5 +1,5 @@
 /**
- * E2E test run for AI Canva against the REAL dev app (http://localhost:5173)
+ * E2E test run for relay against the REAL dev app (http://localhost:5173)
  * with the REAL backend (/api → Express:3001 → Ollama).
  *
  * What is real here: the full app UI (landing, sidebar, canvas, boxes), the
@@ -1484,7 +1484,7 @@ await safe("TF facilitator flow", async () => {
 
         // Cleanup: delete the guest auth user (REST) + close context.
         // (Same project as the client — a carbondocs URL here silently 404s
-        // and leaks the guest account into ai-canva's Identity Toolkit.)
+        // and leaks the guest account into the app's Identity Toolkit.)
         if (guestUid && adminToken) {
           await fetch("https://identitytoolkit.googleapis.com/v1/projects/ai-canva-22-nbn-fee4b/accounts:delete", {
             method: "POST",

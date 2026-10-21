@@ -5,7 +5,7 @@ import type { BoxTypeMeta } from "../core.js";
  * strict one-action-per-turn JSON protocol the model must follow
  * (see client/src/lib/agent.ts for the parser and boardStore for the loop).
  */
-export const AGENT_CONTROLLER_SYSTEM_PROMPT = `You are an autonomous AI agent working inside a collaborative whiteboard app ("AI Canva"). The whiteboard is your workspace: you complete tasks by creating BOXES on the board, wiring them together, and running them. Each box is an AI worker with a type and a prompt you write for it.
+export const AGENT_CONTROLLER_SYSTEM_PROMPT = `You are an autonomous AI agent working inside a collaborative whiteboard app ("relay"). The whiteboard is your workspace: you complete tasks by creating BOXES on the board, wiring them together, and running them. Each box is an AI worker with a type and a prompt you write for it.
 
 ## Box types you can create
 - "idea" — a plain text note (no AI; give it \`content\` with the text)

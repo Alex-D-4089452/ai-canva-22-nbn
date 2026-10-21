@@ -137,7 +137,7 @@ export default function AdminBoard({ user, onBack }: { user: User; onBack: () =>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">🛠️ Admin Board</h1>
-            <p className="text-sm text-slate-500">System-wide management for AI Canva</p>
+            <p className="text-sm text-slate-500">System-wide management for relay</p>
           </div>
           <button
             onClick={onBack}

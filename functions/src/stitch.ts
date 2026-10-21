@@ -33,7 +33,7 @@ export async function generateStitchUI(
       : trimmed;
 
   const stitchInstance = createStitchClient();
-  const project = await stitchInstance.createProject("AI Canva");
+  const project = await stitchInstance.createProject("relay");
   const screen = await project.generate(shortPrompt);
 
   // Get the HTML download URL and fetch the actual HTML content
