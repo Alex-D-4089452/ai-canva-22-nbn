@@ -88,6 +88,11 @@ App.tsx                     Shell: header, board actions, sign-in, modals
   (icon + editable name), body (by type), footer (Run / settings / copy / save), and the
   settings panel (system prompt + prompt template + variable insertion). It uses
   `NodeResizer` for resize and React Flow `Handle`s for connections.
+- **`Canvas.tsx`** also reconciles React Flow's latched selection modifier keys against real
+  pointer events (`lib/modifiers.ts`, unit-tested). OS/browser shortcuts such as Win+Shift+S or
+  Cmd+Shift+5 can swallow the Shift `keyup`, leaving React Flow in selection mode so pane drags
+  stop panning. The canvas synthesizes the missing keyup, clears an interrupted marquee/pan on
+  blur or a lost pointerup, and leaves a genuine Shift-drag untouched.
 
 ### Prompt templating — `lib/prompts.ts`
 

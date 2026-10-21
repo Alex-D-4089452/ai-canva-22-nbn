@@ -98,8 +98,8 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), the
   Agent box action protocol (`agent.ts`), input gathering (`inputs.ts` — `collectInputs`
   walks edges into `NamedInput[]` + first `inputImage`; **image-only sources contribute a
-  labeled named input** so `{{inputs}}` resolves), the line-diff engine (`diff.ts`), and
-  here.now deploy payloads (`deploy.ts`).
+  labeled named input** so `{{inputs}}` resolves), the line-diff engine (`diff.ts`), the stale
+  modifier-key detector (`modifiers.ts`), and here.now deploy payloads (`deploy.ts`).
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
@@ -337,7 +337,7 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (38-check) verification of **every
+- **Marker check:** `client/markers-check.mjs` — fast headless (40-check) verification of **every
   text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
   rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
@@ -705,6 +705,17 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
+- **Stale React Flow modifier / selection latch:** React Flow tracks its Shift / Ctrl / Cmd
+  selection keys with window `keydown`/`keyup` listeners. OS and browser shortcuts
+  (**Win+Shift+S** Snipping Tool, **Cmd+Shift+5** macOS screenshot) can swallow the matching
+  `keyup`, leaving selection mode latched: pane drags draw a selection box instead of panning and
+  boxes/resizing stop responding until the user presses Shift again or switches tabs. `Canvas.tsx`
+  reconciles the latched keys against the real modifier flags on every pointer event and
+  synthesizes the missing `keyup` (pure `staleModifierKeys` in `lib/modifiers.ts`, unit-tested), so
+  a real Shift-drag still works while a stale one is released before the next drag. The same effect
+  clears a marquee/`paneDragging` left over from a `pointerup` outside the pane, and resets on
+  window blur / hidden tab. Regression check lives in `markers-check` ("stale Shift clears before
+  the next drag" + "real Shift still draws a selection box").
 - **Touch / tablet (iPad) support:** everything touch-related is scoped to `@media (pointer: coarse)`
   in `client/src/index.css` — desktop is byte-for-byte unchanged. When adding UI, keep it that way:
   - **Hover-gated controls need `.touch-visible`** (opacity forced to 1 on coarse pointers) — used by

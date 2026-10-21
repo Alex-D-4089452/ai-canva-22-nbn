@@ -29,6 +29,21 @@ current state).
 
 ---
 
+## 2026-10-22 — Fix stuck selection box / dead panning
+
+- **Done:** diagnosed the intermittent "drag pans into a stuck selection box, then boxes and the
+  board stop moving" report as React Flow's Shift-selection key latching when an OS/browser
+  shortcut swallows its `keyup` (classic trigger: Win+Shift+S Snipping Tool or Cmd+Shift+5 on
+  macOS; upstream xyflow issue #5679). `Canvas.tsx` now reconciles the latched modifier keys
+  against real pointer-event flags and synthesizes the missing keyup before the next drag
+  (pure `lib/modifiers.ts` + tests), clears a marquee/`paneDragging` left by a lost pointerup or a
+  blurred/hidden tab, and keeps a real Shift-drag working. Regression coverage added to
+  `markers-check` (**40/40**), including "stale Shift clears before the next drag" and "real Shift
+  still draws a selection box". Client build + 37 server/255 client tests green; full E2E
+  **104/105** (only the known environment-only TG guest-join failure).
+- **In flight:** -
+- **Next steps:** -
+
 ## 2026-10-21 — NBN palette section and help tips
 
 - **Done:** the Add a box palette now has an **NBN** section directly below Inputs holding
