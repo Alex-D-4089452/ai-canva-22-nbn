@@ -5,15 +5,19 @@ interface RelayWordmarkProps {
 }
 
 /**
- * Lowercase relay wordmark: the initial "r" carries the brand blue and the
- * rest follows the surrounding theme. The footer uses the monochrome variant
+ * Lowercase relay wordmark: the "l" carries the brand blue and the rest
+ * follows the surrounding theme. The footer uses the monochrome variant
  * because it sits on the brand-blue panel.
  */
 export function RelayWordmark({ className = "", monochrome = false }: RelayWordmarkProps) {
+  const neutral = monochrome ? "text-white" : "text-slate-900 dark:text-white";
+  const accent = monochrome ? "text-white" : "text-[#1a73e8]";
+
   return (
     <span className={`inline-block select-none font-bold tracking-tight ${className}`}>
-      <span className={monochrome ? "text-white" : "text-[#1a73e8]"}>r</span>
-      <span className={monochrome ? "text-white" : "text-slate-900 dark:text-white"}>elay</span>
+      <span className={neutral}>re</span>
+      <span className={accent}>l</span>
+      <span className={neutral}>ay</span>
     </span>
   );
 }

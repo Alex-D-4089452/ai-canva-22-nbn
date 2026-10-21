@@ -17,7 +17,7 @@ to box — from an Idea, through Research, to PRD / Slides / Code / UI Design / 
 
 **Display name:** the product is branded **relay** (lowercase) in the UI — landing nav/footer,
 in-app header, and page title. The wordmark is `client/src/components/ui/RelayLogo.tsx`
-(brand-blue `r` + theme-neutral `elay`); the blue `r` tile is `client/public/relay-mark.svg`,
+(brand-blue `l` + theme-neutral `re`/`ay`); the blue `r` tile is `client/public/relay-mark.svg`,
 which is also the favicon. Repository, package, Firebase project and API identifiers
 intentionally remain `ai-canva-22-nbn` / `AI Canva`; do not rename those for a UI rebrand.
 
