@@ -29,6 +29,14 @@ current state).
 
 ---
 
+## 2026-10-21 — Apply relay blue to key actions
+
+- **Done:** the header Run all button, the pipeline-strip Input rules link and the Boards-menu
+  New Board row now use the logo blue (`#1a73e8`); added a `brand` Button variant and switched
+  `MenuItem`'s `accent` styling to the brand blue.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-21 — Rebrand the UI to relay
 
 - **Done:** replaced "AI Canva" with lowercase **relay** on the named surfaces. The landing

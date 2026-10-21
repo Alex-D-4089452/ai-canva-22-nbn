@@ -146,8 +146,8 @@ panel** on the canvas, a light **dotted** canvas with floating status pills on t
 a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives:
 
 - **`client/src/components/ui/Button.tsx`** — the only button styling in the chrome.
-  Variants: `primary` (indigo-600 — the single loud color, used for Share, Run all and the
-  area tool's active state), `secondary` (white + 1px slate border — the default),
+  Variants: `primary` (indigo-600 — the general loud color), `brand` (relay blue `#1a73e8` —
+  the dark-bar Run all action), `secondary` (white + 1px slate border — the default),
   `ghost` (transparent, for role-gated views), `danger`, plus **dark-surface variants**
   `onDark` (translucent white pill for the dark bar — Boards menu), `outlineLight` /
   `ghostLight` (Share, Admin/Facilitator on the dark bar; focus ring offset `#0b0d12`);
@@ -155,18 +155,17 @@ a **dark bottom-center bar** (zoom + toast/Undo). Built on two shared primitives
   focus ring. Use it instead of hand-rolled Tailwind button class strings.
 - **`client/src/components/ui/Menu.tsx`** — dropdown primitive (`Menu` + `MenuItem`
   + `MenuDivider`/`MenuLabel`). Closes on outside click + Escape; pass children as
-  a function `(close) => …` so items can dismiss the menu after acting. Used by the
-  Boards menu and the account menu; the presence roster popover follows the same
-  outside-click/Escape contract.
+  a function `(close) => …` so items can dismiss the menu after acting. `MenuItem`'s
+  `accent` row is the brand-blue primary action (New Board). Used by the Boards menu and
+  the account menu; the presence roster popover follows the same outside-click/Escape contract.
 
-Design rules: one accent (indigo) over slate neutrals; 1px borders + layered soft
-shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar (`.app-bar`, dark + blurred,
-`z-40`); box cards are `.box-node` (1px type-colored border set inline, indigo
-selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` — the 2026-10-15
-restyle briefly flattened it to white and the run-status strip below disappeared; both restored
-and guarded by markers-check) and a tinted `.box-icon-tile`; the relay logo
-(`components/ui/RelayLogo.tsx` wordmark + `public/relay-mark.svg` mark/favicon) is the only
-brand-blue element; `.save-dot` states map
+Design rules: one primary accent (indigo) over slate neutrals, with the relay brand blue
+(`#1a73e8`) reserved for the logo, Run all, the New Board menu row and the Input rules link.
+1px borders + layered soft shadows (no `border-2`/`shadow-lg` in the chrome); h-14 app bar
+(`.app-bar`, dark + blurred, `z-40`); box cards are `.box-node` (1px type-colored border set
+inline, indigo selection ring) with a faint **type-tinted `.box-header`** (`meta.color + "20"` —
+the 2026-10-15 restyle briefly flattened it to white and the run-status strip below disappeared;
+both restored and guarded by markers-check) and a tinted `.box-icon-tile`; `.save-dot` states map
 `saveStatus`; thin scrollbars and the rounded minimap styling live
 in `client/src/index.css` (React Flow's `<Controls />` is gone — the custom `CanvasBar`
 owns zoom). Palette rows use a 28×28 icon tile tinted with the box
