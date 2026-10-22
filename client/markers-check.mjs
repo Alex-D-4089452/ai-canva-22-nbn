@@ -409,6 +409,64 @@ check(
   JSON.stringify({ handoffClick, ...handoffState })
 );
 
+// A completed Handoff Brief carries the landing-page reviewer chip beside its
+// Done pill. Clicking it records the reviewer once; the status flips to
+// "Done, reviewed".
+await page.evaluate((id) => {
+  window.__dsh.useBoardStore.getState().updateBoxData(id, {
+    handoffFrom: "UX Designer",
+    handoffTo: "Content Designer",
+    output: "## Handoff brief",
+    status: "done",
+    ranAt: Date.now(),
+  });
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffReviewClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const chip = Array.from(node?.querySelectorAll("button") || []).find(
+    (b) => (b.textContent || "").trim() === "Review"
+  );
+  if (!chip) return { found: false };
+  const pill = node?.querySelector(".box-pill");
+  const inPillRow = !!chip.closest(".box-pill-row");
+  const chipRect = chip.getBoundingClientRect();
+  const pillRect = pill?.getBoundingClientRect();
+  const sideBySide =
+    !!pillRect &&
+    chipRect.left >= pillRect.right - 1 &&
+    Math.abs(chipRect.top - pillRect.top) < 12;
+  const before = (pill?.textContent || "").trim();
+  chip.click();
+  return { found: true, inPillRow, sideBySide, before };
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffReviewed = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  return {
+    reviewer: data?.reviewedBy,
+    reviewedAt: data?.reviewedAt || 0,
+    pill: (node?.querySelector(".box-pill")?.textContent || "").trim(),
+    attributed: (node?.textContent || "").includes("Reviewed by Marker Tester"),
+    reviewButtonGone: !Array.from(node?.querySelectorAll("button") || []).some(
+      (b) => (b.textContent || "").trim() === "Review"
+    ),
+  };
+}, handoffId);
+check(
+  "handoff reviewer chip records a one-way review and flips the status",
+  handoffReviewClick.found &&
+    handoffReviewClick.inPillRow &&
+    handoffReviewClick.sideBySide &&
+    handoffReviewed.reviewer === "Marker Tester" &&
+    handoffReviewed.reviewedAt > 0 &&
+    handoffReviewed.pill.includes("Done, reviewed") &&
+    handoffReviewed.attributed &&
+    handoffReviewed.reviewButtonGone,
+  JSON.stringify({ handoffReviewClick, ...handoffReviewed })
+);
+
 // ---------- Header markers ----------
 check("header shows 'Boards ('", /Boards \(/.test(await bodyText()));
 const boardsBtn = await page.evaluate(() => {
