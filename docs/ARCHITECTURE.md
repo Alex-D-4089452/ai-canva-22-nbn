@@ -99,6 +99,17 @@ App.tsx                     Shell: header, board actions, sign-in, modals
   2.5 so the fit can use the extra range; `CanvasBar` shows the resulting percentage and still owns
   −/+ zoom.
 
+### Handoff Brief review — `components/ui/ReviewerChip.tsx`
+
+The Handoff Brief is the only box with a human sign-off. Once its status is `done` and it has
+output, the reviewer chip appears beside the box's floating status pill. Any board collaborator
+can click it; the `reviewHandoff` store action stores `reviewedBy` + `reviewedAt` in `BoxData`,
+and clicking the reviewed chip again clears both fields. `boxStatus` (`lib/status.ts`) then reports
+`Done, reviewed`, so both the box pill and the pipeline strip reflect the sign-off. Running the
+box again clears the review, because a new brief needs a new sign-off. The same component renders
+the static "Reviewed by …" pill on the landing page; it is interactive only when given an
+`onToggle` handler.
+
 ### Prompt templating — `lib/prompts.ts`
 
 `fillPromptTemplate(template, inputs)` resolves variables in order:
