@@ -2,17 +2,18 @@
  * The reviewed-by pill from the landing page's "How it works" section, now a
  * real control for Handoff Brief boxes.
  *
- * Without `name` (and with `onReview`) it renders a clickable "Review" chip.
- * With `name` it becomes the static "Reviewed by <name> · <time>" record.
- * Uses the landing page's dark-pill styling in both places.
+ * Without `name` it renders the clickable "Review" action. With `name` it
+ * shows "Reviewed by <name> · <time>"; when `onToggle` is present that record
+ * is clickable too, so a second click removes the review. Without `onToggle`
+ * (the landing page usage) it is a static pill.
  */
 interface ReviewerChipProps {
   /** Reviewer display name. Present = reviewed; absent = the Review action. */
   name?: string;
   /** Preformatted review time, e.g. "6:58 pm". */
   time?: string;
-  /** Click handler for the Review action (ignored once reviewed). */
-  onReview?: () => void;
+  /** Toggle handler; when present the chip is a button. */
+  onToggle?: () => void;
   title?: string;
   className?: string;
 }
@@ -56,7 +57,7 @@ function EyeGlyph() {
 export default function ReviewerChip({
   name,
   time,
-  onReview,
+  onToggle,
   title,
   className = "",
 }: ReviewerChipProps) {
@@ -66,13 +67,18 @@ export default function ReviewerChip({
     ? `Reviewed by ${reviewer}${time ? ` · ${time}` : ""}`
     : "Review";
 
-  if (!reviewed && onReview) {
+  const icon = reviewed ? <CheckGlyph /> : <EyeGlyph />;
+  const iconClass =
+    "grid h-4 w-4 shrink-0 place-items-center rounded-full " +
+    (reviewed ? "bg-emerald-500 text-zinc-950" : "bg-white/15 text-slate-100");
+
+  if (onToggle) {
     return (
       <button
         type="button"
-        onClick={onReview}
-        title={title || "Mark this handoff brief as reviewed"}
-        aria-label="Mark this handoff brief as reviewed"
+        onClick={onToggle}
+        title={title || (reviewed ? "Remove this review" : "Mark this handoff brief as reviewed")}
+        aria-label={reviewed ? `Remove review by ${reviewer}` : "Mark this handoff brief as reviewed"}
         className={
           BASE +
           " nodrag cursor-pointer transition hover:bg-zinc-800 focus:outline-none " +
@@ -80,9 +86,7 @@ export default function ReviewerChip({
           className
         }
       >
-        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/15 text-slate-100">
-          <EyeGlyph />
-        </span>
+        <span className={iconClass}>{icon}</span>
         <span className="truncate">{label}</span>
       </button>
     );
@@ -90,14 +94,7 @@ export default function ReviewerChip({
 
   return (
     <span className={BASE + " " + className} title={title || (reviewed ? label : undefined)}>
-      <span
-        className={
-          "grid h-4 w-4 shrink-0 place-items-center rounded-full " +
-          (reviewed ? "bg-emerald-500 text-zinc-950" : "bg-white/15 text-slate-100")
-        }
-      >
-        {reviewed ? <CheckGlyph /> : <EyeGlyph />}
-      </span>
+      <span className={iconClass}>{icon}</span>
       <span className="truncate">{label}</span>
     </span>
   );

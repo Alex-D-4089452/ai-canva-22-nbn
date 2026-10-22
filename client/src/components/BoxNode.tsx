@@ -257,7 +257,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   // Handoff Brief: custom banner with From/To/Status.
   const isHandoff = boxType === "handoff";
   // Handoff Brief review: the reviewer chip sits beside the floating status
-  // pill. Reviewed is one-way; a re-run clears it in the store.
+  // pill. Clicking it toggles the sign-off; a re-run also clears it in the store.
   const reviewedBy = (boxData.reviewedBy || "").trim();
   const reviewedAtLabel = boxData.reviewedAt
     ? new Date(boxData.reviewedAt).toLocaleTimeString([], {
@@ -274,7 +274,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         boxData.reviewedAt
           ? ` on ${new Date(boxData.reviewedAt).toLocaleString()}`
           : ""
-      }`
+      } · Click to remove review`
     : undefined;
   // Alignment Check: custom banner with Artefact 1/Artefact 2.
   const isAlignment = boxType === "alignment";
@@ -613,7 +613,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             <ReviewerChip
               name={reviewedBy || undefined}
               time={reviewedAtLabel || undefined}
-              onReview={reviewedBy ? undefined : () => reviewHandoff(id)}
+              onToggle={() => reviewHandoff(id)}
               title={reviewedTitle}
               className="box-review-chip max-w-full"
             />

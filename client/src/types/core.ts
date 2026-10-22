@@ -207,8 +207,8 @@ export interface BoxData {
   handoffTo?: string;
   /**
    * Handoff Brief boxes: who marked the generated brief reviewed and when
-   * (epoch ms). One-way — clicking the reviewer chip records the clicker; the
-   * next run clears both fields so an old sign-off never carries over.
+   * (epoch ms). Clicking the reviewer chip toggles both fields; the next run
+   * clears them too, so an old sign-off never carries over.
    */
   reviewedBy?: string;
   reviewedAt?: number;

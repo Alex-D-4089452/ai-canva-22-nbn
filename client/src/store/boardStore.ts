@@ -352,9 +352,9 @@ interface BoardState {
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
   /**
-   * Handoff Brief: record a one-way review of the generated brief. Only works
-   * on a completed handoff with output; stores the reviewer's display name and
-   * timestamp. The next run clears it.
+   * Handoff Brief: toggle its human review. Only works on a completed handoff
+   * with output; a click records the reviewer's display name and timestamp,
+   * and the next click clears both. A re-run also clears them.
    */
   reviewHandoff: (id: string) => void;
 
@@ -592,8 +592,14 @@ export const useBoardStore = create<BoardState>()(
         // A review only applies to a finished Handoff Brief with output.
         if (boxType !== "handoff") return;
         if (data.status !== "done" || !(data.output || "").trim()) return;
-        // One-way: never overwrite an existing reviewer.
-        if ((data.reviewedBy || "").trim()) return;
+        // Toggle: clicking a recorded review removes it.
+        if ((data.reviewedBy || "").trim()) {
+          get().updateBoxData(id, {
+            reviewedBy: undefined,
+            reviewedAt: undefined,
+          });
+          return;
+        }
         get().updateBoxData(id, {
           reviewedBy: actorName(),
           reviewedAt: Date.now(),
