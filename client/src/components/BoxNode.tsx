@@ -9,6 +9,7 @@ import { wrapCodeInHtml, wrapUIInHtml, downloadHtml, copyToClipboard } from "../
 import { downloadText, hasDownloadableOutcome, outcomeFilename, outcomeMime, outcomeText } from "../lib/download.js";
 import { boxStatus, type StatusTone } from "../lib/status.js";
 import { runStatusLabel } from "../lib/runStatus.js";
+import { checkHandoffRoles } from "../lib/inputs.js";
 import CodeChangePanel from "./CodeChangePanel.js";
 import DeployPanel from "./DeployPanel.js";
 import ChecklistPanel from "./ChecklistPanel.js";
@@ -158,6 +159,12 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   // Label box: click-to-edit text (same pattern as the box-name editor).
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
+  // Handoff Brief: which required role fields are missing. Set on a Run click
+  // (highlight + focus), cleared as soon as the user fills the field.
+  const [handoffMissing, setHandoffMissing] = useState({
+    from: false,
+    to: false,
+  });
   // Timer box: duration input draft. null = show the stored duration.
   const [durationDraft, setDurationDraft] = useState<string | null>(null);
   // Timer box: live clock. Only this box instance ticks, and only while its
@@ -176,6 +183,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const handoffFromRef = useRef<HTMLInputElement>(null);
+  const handoffToRef = useRef<HTMLInputElement>(null);
 
   // Find connected upstream box names for the settings panel
   const connectedInputs = edges
@@ -280,6 +289,22 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           : agentNeedsTask
             ? "Type a task first"
             : null;
+
+  // Handoff Brief validates its role fields on a direct Run click. The store
+  // enforces the same rule for other callers (Run all), but only the button
+  // can highlight and focus the empty inputs.
+  const handleRun = () => {
+    if (isHandoff) {
+      const roles = checkHandoffRoles(boxData);
+      if (roles.from || roles.to) {
+        setHandoffMissing({ from: roles.from, to: roles.to });
+        (roles.from ? handoffFromRef : handoffToRef).current?.focus();
+        return;
+      }
+    }
+    setHandoffMissing({ from: false, to: false });
+    runBox(id);
+  };
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -1130,21 +1155,47 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               <label className="flex items-center gap-1">
                 <span className="font-semibold text-slate-600">From:</span>
                 <input
+                  ref={handoffFromRef}
                   type="text"
                   value={boxData.handoffFrom || ""}
-                  onChange={(e) => updateBoxData(id, { handoffFrom: e.target.value })}
+                  onChange={(e) => {
+                    updateBoxData(id, { handoffFrom: e.target.value });
+                    if (handoffMissing.from && e.target.value.trim()) {
+                      setHandoffMissing((prev) => ({ ...prev, from: false }));
+                    }
+                  }}
                   placeholder="e.g. UX Designer"
-                  className="nodrag bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder:text-slate-400 w-28"
+                  aria-invalid={handoffMissing.from ? true : undefined}
+                  title={handoffMissing.from ? "Required before running" : undefined}
+                  className={
+                    "nodrag border-b border-dashed focus:outline-none text-slate-700 w-28 " +
+                    (handoffMissing.from
+                      ? "bg-red-50 border-red-500 focus:border-red-500 placeholder:text-red-300 ring-2 ring-red-200 rounded-sm"
+                      : "bg-transparent border-slate-300 focus:border-indigo-400 placeholder:text-slate-400")
+                  }
                 />
               </label>
               <label className="flex items-center gap-1">
                 <span className="font-semibold text-slate-600">To:</span>
                 <input
+                  ref={handoffToRef}
                   type="text"
                   value={boxData.handoffTo || ""}
-                  onChange={(e) => updateBoxData(id, { handoffTo: e.target.value })}
+                  onChange={(e) => {
+                    updateBoxData(id, { handoffTo: e.target.value });
+                    if (handoffMissing.to && e.target.value.trim()) {
+                      setHandoffMissing((prev) => ({ ...prev, to: false }));
+                    }
+                  }}
                   placeholder="e.g. Content Designer"
-                  className="nodrag bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder:text-slate-400 w-32"
+                  aria-invalid={handoffMissing.to ? true : undefined}
+                  title={handoffMissing.to ? "Required before running" : undefined}
+                  className={
+                    "nodrag border-b border-dashed focus:outline-none text-slate-700 w-32 " +
+                    (handoffMissing.to
+                      ? "bg-red-50 border-red-500 focus:border-red-500 placeholder:text-red-300 ring-2 ring-red-200 rounded-sm"
+                      : "bg-transparent border-slate-300 focus:border-indigo-400 placeholder:text-slate-400")
+                  }
                 />
               </label>
               <span>
@@ -1155,6 +1206,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <span className="text-slate-500">Draft</span>
                 )}
               </span>
+              {(handoffMissing.from || handoffMissing.to) && (
+                <span role="alert" className="font-medium text-red-500">
+                  Fill in{" "}
+                  {handoffMissing.from && handoffMissing.to
+                    ? "both roles"
+                    : handoffMissing.from
+                      ? "From"
+                      : "To"}{" "}
+                  before running.
+                </span>
+              )}
             </div>
 
             {isRunning && (
@@ -1546,7 +1608,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </div>
           )}
           <button
-            onClick={() => runBox(id)}
+            onClick={handleRun}
             disabled={isRunning || runGateReason !== null}
             title={runGateReason ?? undefined}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"

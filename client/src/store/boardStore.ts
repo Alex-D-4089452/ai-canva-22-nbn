@@ -14,7 +14,7 @@ import type { BoxData, BoxType, BoxStatus, AgentStep, DeployInfo, ArtifactVersio
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types/index.js";
 import { generate, generateImage, generateStitchUI, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
-import { collectInputs, runInputBlocker } from "../lib/inputs.js";
+import { checkHandoffRoles, collectInputs, runInputBlocker } from "../lib/inputs.js";
 import {
   MAX_AGENT_TURNS,
   MAX_PARSE_RETRIES,
@@ -1248,6 +1248,17 @@ export const useBoardStore = create<BoardState>()(
         if (blocked) {
           get().setBoxStatus(id, "error", blocked);
           return;
+        }
+
+        // Handoff Brief: From and To are required role metadata. BoxNode
+        // highlights the empty fields on a direct Run click; this guard covers
+        // other callers (Run all, future agent actions).
+        if (boxType === "handoff") {
+          const roles = checkHandoffRoles(data);
+          if (roles.message) {
+            get().setBoxStatus(id, "error", roles.message);
+            return;
+          }
         }
 
         // The Agent box runs its own multi-turn loop (create/connect/run

@@ -111,6 +111,34 @@ export function alignmentRunBlocker(
   return null;
 }
 
+/**
+ * Handoff Brief role check: From and To are required metadata for the brief,
+ * so Run must not start until both are filled. Returns which fields are empty
+ * (for the red highlight in BoxNode) and a user-facing message for `runBox`
+ * callers that bypass the button (e.g. Run all).
+ */
+export interface HandoffRoleCheck {
+  from: boolean;
+  to: boolean;
+  message: string | null;
+}
+
+export function checkHandoffRoles(
+  boxData: BoxData | undefined
+): HandoffRoleCheck {
+  const from = !(boxData?.handoffFrom || "").trim();
+  const to = !(boxData?.handoffTo || "").trim();
+  const message =
+    from && to
+      ? "Handoff Brief needs both From and To roles — fill in the highlighted fields, then Run."
+      : from
+        ? "Handoff Brief needs a From role — fill it in, then Run."
+        : to
+          ? "Handoff Brief needs a To role — fill it in, then Run."
+          : null;
+  return { from, to, message };
+}
+
 /** Boxes whose Run needs at least one connected upstream box (see runInputBlocker). */
 const UPSTREAM_INPUT_BOXES: readonly BoxType[] = [
   "cartoon",
