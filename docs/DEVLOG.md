@@ -29,6 +29,19 @@ current state).
 
 ---
 
+## 2026-10-22 — Handoff Brief requires From/To roles
+
+- **Done:** clicking **Run** on a Handoff Brief with an empty From or To field now highlights the
+  empty field(s) red (`aria-invalid`, red border/background/ring), focuses the first one and does
+  not start the run; the banner adds a "Fill in … before running" hint. Both roles are required
+  (previously blank briefs could run). The check is the pure `checkHandoffRoles` in
+  `client/src/lib/inputs.ts` (unit-tested), shared by `BoxNode` and `runBox` — the store guard
+  covers other callers such as Run all and reports the reason as the box error. Verified with the
+  client build, **37 server + 258 client tests** and **`markers-check` 43/43** (new check asserts
+  the red From/To highlight, focus, and that the box stays unrun).
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-22 — Larger default zoom and box typography
 
 - **Done:** the canvas now opens **larger and more readable**: `fitView` uses overlay-aware padding

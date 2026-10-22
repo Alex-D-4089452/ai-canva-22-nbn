@@ -523,7 +523,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the message); **UI Design,
   Stitch UI** need a typed description (`content`) or one connected upstream box with content
   (their own text counts — no `skipSelf`); **Agent** needs a typed task (`boxData.content`);
-  every other box is ungated (stock prompts are designed to run standalone). `BoxNode.tsx`
+  every other box is ungated (stock prompts are designed to run standalone). **Handoff Brief**
+  has one extra rule outside `runInputBlocker` (so its Run button stays clickable): both `From`
+  and `To` roles are required. `checkHandoffRoles` in `lib/inputs.ts` reports which fields are
+  empty; a direct Run click highlights them red, focuses the first empty one and refuses to
+  start, while `runBox` applies the same check for other callers (Run all) and shows the reason
+  as the box error. `BoxNode.tsx`
   mirrors the rules (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two
   upstream boxes first" / "Connect an upstream box first" / "Type a description or connect an
   input" / "Type a task first"; alignment body shows "n of 2 connected", agent body shows the
@@ -569,7 +574,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   first connected upstream box, or the uploaded filename when that box is a Documents box; run-time
   metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`jargonTerms`)
   written by the text branch of `runBox`. Handoff's From/To are editable inputs
-  (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
+  (`nodrag`) and **both are required before Run** — a click with either empty marks the empty
+  input(s) red (`aria-invalid`, red ring/background), focuses the first one and does not start
+  the run (`checkHandoffRoles` in `lib/inputs.ts`; the store re-checks for Run all); Alignment's
+  Artefact 1/2 and Jargon's Source are inferred from edges —
   never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
   heading** so a numbered source list copied into the translated artefact can't inflate it. The
   help card's bottom tips cover these three NBN boxes (replacing the old Cartoon/Slides/Code
