@@ -603,7 +603,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 }
                 if (e.key === "Escape") setIsEditingName(false);
               }}
-              className="font-semibold text-slate-700 text-sm bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
+              className="font-semibold text-slate-700 text-[15px] bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
             />
           ) : (
             <span
@@ -611,7 +611,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 setNameDraft(data.title as string || meta.label + " Box");
                 setIsEditingName(true);
               }}
-              className="font-semibold text-slate-800 text-[13px] truncate cursor-text hover:bg-slate-100 rounded px-1 py-0.5 transition"
+              className="font-semibold text-slate-800 text-sm truncate cursor-text hover:bg-slate-100 rounded px-1 py-0.5 transition"
               title="Click to rename"
             >
               {(data.title as string) || meta.label + " Box"}
