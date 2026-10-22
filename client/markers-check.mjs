@@ -55,6 +55,30 @@ await page.waitForTimeout(2500);
 // ---------- Shell markers ----------
 check("app shell renders + `Add Box` present", !!(await page.$(".react-flow")) && /Add Box/.test(await bodyText()));
 
+// Readable-by-default contract: never open below the 115% floor, and the
+// body type scale that was bumped with it (16px base/textarea).
+const openingView = await page.evaluate(() => {
+  const zoomText = document.querySelector(".bar-zoom-level")?.textContent || "";
+  const nodes = Array.from(document.querySelectorAll(".box-node"));
+  const node = nodes.find((n) => n.querySelector("textarea")) || nodes[0];
+  const textarea = node?.querySelector("textarea");
+  return {
+    zoom: parseFloat(zoomText),
+    base: node ? parseFloat(getComputedStyle(node).fontSize) : 0,
+    textarea: textarea ? parseFloat(getComputedStyle(textarea).fontSize) : 0,
+  };
+});
+check(
+  "canvas opens at a readable default zoom (>= 115%)",
+  openingView.zoom >= 115,
+  `${Math.round(openingView.zoom)}%`
+);
+check(
+  "box body uses the larger type scale (>= 16px)",
+  openingView.base >= 16 && openingView.textarea >= 16,
+  `${openingView.base}px base / ${openingView.textarea}px textarea`
+);
+
 // Both overlays start closed; the rail buttons open them independently.
 const overlaysClosed = await page.evaluate(() => {
   const panel = document.querySelector(".sidebar-panel");
