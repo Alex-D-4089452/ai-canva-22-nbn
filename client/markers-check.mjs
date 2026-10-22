@@ -410,8 +410,8 @@ check(
 );
 
 // A completed Handoff Brief carries the landing-page reviewer chip beside its
-// Done pill. Clicking it records the reviewer once; the status flips to
-// "Done, reviewed".
+// Done pill. Clicking records the reviewer; clicking the reviewed chip again
+// removes the sign-off.
 await page.evaluate((id) => {
   window.__dsh.useBoardStore.getState().updateBoxData(id, {
     handoffFrom: "UX Designer",
@@ -449,13 +449,13 @@ const handoffReviewed = await page.evaluate((id) => {
     reviewedAt: data?.reviewedAt || 0,
     pill: (node?.querySelector(".box-pill")?.textContent || "").trim(),
     attributed: (node?.textContent || "").includes("Reviewed by Marker Tester"),
-    reviewButtonGone: !Array.from(node?.querySelectorAll("button") || []).some(
-      (b) => (b.textContent || "").trim() === "Review"
+    reviewedChipClickable: Array.from(node?.querySelectorAll("button") || []).some(
+      (b) => (b.getAttribute("aria-label") || "").startsWith("Remove review by")
     ),
   };
 }, handoffId);
 check(
-  "handoff reviewer chip records a one-way review and flips the status",
+  "handoff reviewer chip records a review and flips the status",
   handoffReviewClick.found &&
     handoffReviewClick.inPillRow &&
     handoffReviewClick.sideBySide &&
@@ -463,8 +463,45 @@ check(
     handoffReviewed.reviewedAt > 0 &&
     handoffReviewed.pill.includes("Done, reviewed") &&
     handoffReviewed.attributed &&
-    handoffReviewed.reviewButtonGone,
+    handoffReviewed.reviewedChipClickable,
   JSON.stringify({ handoffReviewClick, ...handoffReviewed })
+);
+const handoffReviewClearClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const chip = Array.from(node?.querySelectorAll("button") || []).find((b) =>
+    (b.getAttribute("aria-label") || "").startsWith("Remove review by")
+  );
+  if (!chip) return { found: false };
+  chip.click();
+  return { found: true };
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffCleared = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  const buttons = Array.from(node?.querySelectorAll("button") || []);
+  return {
+    reviewer: data?.reviewedBy || "",
+    reviewedAt: data?.reviewedAt || 0,
+    pill: (node?.querySelector(".box-pill")?.textContent || "").trim(),
+    attributed: (node?.textContent || "").includes("Reviewed by Marker Tester"),
+    reviewButtonBack: buttons.some((b) => (b.textContent || "").trim() === "Review"),
+    reviewedChipGone: !buttons.some((b) =>
+      (b.getAttribute("aria-label") || "").startsWith("Remove review by")
+    ),
+  };
+}, handoffId);
+check(
+  "handoff reviewer chip clears the review on a second click",
+  handoffReviewClearClick.found &&
+    handoffCleared.reviewer === "" &&
+    handoffCleared.reviewedAt === 0 &&
+    handoffCleared.pill.includes("Done") &&
+    !handoffCleared.pill.includes("reviewed") &&
+    !handoffCleared.attributed &&
+    handoffCleared.reviewButtonBack &&
+    handoffCleared.reviewedChipGone,
+  JSON.stringify({ handoffReviewClearClick, ...handoffCleared })
 );
 
 // ---------- Header markers ----------
