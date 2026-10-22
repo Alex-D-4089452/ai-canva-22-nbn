@@ -11,9 +11,9 @@ import { ShieldCheck } from "./ui/ShieldCheck.js";
  *
  * Each chip is one box on the board's main pipeline (inputs → workers →
  * custom boxes), in execution order (`pipelineOrder`), with its live status
- * from `boxStatus`: "1 Idea · Not run yet", "2 Brief · Done", … The strip is
- * a read-only mirror of the canvas — clicking a chip does nothing; the
- * canvas stays the single place boxes are managed.
+ * from `boxStatus`: "1 Idea · Not run yet", "2 Brief · Done, reviewed", …
+ * The strip is a read-only mirror of the canvas — clicking a chip does
+ * nothing; the canvas stays the single place boxes are managed.
  *
  * Collaboration annotations (note/label/timer/checklist) and drawn Areas are
  * not pipeline steps and never appear here.

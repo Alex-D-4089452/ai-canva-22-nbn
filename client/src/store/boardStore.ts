@@ -14,7 +14,7 @@ import type { BoxData, BoxType, BoxStatus, AgentStep, DeployInfo, ArtifactVersio
 import { BOX_TYPES, AGENT_CONTROLLER_SYSTEM_PROMPT } from "../types/index.js";
 import { generate, generateImage, generateStitchUI, publishSite } from "../lib/api.js";
 import { fillPromptTemplate } from "../lib/prompts.js";
-import { collectInputs, runInputBlocker } from "../lib/inputs.js";
+import { checkHandoffRoles, collectInputs, runInputBlocker } from "../lib/inputs.js";
 import {
   MAX_AGENT_TURNS,
   MAX_PARSE_RETRIES,
@@ -351,6 +351,12 @@ interface BoardState {
   revertCodeVersion: (id: string, version: number) => void;
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
+  /**
+   * Handoff Brief: toggle its human review. Only works on a completed handoff
+   * with output; a click records the reviewer's display name and timestamp,
+   * and the next click clears both. A re-run also clears them.
+   */
+  reviewHandoff: (id: string) => void;
 
   /**
    * Undo the last local board edit (Ctrl/Cmd+Z): restores the pre-edit board
@@ -575,6 +581,29 @@ export const useBoardStore = create<BoardState>()(
 
       setBoxStatus: (id, status, error) => {
         get().updateBoxData(id, { status, error });
+      },
+
+      reviewHandoff: (id) => {
+        const state = get();
+        const node = state.nodes.find((n) => n.id === id);
+        const data = state.boxData[id];
+        if (!node || !data) return;
+        const boxType = (node.data.boxType || node.type) as string;
+        // A review only applies to a finished Handoff Brief with output.
+        if (boxType !== "handoff") return;
+        if (data.status !== "done" || !(data.output || "").trim()) return;
+        // Toggle: clicking a recorded review removes it.
+        if ((data.reviewedBy || "").trim()) {
+          get().updateBoxData(id, {
+            reviewedBy: undefined,
+            reviewedAt: undefined,
+          });
+          return;
+        }
+        get().updateBoxData(id, {
+          reviewedBy: actorName(),
+          reviewedAt: Date.now(),
+        });
       },
 
       applyChangeRequest: async (id) => {
@@ -1248,6 +1277,25 @@ export const useBoardStore = create<BoardState>()(
         if (blocked) {
           get().setBoxStatus(id, "error", blocked);
           return;
+        }
+
+        // Handoff Brief: From and To are required role metadata. BoxNode
+        // highlights the empty fields on a direct Run click; this guard covers
+        // other callers (Run all, future agent actions).
+        if (boxType === "handoff") {
+          const roles = checkHandoffRoles(data);
+          if (roles.message) {
+            get().setBoxStatus(id, "error", roles.message);
+            return;
+          }
+          // A new brief is a new artefact: the previous sign-off must not
+          // carry over. Clear it before the run, whether the run succeeds or not.
+          if (data.reviewedBy || data.reviewedAt) {
+            get().updateBoxData(id, {
+              reviewedBy: undefined,
+              reviewedAt: undefined,
+            });
+          }
         }
 
         // The Agent box runs its own multi-turn loop (create/connect/run

@@ -91,9 +91,18 @@ export function boxStatus(
     return { tone: "danger", text: `⚠ ${shortError(d.error)}` };
   }
   if (hasRun(d)) {
-    return d?.status === "done"
-      ? { tone: "success", text: "Done" }
-      : { tone: "success", text: runStatusLabel(d?.ranAt, true) };
+    if (d?.status === "done") {
+      // Handoff Brief: a human review extends the completed state. The
+      // pipeline strip renders this as "Handoff Brief · Done, reviewed".
+      return {
+        tone: "success",
+        text:
+          boxType === "handoff" && (d.reviewedBy || "").trim()
+            ? "Done, reviewed"
+            : "Done",
+      };
+    }
+    return { tone: "success", text: runStatusLabel(d?.ranAt, true) };
   }
   if (boxType === "alignment" && upstreamCount < 2) {
     return {

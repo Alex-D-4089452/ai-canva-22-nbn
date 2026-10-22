@@ -1,3 +1,4 @@
+import ReviewerChip from "../ui/ReviewerChip.js";
 import Reveal from "./Reveal.js";
 
 /**
@@ -5,9 +6,8 @@ import Reveal from "./Reveal.js";
  *
  * Steps 2 and 3 carry the app's status vocabulary as illustrative chips
  * (Not run yet / Running / Done / Needs re-run) and the reviewed-by pill.
- * The review feature itself is NOT implemented yet — these are static UI
- * only, mirroring the box cards' real status pills so the landing promises
- * nothing the canvas does not already show.
+ * The Handoff Brief box now implements the same chip for real (see
+ * components/ui/ReviewerChip.tsx); this section stays static marketing UI.
  */
 
 type ChipTone = "idle" | "running" | "done" | "warning";
@@ -164,14 +164,11 @@ export default function LandingHowItWorks() {
 
               {step.reviewedBy && (
                 <div className="mt-4">
-                  <span className="inline-flex max-w-sm items-center gap-2 rounded-full bg-zinc-950 px-3.5 py-1.5 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 dark:bg-white/[0.08] dark:ring-white/15">
-                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-500 text-zinc-950">
-                      <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.4" aria-hidden="true">
-                        <path d="m4.5 12.5 5 5 10-11" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                    Reviewed by {step.reviewedBy.name} · {step.reviewedBy.time}
-                  </span>
+                  <ReviewerChip
+                    name={step.reviewedBy.name}
+                    time={step.reviewedBy.time}
+                    className="max-w-sm"
+                  />
                 </div>
               )}
             </Reveal>

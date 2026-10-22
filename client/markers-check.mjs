@@ -55,6 +55,30 @@ await page.waitForTimeout(2500);
 // ---------- Shell markers ----------
 check("app shell renders + `Add Box` present", !!(await page.$(".react-flow")) && /Add Box/.test(await bodyText()));
 
+// Readable-by-default contract: never open below the 115% floor, and the
+// body type scale that was bumped with it (16px base/textarea).
+const openingView = await page.evaluate(() => {
+  const zoomText = document.querySelector(".bar-zoom-level")?.textContent || "";
+  const nodes = Array.from(document.querySelectorAll(".box-node"));
+  const node = nodes.find((n) => n.querySelector("textarea")) || nodes[0];
+  const textarea = node?.querySelector("textarea");
+  return {
+    zoom: parseFloat(zoomText),
+    base: node ? parseFloat(getComputedStyle(node).fontSize) : 0,
+    textarea: textarea ? parseFloat(getComputedStyle(textarea).fontSize) : 0,
+  };
+});
+check(
+  "canvas opens at a readable default zoom (>= 115%)",
+  openingView.zoom >= 115,
+  `${Math.round(openingView.zoom)}%`
+);
+check(
+  "box body uses the larger type scale (>= 16px)",
+  openingView.base >= 16 && openingView.textarea >= 16,
+  `${openingView.base}px base / ${openingView.textarea}px textarea`
+);
+
 // Both overlays start closed; the rail buttons open them independently.
 const overlaysClosed = await page.evaluate(() => {
   const panel = document.querySelector(".sidebar-panel");
@@ -69,6 +93,77 @@ const overlaysClosed = await page.evaluate(() => {
 check("add-box palette starts closed", overlaysClosed.palette);
 check("help card starts closed", overlaysClosed.help);
 
+// Regression: OS/browser shortcuts (Win+Shift+S, Cmd+Shift+5) can swallow the
+// keyup React Flow relies on, latching Shift-selection mode. A later pane drag
+// must pan, not leave a selection box stuck.
+const emptyPoint = await page.evaluate(() => {
+  const pane = document.querySelector(".react-flow__pane");
+  if (!pane) return null;
+  const r = pane.getBoundingClientRect();
+  for (let y = r.bottom - 90; y > r.top + 90; y -= 40) {
+    for (let x = r.left + 130; x < r.right - 90; x += 40) {
+      const el = document.elementFromPoint(x, y);
+      if (
+        el &&
+        pane.contains(el) &&
+        !el.closest(
+          ".react-flow__node, .react-flow__edge, .react-flow__minimap, .react-flow__controls, .react-flow__panel, button, input, textarea, select, a"
+        )
+      ) {
+        return { x, y };
+      }
+    }
+  }
+  return null;
+});
+let staleShiftOk = false;
+let staleShiftDetail = "no empty canvas point";
+if (emptyPoint) {
+  await page.evaluate(() =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", code: "ShiftLeft", bubbles: true }))
+  );
+  await page.mouse.move(emptyPoint.x - 30, emptyPoint.y - 20);
+  await page.mouse.move(emptyPoint.x, emptyPoint.y);
+  await page.waitForTimeout(80);
+  const viewportBefore = await page.evaluate(
+    () => document.querySelector(".react-flow__viewport")?.getAttribute("style") || ""
+  );
+  await page.mouse.down();
+  await page.mouse.move(emptyPoint.x + 80, emptyPoint.y - 40, { steps: 8 });
+  const selectionVisible = await page.evaluate(
+    () => !!document.querySelector(".react-flow__selection")
+  );
+  await page.mouse.up();
+  const viewportAfter = await page.evaluate(
+    () => document.querySelector(".react-flow__viewport")?.getAttribute("style") || ""
+  );
+  staleShiftOk = !selectionVisible && viewportBefore !== viewportAfter;
+  staleShiftDetail = `selection=${selectionVisible}, moved=${viewportBefore !== viewportAfter}`;
+  if (staleShiftOk) {
+    // Put the board back where it started for the screenshot + later checks.
+    await page.mouse.move(emptyPoint.x + 80, emptyPoint.y - 40);
+    await page.mouse.down();
+    await page.mouse.move(emptyPoint.x, emptyPoint.y, { steps: 8 });
+    await page.mouse.up();
+  }
+}
+check("stale Shift clears before the next drag (pan, no selection box)", staleShiftOk, staleShiftDetail);
+
+// The reconciliation must not break a REAL Shift-drag selection.
+if (emptyPoint) {
+  await page.keyboard.down("Shift");
+  await page.mouse.move(emptyPoint.x, emptyPoint.y);
+  await page.mouse.down();
+  await page.mouse.move(emptyPoint.x + 70, emptyPoint.y - 30, { steps: 6 });
+  const realShiftSelection = await page.evaluate(
+    () => !!document.querySelector(".react-flow__selection")
+  );
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await page.mouse.click(emptyPoint.x, emptyPoint.y);
+  check("real Shift still draws a selection box", realShiftSelection);
+}
+
 const paletteOpened = await page.evaluate(() => {
   const btn = Array.from(document.querySelectorAll("button")).find((b) =>
     b.textContent.trim().endsWith("Add Box")
@@ -78,16 +173,22 @@ const paletteOpened = await page.evaluate(() => {
   return true;
 });
 await page.waitForTimeout(300);
+const paletteState = await page.evaluate(() => {
+  const panel = document.querySelector(".sidebar-panel");
+  const help = Array.from(document.querySelectorAll("div")).find(
+    (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
+  );
+  return {
+    panel: !!panel,
+    open: panel?.classList.contains("translate-x-0"),
+    help: !!help,
+    helpText: help?.textContent?.slice(0, 60),
+  };
+});
 check(
   "Add Box opens the palette (without opening help)",
-  paletteOpened &&
-    (await page.evaluate(() => {
-      const panel = document.querySelector(".sidebar-panel");
-      const help = Array.from(document.querySelectorAll("div")).find(
-        (d) => (d.textContent || "").includes("How to use") && d.className.includes("rounded-xl")
-      );
-      return !!panel && panel.classList.contains("translate-x-0") && !help;
-    }))
+  paletteOpened && paletteState.panel && paletteState.open && !paletteState.help,
+  JSON.stringify({ paletteOpened, ...paletteState })
 );
 
 const sections = await bodyText();
@@ -259,6 +360,148 @@ check(
     );
     return !!btn && !/▶ Run/.test(btn.textContent);
   })
+);
+
+// ---------- Handoff Brief role validation ----------
+// From/To are required: a direct Run click with both empty must highlight
+// them and leave the box unrun (the store guard covers Run all separately).
+const handoffId = await page.evaluate(() => {
+  const s = window.__dsh.useBoardStore.getState();
+  const handoff = s.addBox("handoff", { x: 6000, y: 6000 });
+  const source = s.addBox("research", { x: 5600, y: 6000 });
+  s.updateBoxData(source, { output: "source material" });
+  s.connectBoxes(source, handoff);
+  return handoff;
+});
+await page.waitForTimeout(250);
+const handoffClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const run = Array.from(node?.querySelectorAll("button") || []).find((b) =>
+    (b.textContent || "").trim().endsWith("Run")
+  );
+  if (!run) return { clicked: false, reason: "no Run button" };
+  if (run.disabled) return { clicked: false, reason: "Run disabled" };
+  run.click();
+  return { clicked: true };
+}, handoffId);
+await page.waitForTimeout(200);
+const handoffState = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const inputs = node ? Array.from(node.querySelectorAll("input")) : [];
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  return {
+    invalid: inputs.map((i) => i.getAttribute("aria-invalid")),
+    focused: !!inputs[0] && document.activeElement === inputs[0],
+    status: data?.status,
+    alert: (node?.textContent || "").includes("Fill in both roles before running."),
+  };
+}, handoffId);
+check(
+  "handoff Run highlights empty From/To and does not start",
+  handoffClick.clicked &&
+    handoffState.invalid.length >= 2 &&
+    handoffState.invalid[0] === "true" &&
+    handoffState.invalid[1] === "true" &&
+    handoffState.focused &&
+    handoffState.status !== "running" &&
+    handoffState.status !== "done" &&
+    handoffState.alert,
+  JSON.stringify({ handoffClick, ...handoffState })
+);
+
+// A completed Handoff Brief carries the landing-page reviewer chip beside its
+// Done pill. Clicking records the reviewer; clicking the reviewed chip again
+// removes the sign-off.
+await page.evaluate((id) => {
+  window.__dsh.useBoardStore.getState().updateBoxData(id, {
+    handoffFrom: "UX Designer",
+    handoffTo: "Content Designer",
+    output: "## Handoff brief",
+    status: "done",
+    ranAt: Date.now(),
+  });
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffReviewClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const chip = Array.from(node?.querySelectorAll("button") || []).find(
+    (b) => (b.textContent || "").trim() === "Review"
+  );
+  if (!chip) return { found: false };
+  const pill = node?.querySelector(".box-pill");
+  const inPillRow = !!chip.closest(".box-pill-row");
+  const chipRect = chip.getBoundingClientRect();
+  const pillRect = pill?.getBoundingClientRect();
+  const sideBySide =
+    !!pillRect &&
+    chipRect.left >= pillRect.right - 1 &&
+    Math.abs(chipRect.top - pillRect.top) < 12;
+  const before = (pill?.textContent || "").trim();
+  chip.click();
+  return { found: true, inPillRow, sideBySide, before };
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffReviewed = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  return {
+    reviewer: data?.reviewedBy,
+    reviewedAt: data?.reviewedAt || 0,
+    pill: (node?.querySelector(".box-pill")?.textContent || "").trim(),
+    attributed: (node?.textContent || "").includes("Reviewed by Marker Tester"),
+    reviewedChipClickable: Array.from(node?.querySelectorAll("button") || []).some(
+      (b) => (b.getAttribute("aria-label") || "").startsWith("Remove review by")
+    ),
+  };
+}, handoffId);
+check(
+  "handoff reviewer chip records a review and flips the status",
+  handoffReviewClick.found &&
+    handoffReviewClick.inPillRow &&
+    handoffReviewClick.sideBySide &&
+    handoffReviewed.reviewer === "Marker Tester" &&
+    handoffReviewed.reviewedAt > 0 &&
+    handoffReviewed.pill.includes("Done, reviewed") &&
+    handoffReviewed.attributed &&
+    handoffReviewed.reviewedChipClickable,
+  JSON.stringify({ handoffReviewClick, ...handoffReviewed })
+);
+const handoffReviewClearClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const chip = Array.from(node?.querySelectorAll("button") || []).find((b) =>
+    (b.getAttribute("aria-label") || "").startsWith("Remove review by")
+  );
+  if (!chip) return { found: false };
+  chip.click();
+  return { found: true };
+}, handoffId);
+await page.waitForTimeout(250);
+const handoffCleared = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  const buttons = Array.from(node?.querySelectorAll("button") || []);
+  return {
+    reviewer: data?.reviewedBy || "",
+    reviewedAt: data?.reviewedAt || 0,
+    pill: (node?.querySelector(".box-pill")?.textContent || "").trim(),
+    attributed: (node?.textContent || "").includes("Reviewed by Marker Tester"),
+    reviewButtonBack: buttons.some((b) => (b.textContent || "").trim() === "Review"),
+    reviewedChipGone: !buttons.some((b) =>
+      (b.getAttribute("aria-label") || "").startsWith("Remove review by")
+    ),
+  };
+}, handoffId);
+check(
+  "handoff reviewer chip clears the review on a second click",
+  handoffReviewClearClick.found &&
+    handoffCleared.reviewer === "" &&
+    handoffCleared.reviewedAt === 0 &&
+    handoffCleared.pill.includes("Done") &&
+    !handoffCleared.pill.includes("reviewed") &&
+    !handoffCleared.attributed &&
+    handoffCleared.reviewButtonBack &&
+    handoffCleared.reviewedChipGone,
+  JSON.stringify({ handoffReviewClearClick, ...handoffCleared })
 );
 
 // ---------- Header markers ----------

@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   useReactFlow,
   useStoreApi,
@@ -13,16 +12,33 @@ import {
   type Connection,
   type NodeChange,
   type EdgeChange,
+  type FitViewOptions,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
 import { useUIStore } from "../store/uiStore.js";
 import { AREA_COLORS } from "../types/index.js";
 import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { MODIFIER_KEYS, staleModifierKeys } from "../lib/modifiers.js";
 import { viewportCenter } from "../lib/placement.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
+
+/**
+ * Opening view: fill more of the canvas than a conservative fit (the old 30%
+ * padding) while reserving the overlays — 64px left rail, bottom CanvasBar —
+ * so content is never parked underneath them. Busy boards never open below
+ * 115%; the cap is above React Flow's default 200% so a two-box starter board
+ * can use the extra room on a large monitor. Kept module-level so React Flow
+ * sees stable identities.
+ */
+const DEFAULT_VIEWPORT = { x: 80, y: 80, zoom: 1.15 };
+const FIT_VIEW_OPTIONS: FitViewOptions = {
+  padding: { top: "32px", right: "40px", bottom: "88px", left: "84px" },
+  minZoom: 1.15,
+  maxZoom: 2.25,
+};
 
 const nodeTypes = {
   media: BoxNode,
@@ -240,6 +256,64 @@ export default function Canvas() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // React Flow latches its Shift/Ctrl/Cmd selection keys from window
+  // keydown/keyup events. OS/browser shortcuts (Win+Shift+S, Cmd+Shift+5, …)
+  // can swallow the keyup, so the next pane drag draws a selection box and
+  // panning/node dragging stop. Reconcile the latched keys against real
+  // pointer events, and drop an interrupted marquee when focus is lost.
+  useEffect(() => {
+    const pressed = new Set<string>();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (MODIFIER_KEYS.has(e.key)) pressed.add(e.key);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      pressed.delete(e.key);
+    };
+    // A pointerup outside the pane / browser can leave the marquee or pan
+    // state active. With no button down (or after focus loss) it is stale.
+    const clearInterruptedInteraction = () => {
+      const s = rfStore.getState();
+      if (s.userSelectionActive || s.userSelectionRect || s.paneDragging) {
+        rfStore.setState({
+          userSelectionActive: false,
+          userSelectionRect: null,
+          paneDragging: false,
+        });
+      }
+    };
+    const reconcile = (e: PointerEvent) => {
+      for (const { key, code } of staleModifierKeys(pressed, e)) {
+        pressed.delete(key);
+        // React Flow (and our own keyup tracker) listen on window.
+        window.dispatchEvent(new KeyboardEvent("keyup", { key, code, bubbles: true }));
+      }
+      if (e.buttons === 0) clearInterruptedInteraction();
+    };
+    const onBlur = () => {
+      pressed.clear();
+      clearInterruptedInteraction();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onBlur();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener("pointermove", reconcile, true);
+    window.addEventListener("pointerdown", reconcile, true);
+    window.addEventListener("pointercancel", clearInterruptedInteraction, true);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener("pointermove", reconcile, true);
+      window.removeEventListener("pointerdown", reconcile, true);
+      window.removeEventListener("pointercancel", clearInterruptedInteraction, true);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [rfStore]);
+
   const draftRect = draft ? normalizeRect(draft.start, draft.current) : null;
 
   return (
@@ -266,7 +340,9 @@ export default function Canvas() {
       nodesDraggable={!areaTool}
       className={"board-flow" + (areaTool ? " area-tool-active" : "")}
       fitView
-      fitViewOptions={{ padding: 0.3 }}
+      fitViewOptions={FIT_VIEW_OPTIONS}
+      defaultViewport={DEFAULT_VIEWPORT}
+      maxZoom={2.5}
       defaultEdgeOptions={{
         // Quiet dotted connectors (the reference design's "· · · ·" edges);
         // the connection handles are already colored dots in the box color.

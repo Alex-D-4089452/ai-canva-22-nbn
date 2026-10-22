@@ -98,8 +98,8 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   save serialization (`serialization.ts`), Documents-box text handling (`documents.ts`), the
   Agent box action protocol (`agent.ts`), input gathering (`inputs.ts` — `collectInputs`
   walks edges into `NamedInput[]` + first `inputImage`; **image-only sources contribute a
-  labeled named input** so `{{inputs}}` resolves), the line-diff engine (`diff.ts`), and
-  here.now deploy payloads (`deploy.ts`).
+  labeled named input** so `{{inputs}}` resolves), the line-diff engine (`diff.ts`), the stale
+  modifier-key detector (`modifiers.ts`), and here.now deploy payloads (`deploy.ts`).
   `boardStore.ts` imports these rather than inlining them.
 - **Prompt templating** references connected inputs by name: `{{Box Name}}`, `{{input_1}}`,
   `{{inputs}}`.
@@ -188,10 +188,11 @@ with `pointer-events: none`), never as child text nodes. Sections render expande
 `types/boxTypes.ts`; all types scaled ×1.25 rounded-to-10 on 2026-10-03 —
 e.g. Idea 400×250, Agent 500×600, Jargon Translator 450×480); **persisted nodes keep their stored
 style**, so existing boards only grow when a box is added. Box text is sized centrally in
-`index.css`: `.box-node` base 15px, plus the scoped rules `.box-body .markdown-output`
-(16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it
-wins) and `.box-body textarea` (15px), with markdown headings at 20/18/16 (h1/h2/h3). Prefer
-extending those scoped rules over sprinkling `text-xs`/`text-sm` onto body content.
+`index.css`: `.box-node` base 16px, plus the scoped rules `.box-body .text-sm` (15px, lifting the
+helper/empty-state paragraphs), `.box-body .markdown-output` (18px / line-height 1.65 —
+deliberately more specific than the Tailwind `text-sm` utility so it wins) and `.box-body textarea`
+(16px), with markdown headings at 22/20/18 (h1/h2/h3). Prefer extending those scoped rules over
+sprinkling `text-xs`/`text-sm` onto body content. The header title is 14px and its icon tile 26px.
 
 **Box card secondary text & control sizes (readability pass, 2026-10-19):** muted copy on the
 white card bottoms out at **slate-500** — header type label `text-slate-600`, token row slate-500
@@ -221,7 +222,12 @@ search, role filter, collapsible sections), `Toolbar` (the "How to use" card —
 `left-[368px]` while the palette is open), and `CanvasBar` (bottom-center: zoom −/%/+, **undo /
 redo** — the ↶/↷ buttons plus the Ctrl/Cmd+Z, Ctrl+Shift+Z / Ctrl+Y shortcuts — then the
 toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
-rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
+rendered. **Opening zoom is deliberately generous:** `Canvas.tsx` fits with overlay-aware padding
+(84px left for the rail, 88px bottom for the CanvasBar) and never opens a content board below
+**115%** (max 225%), falling back to a 115% `defaultViewport`; React Flow's `maxZoom` is raised to
+**2.5** so the fit can use it. Every card grows with that zoom and the larger body type, so a fresh
+board is readable without a manual zoom. **All transient chrome state lives in the non-persisted
+`store/uiStore.ts`**
 (`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — `paletteOpen` and `helpOpen`
 **start closed** on every load so a fresh canvas is unobstructed; the rail's Add Box and Help
 buttons open them independently. Consumers subscribe themselves and **App must not** (the
@@ -337,9 +343,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (38-check) verification of **every
-  text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
-  rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
+- **Marker check:** `client/markers-check.mjs` — fast headless (42-check) verification of **every
+  text selector the full suites rely on** plus the chrome (opening zoom ≥115% + 16px body type,
+  pipeline strip, status pills, left rail/palette, bottom bar with its undo/redo buttons,
+  add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
   box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
   `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
@@ -516,7 +523,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   (`UPSTREAM_INPUT_BOXES`, each with a per-type "connect …" hint in the message); **UI Design,
   Stitch UI** need a typed description (`content`) or one connected upstream box with content
   (their own text counts — no `skipSelf`); **Agent** needs a typed task (`boxData.content`);
-  every other box is ungated (stock prompts are designed to run standalone). `BoxNode.tsx`
+  every other box is ungated (stock prompts are designed to run standalone). **Handoff Brief**
+  has one extra rule outside `runInputBlocker` (so its Run button stays clickable): both `From`
+  and `To` roles are required. `checkHandoffRoles` in `lib/inputs.ts` reports which fields are
+  empty; a direct Run click highlights them red, focuses the first empty one and refuses to
+  start, while `runBox` applies the same check for other callers (Run all) and shows the reason
+  as the box error. `BoxNode.tsx`
   mirrors the rules (`runGateReason` → `disabled` + `title` tooltip on ▶ Run — "Connect two
   upstream boxes first" / "Connect an upstream box first" / "Type a description or connect an
   input" / "Type a task first"; alignment body shows "n of 2 connected", agent body shows the
@@ -562,8 +574,19 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   first connected upstream box, or the uploaded filename when that box is a Documents box; run-time
   metadata lands in `BoxData` (`handoffGeneratedAt`/`alignmentRanAt`/`jargonTerms`)
   written by the text branch of `runBox`. Handoff's From/To are editable inputs
-  (`nodrag`); Alignment's Artefact 1/2 and Jargon's Source are inferred from edges —
-  never stored. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
+  (`nodrag`) and **both are required before Run** — a click with either empty marks the empty
+  input(s) red (`aria-invalid`, red ring/background), focuses the first one and does not start
+  the run (`checkHandoffRoles` in `lib/inputs.ts`; the store re-checks for Run all); Alignment's
+  Artefact 1/2 and Jargon's Source are inferred from edges —
+  never stored. **Handoff review:** once the box is `done` with output, a shared
+  `ReviewerChip` (`components/ui/ReviewerChip.tsx`, also used by the landing page's "How it
+  works") sits beside the floating Done pill. It starts as a clickable **Review** chip; any
+  collaborator can click it (review is a click toggle, not an edit), which stores
+  `reviewedBy` + `reviewedAt` via the `reviewHandoff` store action and swaps the chip to
+  "Reviewed by <name> · <time>". Clicking that reviewed chip again clears both fields and
+  returns the **Review** action. `boxStatus` then reports **`Done, reviewed`**, so the pipeline
+  strip reads **`Handoff Brief · Done, reviewed`**. A re-run also clears both fields — a new
+  brief must be reviewed again. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
   heading** so a numbered source list copied into the translated artefact can't inflate it. The
   help card's bottom tips cover these three NBN boxes (replacing the old Cartoon/Slides/Code
   tips). None of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier
@@ -705,6 +728,17 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   -200/-300 borders) so areas never compete with boxes on top; the minimap shows areas in their
   border shade. `noWheelClassName="react-flow__node"` covers area nodes too — scroll over an area
   zooms the canvas as over any node.
+- **Stale React Flow modifier / selection latch:** React Flow tracks its Shift / Ctrl / Cmd
+  selection keys with window `keydown`/`keyup` listeners. OS and browser shortcuts
+  (**Win+Shift+S** Snipping Tool, **Cmd+Shift+5** macOS screenshot) can swallow the matching
+  `keyup`, leaving selection mode latched: pane drags draw a selection box instead of panning and
+  boxes/resizing stop responding until the user presses Shift again or switches tabs. `Canvas.tsx`
+  reconciles the latched keys against the real modifier flags on every pointer event and
+  synthesizes the missing `keyup` (pure `staleModifierKeys` in `lib/modifiers.ts`, unit-tested), so
+  a real Shift-drag still works while a stale one is released before the next drag. The same effect
+  clears a marquee/`paneDragging` left over from a `pointerup` outside the pane, and resets on
+  window blur / hidden tab. Regression check lives in `markers-check` ("stale Shift clears before
+  the next drag" + "real Shift still draws a selection box").
 - **Touch / tablet (iPad) support:** everything touch-related is scoped to `@media (pointer: coarse)`
   in `client/src/index.css` — desktop is byte-for-byte unchanged. When adding UI, keep it that way:
   - **Hover-gated controls need `.touch-visible`** (opacity forced to 1 on coarse pointers) — used by
@@ -725,8 +759,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     node except an Area, `button/input/textarea/select/a`, and the Minimap/CanvasBar/panels; it is
     also inert while the Area tool is active. React Flow's `zoomOnDoubleClick` deliberately stays
     `false`: its d3 listener is attached to the renderer (so it fires from inside boxes) and on
-    touch screens it bypasses the event filter entirely. Note React Flow v12's default
-    `maxZoom` is **2** (not 4), so the step clamps there. The Area tool has a native
+    touch screens it bypasses the event filter entirely. Canvas raises React Flow's default
+    `maxZoom` from 2 to **2.5**, so repeated double-clicks clamp there. The Area tool has a native
     `touchstart`/`touchmove`/`touchend` mirror on `.react-flow__pane` (iPads never fire the
     synthesized mousedown — React Flow's touch handlers suppress it); presence cursors update via
     ReactFlow `onTouchMove`.

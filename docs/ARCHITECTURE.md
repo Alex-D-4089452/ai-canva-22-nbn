@@ -77,7 +77,7 @@ Key behaviors:
 ```
 App.tsx                     Shell: header, board actions, sign-in, modals
 ├── ReactFlowProvider
-│   ├── Canvas.tsx          ReactFlow graph + Background/Controls/MiniMap/Cursors
+│   ├── Canvas.tsx          ReactFlow graph + Background/MiniMap/Cursors
 │   ├── Sidebar.tsx         "Add Box" panel grouped by category
 │   └── Toolbar.tsx         In-canvas "How to use" help
 ├── NewBoardModal.tsx
@@ -88,6 +88,16 @@ App.tsx                     Shell: header, board actions, sign-in, modals
   (icon + editable name), body (by type), footer (Run / settings / copy / save), and the
   settings panel (system prompt + prompt template + variable insertion). It uses
   `NodeResizer` for resize and React Flow `Handle`s for connections.
+- **`Canvas.tsx`** also reconciles React Flow's latched selection modifier keys against real
+  pointer events (`lib/modifiers.ts`, unit-tested). OS/browser shortcuts such as Win+Shift+S or
+  Cmd+Shift+5 can swallow the Shift `keyup`, leaving React Flow in selection mode so pane drags
+  stop panning. The canvas synthesizes the missing keyup, clears an interrupted marquee/pan on
+  blur or a lost pointerup, and leaves a genuine Shift-drag untouched.
+- **Opening view:** the canvas fits content with overlay-aware padding (84px left for the rail,
+  88px bottom for the CanvasBar), never opens a content board below 115% (max 225%), and uses a
+  115% `defaultViewport` when there is nothing to fit. React Flow's `maxZoom` is raised from 2 to
+  2.5 so the fit can use the extra range; `CanvasBar` shows the resulting percentage and still owns
+  −/+ zoom.
 
 ### Prompt templating — `lib/prompts.ts`
 

@@ -29,6 +29,65 @@ current state).
 
 ---
 
+## 2026-10-22 — Handoff Brief reviewer chip
+
+- **Done:** a completed Handoff Brief now carries the landing page's reviewer chip beside its
+  floating Done pill. It starts as a click-only **Review** action (no edit UI); clicking records
+  `reviewedBy` + `reviewedAt` via the new `reviewHandoff` store action and swaps to
+  "Reviewed by <name> · <time>". Clicking the reviewed chip again clears both fields and returns
+  the **Review** action. `boxStatus` then reports **`Done, reviewed`**, so the pipeline strip
+  reads `Handoff Brief · Done, reviewed`. A new run also clears the sign-off so a fresh brief
+  must be reviewed again. The chip was extracted to `components/ui/ReviewerChip.tsx` and is now
+  shared by `LandingHowItWorks` and `BoxNode`; status logic is unit-tested in `status.test.ts`.
+- **In flight:** —
+- **Next steps:** — Verified with the client build, **37 server + 259 client tests** and
+  **`markers-check` 45/45** (new checks confirm the Review chip sits beside Done, records
+  `Marker Tester`, flips the pill to `Done, reviewed`, and a second click clears it). Full E2E
+  not rerun.
+
+## 2026-10-22 — Handoff Brief requires From/To roles
+
+- **Done:** clicking **Run** on a Handoff Brief with an empty From or To field now highlights the
+  empty field(s) red (`aria-invalid`, red border/background/ring), focuses the first one and does
+  not start the run; the banner adds a "Fill in … before running" hint. Both roles are required
+  (previously blank briefs could run). The check is the pure `checkHandoffRoles` in
+  `client/src/lib/inputs.ts` (unit-tested), shared by `BoxNode` and `runBox` — the store guard
+  covers other callers such as Run all and reports the reason as the box error. Verified with the
+  client build, **37 server + 258 client tests** and **`markers-check` 43/43** (new check asserts
+  the red From/To highlight, focus, and that the box stays unrun).
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-22 — Larger default zoom and box typography
+
+- **Done:** the canvas now opens **larger and more readable**: `fitView` uses overlay-aware padding
+  (84px left for the rail, 88px bottom for the CanvasBar) instead of the old 30% inset, content
+  boards never open below 115% (max 225%), an empty board uses a 115% default viewport, and React
+  Flow's `maxZoom` is raised to 2.5. Box body text grew with it — base 16px, scoped `text-sm` helper
+  copy 15px, markdown output 18px / 1.65, textareas 16px, markdown headings 22/20/18 and
+  code/table text 15px; header titles are 14px with a 26px icon tile. Docs updated (`AGENTS.md`,
+  `docs/ARCHITECTURE.md`). Verified with build, 37 server/255 client tests and `markers-check`
+  **42/42** (two new checks pin the ≥115% opening zoom and 16px body type); the starter board
+  opened at **145%** on a 1280×800 viewport (was 123%) and **215%** at 1920×1080 (was 185%), with
+  the rail and CanvasBar still clear of the cards.
+- **In flight:** —
+- **Next steps:** —
+
+## 2026-10-22 — Fix stuck selection box / dead panning
+
+- **Done:** diagnosed the intermittent "drag pans into a stuck selection box, then boxes and the
+  board stop moving" report as React Flow's Shift-selection key latching when an OS/browser
+  shortcut swallows its `keyup` (classic trigger: Win+Shift+S Snipping Tool or Cmd+Shift+5 on
+  macOS; upstream xyflow issue #5679). `Canvas.tsx` now reconciles the latched modifier keys
+  against real pointer-event flags and synthesizes the missing keyup before the next drag
+  (pure `lib/modifiers.ts` + tests), clears a marquee/`paneDragging` left by a lost pointerup or a
+  blurred/hidden tab, and keeps a real Shift-drag working. Regression coverage added to
+  `markers-check` (**40/40**), including "stale Shift clears before the next drag" and "real Shift
+  still draws a selection box". Client build + 37 server/255 client tests green; full E2E
+  **104/105** (only the known environment-only TG guest-join failure).
+- **In flight:** -
+- **Next steps:** -
+
 ## 2026-10-21 — NBN palette section and help tips
 
 - **Done:** the Add a box palette now has an **NBN** section directly below Inputs holding

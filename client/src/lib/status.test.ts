@@ -93,6 +93,20 @@ describe("boxStatus — worker boxes", () => {
     expect(boxStatus("cartoon", undefined, 0).tone).toBe("warning");
   });
 
+  it("handoff reports Done, reviewed once a reviewer is recorded", () => {
+    const done = { status: "done", ranAt: 1759790000000 } as BoxData;
+    expect(boxStatus("handoff", done, 1)).toEqual({ tone: "success", text: "Done" });
+    expect(
+      boxStatus("handoff", { ...done, reviewedBy: "Sophie D.", reviewedAt: 1759790100000 }, 1)
+    ).toEqual({ tone: "success", text: "Done, reviewed" });
+    // Whitespace is not a reviewer.
+    expect(boxStatus("handoff", { ...done, reviewedBy: "  " }, 1).text).toBe("Done");
+    // Other text boxes keep their plain Done.
+    expect(
+      boxStatus("research", { ...done, reviewedBy: "Sophie D." } as BoxData, 1).text
+    ).toBe("Done");
+  });
+
   it("truncates very long errors for the pill", () => {
     const long = "x".repeat(200);
     const st = boxStatus("research", { status: "error", error: long } as BoxData);

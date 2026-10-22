@@ -43,7 +43,7 @@ select,
   @apply bg-white rounded-xl border;
   width: 100%;
   height: 100%;
-  font-size: 15px;
+  font-size: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -66,28 +66,37 @@ select,
   border-bottom: 1px solid #f1f5f9;
 }
 .box-icon-tile {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
 }
 
-/* ===== Floating status pill (renders above the card) =====
-   Upload / run / connection state. The pill sits OUTSIDE .box-node so the
-   card's `overflow: hidden` never clips it; the parent (.react-flow__node)
-   is absolutely positioned, so top: -30px floats it over the canvas. */
-.box-pill {
+/* ===== Floating status row (renders above the card) =====
+   Upload / run / connection state, plus the Handoff Brief reviewer chip. The
+   row sits OUTSIDE .box-node so the card's `overflow: hidden` never clips it;
+   the parent (.react-flow__node) is absolutely positioned, so top: -30px
+   floats it over the canvas. */
+.box-pill-row {
   position: absolute;
   top: -30px;
   left: 2px;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 4px);
+  pointer-events: none;
+}
+.box-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: calc(100% - 4px);
+  flex-shrink: 0;
+  max-width: 100%;
   height: 24px;
   padding: 0 10px;
   border-radius: 9999px;
@@ -102,6 +111,12 @@ select,
   text-overflow: ellipsis;
   box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.12);
   pointer-events: none;
+}
+/* The landing-page review pill on the canvas: keep it clickable even though
+   the status pill row itself is pointer-events: none. */
+.box-review-chip {
+  flex-shrink: 1;
+  min-width: 0;
 }
 .box-pill-glyph {
   flex-shrink: 0;
@@ -139,16 +154,20 @@ select,
   color: #94a3b8;
 }
 
-/* ===== Box readability pass: larger input/output text =====
+/* ===== Box readability: larger input/output text =====
    These selectors are deliberately more specific than the Tailwind
    `text-sm` / `text-xs` utilities, so they win regardless of stylesheet
-   order: output (markdown) renders at 16px, typed content at 15px. */
+   order. The scoped `.text-sm` bump brings the many helper/empty-state
+   paragraphs inside a box up with the base size; metadata stays text-xs. */
+.box-body .text-sm {
+  font-size: 15px;
+}
 .box-body .markdown-output {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.65;
 }
 .box-body textarea {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* ===== Run progress bar (worker-box footer) =====
@@ -811,15 +830,15 @@ select,
   cursor: grabbing;
 }
 
-/* Markdown output styling (sized for the 16px box body — see the readability pass) */
+/* Markdown output styling (sized for the 18px box body — see the readability pass) */
 .markdown-output h1 {
-  @apply text-xl font-bold mt-3 mb-2;
+  @apply text-[22px] leading-tight font-bold mt-3 mb-2;
 }
 .markdown-output h2 {
-  @apply text-lg font-bold mt-3 mb-1;
+  @apply text-xl leading-snug font-bold mt-3 mb-1;
 }
 .markdown-output h3 {
-  @apply text-base font-semibold mt-2 mb-1;
+  @apply text-lg font-semibold mt-2 mb-1;
 }
 .markdown-output p {
   @apply my-1.5 leading-relaxed;
@@ -837,10 +856,10 @@ select,
   @apply font-semibold;
 }
 .markdown-output code {
-  @apply bg-slate-100 px-1 py-0.5 rounded text-sm font-mono;
+  @apply bg-slate-100 px-1 py-0.5 rounded text-[15px] font-mono;
 }
 .markdown-output pre {
-  @apply bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto my-2 text-sm;
+  @apply bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto my-2 text-[15px];
 }
 .markdown-output pre code {
   @apply bg-transparent p-0 text-slate-100;
@@ -855,7 +874,7 @@ select,
   @apply my-3 border-slate-200;
 }
 .markdown-output table {
-  @apply w-full border-collapse my-2 text-sm;
+  @apply w-full border-collapse my-2 text-[15px];
 }
 .markdown-output th,
 .markdown-output td {
@@ -994,7 +1013,14 @@ html {
     font-size: 18px;
   }
 
-  /* Minimum comfortable touch targets. */
+  /* Minimum comfortable touch targets. The review chip is taller than the
+     status pill, so lift the floating row to keep both above the card. */
+  .box-pill-row {
+    top: -40px;
+  }
+  .box-review-chip {
+    min-height: 38px;
+  }
   .box-footer button {
     min-height: 42px;
   }
