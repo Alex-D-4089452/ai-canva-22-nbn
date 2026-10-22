@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   useReactFlow,
   useStoreApi,
@@ -13,6 +12,7 @@ import {
   type Connection,
   type NodeChange,
   type EdgeChange,
+  type FitViewOptions,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
@@ -24,6 +24,21 @@ import { viewportCenter } from "../lib/placement.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
+
+/**
+ * Opening view: fill more of the canvas than a conservative fit (the old 30%
+ * padding) while reserving the overlays — 64px left rail, bottom CanvasBar —
+ * so content is never parked underneath them. Busy boards never open below
+ * 115%; the cap is above React Flow's default 200% so a two-box starter board
+ * can use the extra room on a large monitor. Kept module-level so React Flow
+ * sees stable identities.
+ */
+const DEFAULT_VIEWPORT = { x: 80, y: 80, zoom: 1.15 };
+const FIT_VIEW_OPTIONS: FitViewOptions = {
+  padding: { top: "32px", right: "40px", bottom: "88px", left: "84px" },
+  minZoom: 1.15,
+  maxZoom: 2.25,
+};
 
 const nodeTypes = {
   media: BoxNode,
@@ -325,7 +340,9 @@ export default function Canvas() {
       nodesDraggable={!areaTool}
       className={"board-flow" + (areaTool ? " area-tool-active" : "")}
       fitView
-      fitViewOptions={{ padding: 0.3 }}
+      fitViewOptions={FIT_VIEW_OPTIONS}
+      defaultViewport={DEFAULT_VIEWPORT}
+      maxZoom={2.5}
       defaultEdgeOptions={{
         // Quiet dotted connectors (the reference design's "· · · ·" edges);
         // the connection handles are already colored dots in the box color.
