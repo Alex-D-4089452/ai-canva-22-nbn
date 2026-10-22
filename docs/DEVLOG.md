@@ -32,16 +32,18 @@ current state).
 ## 2026-10-22 — Handoff Brief reviewer chip
 
 - **Done:** a completed Handoff Brief now carries the landing page's reviewer chip beside its
-  floating Done pill. It starts as a one-way, click-only **Review** action (no edit UI); clicking
-  records `reviewedBy` + `reviewedAt` via the new `reviewHandoff` store action and swaps to
-  "Reviewed by <name> · <time>". `boxStatus` then reports **`Done, reviewed`**, so the pipeline
-  strip reads `Handoff Brief · Done, reviewed`. A new run clears the sign-off so a fresh brief
+  floating Done pill. It starts as a click-only **Review** action (no edit UI); clicking records
+  `reviewedBy` + `reviewedAt` via the new `reviewHandoff` store action and swaps to
+  "Reviewed by <name> · <time>". Clicking the reviewed chip again clears both fields and returns
+  the **Review** action. `boxStatus` then reports **`Done, reviewed`**, so the pipeline strip
+  reads `Handoff Brief · Done, reviewed`. A new run also clears the sign-off so a fresh brief
   must be reviewed again. The chip was extracted to `components/ui/ReviewerChip.tsx` and is now
   shared by `LandingHowItWorks` and `BoxNode`; status logic is unit-tested in `status.test.ts`.
 - **In flight:** —
 - **Next steps:** — Verified with the client build, **37 server + 259 client tests** and
-  **`markers-check` 44/44** (new check confirms the Review chip sits beside Done, records
-  `Marker Tester`, removes the action and flips the pill to `Done, reviewed`). Full E2E not rerun.
+  **`markers-check` 45/45** (new checks confirm the Review chip sits beside Done, records
+  `Marker Tester`, flips the pill to `Done, reviewed`, and a second click clears it). Full E2E
+  not rerun.
 
 ## 2026-10-22 — Handoff Brief requires From/To roles
 

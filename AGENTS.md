@@ -581,11 +581,12 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   never stored. **Handoff review:** once the box is `done` with output, a shared
   `ReviewerChip` (`components/ui/ReviewerChip.tsx`, also used by the landing page's "How it
   works") sits beside the floating Done pill. It starts as a clickable **Review** chip; any
-  collaborator can click it (review is a one-way click, not an edit), which stores
+  collaborator can click it (review is a click toggle, not an edit), which stores
   `reviewedBy` + `reviewedAt` via the `reviewHandoff` store action and swaps the chip to
-  "Reviewed by <name> · <time>". `boxStatus` then reports **`Done, reviewed`**, so the pipeline
-  strip reads **`Handoff Brief · Done, reviewed`**. A re-run clears both fields — a new brief
-  must be reviewed again. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
+  "Reviewed by <name> · <time>". Clicking that reviewed chip again clears both fields and
+  returns the **Review** action. `boxStatus` then reports **`Done, reviewed`**, so the pipeline
+  strip reads **`Handoff Brief · Done, reviewed`**. A re-run also clears both fields — a new
+  brief must be reviewed again. `jargonTerms` counts numbered items **only under the `## Terms Simplified`
   heading** so a numbered source list copied into the translated artefact can't inflate it. The
   help card's bottom tips cover these three NBN boxes (replacing the old Cartoon/Slides/Code
   tips). None of the three is in `AGENT_CREATABLE_TYPES`. (A Decision Log box existed earlier
