@@ -75,19 +75,28 @@ select,
   font-size: 14px;
 }
 
-/* ===== Floating status pill (renders above the card) =====
-   Upload / run / connection state. The pill sits OUTSIDE .box-node so the
-   card's `overflow: hidden` never clips it; the parent (.react-flow__node)
-   is absolutely positioned, so top: -30px floats it over the canvas. */
-.box-pill {
+/* ===== Floating status row (renders above the card) =====
+   Upload / run / connection state, plus the Handoff Brief reviewer chip. The
+   row sits OUTSIDE .box-node so the card's `overflow: hidden` never clips it;
+   the parent (.react-flow__node) is absolutely positioned, so top: -30px
+   floats it over the canvas. */
+.box-pill-row {
   position: absolute;
   top: -30px;
   left: 2px;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 4px);
+  pointer-events: none;
+}
+.box-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: calc(100% - 4px);
+  flex-shrink: 0;
+  max-width: 100%;
   height: 24px;
   padding: 0 10px;
   border-radius: 9999px;
@@ -102,6 +111,12 @@ select,
   text-overflow: ellipsis;
   box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.12);
   pointer-events: none;
+}
+/* The landing-page review pill on the canvas: keep it clickable even though
+   the status pill row itself is pointer-events: none. */
+.box-review-chip {
+  flex-shrink: 1;
+  min-width: 0;
 }
 .box-pill-glyph {
   flex-shrink: 0;
@@ -998,7 +1013,14 @@ html {
     font-size: 18px;
   }
 
-  /* Minimum comfortable touch targets. */
+  /* Minimum comfortable touch targets. The review chip is taller than the
+     status pill, so lift the floating row to keep both above the card. */
+  .box-pill-row {
+    top: -40px;
+  }
+  .box-review-chip {
+    min-height: 38px;
+  }
   .box-footer button {
     min-height: 42px;
   }

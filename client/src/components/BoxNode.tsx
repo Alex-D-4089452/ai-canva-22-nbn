@@ -13,6 +13,7 @@ import { checkHandoffRoles } from "../lib/inputs.js";
 import CodeChangePanel from "./CodeChangePanel.js";
 import DeployPanel from "./DeployPanel.js";
 import ChecklistPanel from "./ChecklistPanel.js";
+import ReviewerChip from "./ui/ReviewerChip.js";
 import {
   DEFAULT_TIMER_MS,
   computeRemainingMs,
@@ -143,6 +144,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const allNodes = useBoardStore((s) => s.nodes);
   const setBoxName = useBoardStore((s) => s.setBoxName);
   const deployBox = useBoardStore((s) => s.deployBox);
+  const reviewHandoff = useBoardStore((s) => s.reviewHandoff);
 
   const [showSettings, setShowSettings] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -254,6 +256,26 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isUtility = isNote || isLabel || isTimer || isChecklist;
   // Handoff Brief: custom banner with From/To/Status.
   const isHandoff = boxType === "handoff";
+  // Handoff Brief review: the reviewer chip sits beside the floating status
+  // pill. Reviewed is one-way; a re-run clears it in the store.
+  const reviewedBy = (boxData.reviewedBy || "").trim();
+  const reviewedAtLabel = boxData.reviewedAt
+    ? new Date(boxData.reviewedAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+  const canReviewHandoff =
+    isHandoff &&
+    boxData.status === "done" &&
+    !!(boxData.output || "").trim();
+  const reviewedTitle = reviewedBy
+    ? `Reviewed by ${reviewedBy}${
+        boxData.reviewedAt
+          ? ` on ${new Date(boxData.reviewedAt).toLocaleString()}`
+          : ""
+      }`
+    : undefined;
   // Alignment Check: custom banner with Artefact 1/Artefact 2.
   const isAlignment = boxType === "alignment";
   // Jargon Translator: custom banner with Source/Terms simplified.
@@ -577,13 +599,25 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         isVisible={!!selected}
       />
       {/* Floating status pill above the card: upload / run / connection
-          state (collab boxes are annotations — they get no pill). */}
+          state (collab boxes are annotations — they get no pill). A completed
+          Handoff Brief also carries the click-to-review chip beside it. */}
       {!isUtility && (
-        <div className={"box-pill box-pill-" + pill.tone}>
-          <span className="box-pill-glyph" aria-hidden>
-            {PILL_GLYPH[pill.tone]}
-          </span>
-          {pill.text}
+        <div className="box-pill-row">
+          <div className={"box-pill box-pill-" + pill.tone}>
+            <span className="box-pill-glyph" aria-hidden>
+              {PILL_GLYPH[pill.tone]}
+            </span>
+            {pill.text}
+          </div>
+          {canReviewHandoff && (
+            <ReviewerChip
+              name={reviewedBy || undefined}
+              time={reviewedAtLabel || undefined}
+              onReview={reviewedBy ? undefined : () => reviewHandoff(id)}
+              title={reviewedTitle}
+              className="box-review-chip max-w-full"
+            />
+          )}
         </div>
       )}
       <div

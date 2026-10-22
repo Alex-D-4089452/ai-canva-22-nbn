@@ -351,6 +351,12 @@ interface BoardState {
   revertCodeVersion: (id: string, version: number) => void;
 
   setBoxStatus: (id: string, status: BoxStatus, error?: string) => void;
+  /**
+   * Handoff Brief: record a one-way review of the generated brief. Only works
+   * on a completed handoff with output; stores the reviewer's display name and
+   * timestamp. The next run clears it.
+   */
+  reviewHandoff: (id: string) => void;
 
   /**
    * Undo the last local board edit (Ctrl/Cmd+Z): restores the pre-edit board
@@ -575,6 +581,23 @@ export const useBoardStore = create<BoardState>()(
 
       setBoxStatus: (id, status, error) => {
         get().updateBoxData(id, { status, error });
+      },
+
+      reviewHandoff: (id) => {
+        const state = get();
+        const node = state.nodes.find((n) => n.id === id);
+        const data = state.boxData[id];
+        if (!node || !data) return;
+        const boxType = (node.data.boxType || node.type) as string;
+        // A review only applies to a finished Handoff Brief with output.
+        if (boxType !== "handoff") return;
+        if (data.status !== "done" || !(data.output || "").trim()) return;
+        // One-way: never overwrite an existing reviewer.
+        if ((data.reviewedBy || "").trim()) return;
+        get().updateBoxData(id, {
+          reviewedBy: actorName(),
+          reviewedAt: Date.now(),
+        });
       },
 
       applyChangeRequest: async (id) => {
@@ -1258,6 +1281,14 @@ export const useBoardStore = create<BoardState>()(
           if (roles.message) {
             get().setBoxStatus(id, "error", roles.message);
             return;
+          }
+          // A new brief is a new artefact: the previous sign-off must not
+          // carry over. Clear it before the run, whether the run succeeds or not.
+          if (data.reviewedBy || data.reviewedAt) {
+            get().updateBoxData(id, {
+              reviewedBy: undefined,
+              reviewedAt: undefined,
+            });
           }
         }
 

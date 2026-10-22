@@ -206,6 +206,13 @@ export interface BoxData {
   handoffFrom?: string;
   handoffTo?: string;
   /**
+   * Handoff Brief boxes: who marked the generated brief reviewed and when
+   * (epoch ms). One-way — clicking the reviewer chip records the clicker; the
+   * next run clears both fields so an old sign-off never carries over.
+   */
+  reviewedBy?: string;
+  reviewedAt?: number;
+  /**
    * Epoch ms when the box last finished a run (success or error) — drives the
    * "Not run yet" / "Ran at <date, time>" status strip in BoxNode. Stamped by
    * runBox / runAgentLoop's `finally`; omitted until the first run completes.
