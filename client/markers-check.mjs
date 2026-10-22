@@ -362,6 +362,53 @@ check(
   })
 );
 
+// ---------- Handoff Brief role validation ----------
+// From/To are required: a direct Run click with both empty must highlight
+// them and leave the box unrun (the store guard covers Run all separately).
+const handoffId = await page.evaluate(() => {
+  const s = window.__dsh.useBoardStore.getState();
+  const handoff = s.addBox("handoff", { x: 6000, y: 6000 });
+  const source = s.addBox("research", { x: 5600, y: 6000 });
+  s.updateBoxData(source, { output: "source material" });
+  s.connectBoxes(source, handoff);
+  return handoff;
+});
+await page.waitForTimeout(250);
+const handoffClick = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const run = Array.from(node?.querySelectorAll("button") || []).find((b) =>
+    (b.textContent || "").trim().endsWith("Run")
+  );
+  if (!run) return { clicked: false, reason: "no Run button" };
+  if (run.disabled) return { clicked: false, reason: "Run disabled" };
+  run.click();
+  return { clicked: true };
+}, handoffId);
+await page.waitForTimeout(200);
+const handoffState = await page.evaluate((id) => {
+  const node = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+  const inputs = node ? Array.from(node.querySelectorAll("input")) : [];
+  const data = window.__dsh.useBoardStore.getState().boxData[id];
+  return {
+    invalid: inputs.map((i) => i.getAttribute("aria-invalid")),
+    focused: !!inputs[0] && document.activeElement === inputs[0],
+    status: data?.status,
+    alert: (node?.textContent || "").includes("Fill in both roles before running."),
+  };
+}, handoffId);
+check(
+  "handoff Run highlights empty From/To and does not start",
+  handoffClick.clicked &&
+    handoffState.invalid.length >= 2 &&
+    handoffState.invalid[0] === "true" &&
+    handoffState.invalid[1] === "true" &&
+    handoffState.focused &&
+    handoffState.status !== "running" &&
+    handoffState.status !== "done" &&
+    handoffState.alert,
+  JSON.stringify({ handoffClick, ...handoffState })
+);
+
 // ---------- Header markers ----------
 check("header shows 'Boards ('", /Boards \(/.test(await bodyText()));
 const boardsBtn = await page.evaluate(() => {

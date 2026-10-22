@@ -3,6 +3,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { BoxData } from "../types/index.js";
 import {
   alignmentRunBlocker,
+  checkHandoffRoles,
   collectInputs,
   imageReferenceText,
   runInputBlocker,
@@ -219,6 +220,42 @@ describe("alignmentRunBlocker", () => {
         "align"
       )
     ).toBeNull();
+  });
+});
+
+describe("checkHandoffRoles", () => {
+  it("flags both roles when From and To are empty or whitespace", () => {
+    for (const data of [undefined, { handoffFrom: "", handoffTo: "" }, { handoffFrom: "  ", handoffTo: "\t" }]) {
+      const roles = checkHandoffRoles(data as BoxData | undefined);
+      expect(roles.from).toBe(true);
+      expect(roles.to).toBe(true);
+      expect(roles.message).toContain("both From and To");
+    }
+  });
+
+  it("flags only the missing role", () => {
+    const missingFrom = checkHandoffRoles({
+      handoffFrom: "",
+      handoffTo: "Content Designer",
+    } as BoxData);
+    expect(missingFrom).toMatchObject({ from: true, to: false });
+    expect(missingFrom.message).toContain("From role");
+
+    const missingTo = checkHandoffRoles({
+      handoffFrom: "UX Designer",
+      handoffTo: "  ",
+    } as BoxData);
+    expect(missingTo).toMatchObject({ from: false, to: true });
+    expect(missingTo.message).toContain("To role");
+  });
+
+  it("passes once both roles are filled", () => {
+    expect(
+      checkHandoffRoles({
+        handoffFrom: "UX Designer",
+        handoffTo: "Content Designer",
+      } as BoxData)
+    ).toEqual({ from: false, to: false, message: null });
   });
 });
 
