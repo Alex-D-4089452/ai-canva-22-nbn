@@ -29,6 +29,21 @@ current state).
 
 ---
 
+## 2026-10-22 — Larger default zoom and box typography
+
+- **Done:** the canvas now opens **larger and more readable**: `fitView` uses overlay-aware padding
+  (84px left for the rail, 88px bottom for the CanvasBar) instead of the old 30% inset, content
+  boards never open below 115% (max 225%), an empty board uses a 115% default viewport, and React
+  Flow's `maxZoom` is raised to 2.5. Box body text grew with it — base 16px, scoped `text-sm` helper
+  copy 15px, markdown output 18px / 1.65, textareas 16px, markdown headings 22/20/18 and
+  code/table text 15px; header titles are 14px with a 26px icon tile. Docs updated (`AGENTS.md`,
+  `docs/ARCHITECTURE.md`). Verified with build, 37 server/255 client tests and `markers-check`
+  **42/42** (two new checks pin the ≥115% opening zoom and 16px body type); the starter board
+  opened at **145%** on a 1280×800 viewport (was 123%) and **215%** at 1920×1080 (was 185%), with
+  the rail and CanvasBar still clear of the cards.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-22 — Fix stuck selection box / dead panning
 
 - **Done:** diagnosed the intermittent "drag pans into a stuck selection box, then boxes and the

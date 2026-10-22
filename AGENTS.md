@@ -188,10 +188,11 @@ with `pointer-events: none`), never as child text nodes. Sections render expande
 `types/boxTypes.ts`; all types scaled ×1.25 rounded-to-10 on 2026-10-03 —
 e.g. Idea 400×250, Agent 500×600, Jargon Translator 450×480); **persisted nodes keep their stored
 style**, so existing boards only grow when a box is added. Box text is sized centrally in
-`index.css`: `.box-node` base 15px, plus the scoped rules `.box-body .markdown-output`
-(16px / line-height 1.6 — deliberately more specific than the Tailwind `text-sm` utility so it
-wins) and `.box-body textarea` (15px), with markdown headings at 20/18/16 (h1/h2/h3). Prefer
-extending those scoped rules over sprinkling `text-xs`/`text-sm` onto body content.
+`index.css`: `.box-node` base 16px, plus the scoped rules `.box-body .text-sm` (15px, lifting the
+helper/empty-state paragraphs), `.box-body .markdown-output` (18px / line-height 1.65 —
+deliberately more specific than the Tailwind `text-sm` utility so it wins) and `.box-body textarea`
+(16px), with markdown headings at 22/20/18 (h1/h2/h3). Prefer extending those scoped rules over
+sprinkling `text-xs`/`text-sm` onto body content. The header title is 14px and its icon tile 26px.
 
 **Box card secondary text & control sizes (readability pass, 2026-10-19):** muted copy on the
 white card bottoms out at **slate-500** — header type label `text-slate-600`, token row slate-500
@@ -221,7 +222,12 @@ search, role filter, collapsible sections), `Toolbar` (the "How to use" card —
 `left-[368px]` while the palette is open), and `CanvasBar` (bottom-center: zoom −/%/+, **undo /
 redo** — the ↶/↷ buttons plus the Ctrl/Cmd+Z, Ctrl+Shift+Z / Ctrl+Y shortcuts — then the
 toast with a single-step **Undo of the last added box**). React Flow's `<Controls />` is not
-rendered. **All transient chrome state lives in the non-persisted `store/uiStore.ts`**
+rendered. **Opening zoom is deliberately generous:** `Canvas.tsx` fits with overlay-aware padding
+(84px left for the rail, 88px bottom for the CanvasBar) and never opens a content board below
+**115%** (max 225%), falling back to a 115% `defaultViewport`; React Flow's `maxZoom` is raised to
+**2.5** so the fit can use it. Every card grows with that zoom and the larger body type, so a fresh
+board is readable without a manual zoom. **All transient chrome state lives in the non-persisted
+`store/uiStore.ts`**
 (`paletteOpen`, `helpOpen`, `areaTool`, `areaColorIdx`, `toast`) — `paletteOpen` and `helpOpen`
 **start closed** on every load so a fresh canvas is unobstructed; the rail's Add Box and Help
 buttons open them independently. Consumers subscribe themselves and **App must not** (the
@@ -337,9 +343,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   permissions" console error is expected noise and filtered; mocks must be re-installed after a
   reload, which is why they live in `installMocks()`). Keep its assertion strings in sync when
   renaming buttons.
-- **Marker check:** `client/markers-check.mjs` — fast headless (40-check) verification of **every
-  text selector the full suites rely on** plus the chrome (pipeline strip, status pills, left
-  rail/palette, bottom bar with its undo/redo buttons, add-toast Undo, area tool + `▭ Area$`,
+- **Marker check:** `client/markers-check.mjs` — fast headless (42-check) verification of **every
+  text selector the full suites rely on** plus the chrome (opening zoom ≥115% + 16px body type,
+  pipeline strip, status pills, left rail/palette, bottom bar with its undo/redo buttons,
+  add-toast Undo, area tool + `▭ Area$`,
   `▶ Run` counting, Boards menu,
   box-card header tint + in-card run-status strip, menu-over-strip stacking). Needs only
   `npm run dev` — no Ollama model call, no Firebase sign-in, no Cloudflare. Run
@@ -736,8 +743,8 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
     node except an Area, `button/input/textarea/select/a`, and the Minimap/CanvasBar/panels; it is
     also inert while the Area tool is active. React Flow's `zoomOnDoubleClick` deliberately stays
     `false`: its d3 listener is attached to the renderer (so it fires from inside boxes) and on
-    touch screens it bypasses the event filter entirely. Note React Flow v12's default
-    `maxZoom` is **2** (not 4), so the step clamps there. The Area tool has a native
+    touch screens it bypasses the event filter entirely. Canvas raises React Flow's default
+    `maxZoom` from 2 to **2.5**, so repeated double-clicks clamp there. The Area tool has a native
     `touchstart`/`touchmove`/`touchend` mirror on `.react-flow__pane` (iPads never fire the
     synthesized mousedown — React Flow's touch handlers suppress it); presence cursors update via
     ReactFlow `onTouchMove`.
