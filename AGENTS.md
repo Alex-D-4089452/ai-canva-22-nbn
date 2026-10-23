@@ -853,12 +853,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   set, health-check fallback), runs `scripts/deploy-hosting.sh` (Hosting + Firestore rules),
   then smoke-tests production.
   `render.yaml` sets `autoDeployTrigger: off` so Render does not deploy in parallel. Required repo
-  secrets/variables are listed in `docs/DEPLOYMENT.md`. Google Cloud auth prefers Workload
-  Identity Federation (`GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`, no key);
-  `FIREBASE_SERVICE_ACCOUNT` JSON is a fallback for orgs that allow key creation. The service
-  account needs Hosting Admin + Rules Admin. `deploy.yml` pins `firebase-tools@15.22.1` because
-  15.22.2+ rejects ADC/WIF with "Failed to authenticate" (firebase-tools #10716). Full `e2e.mjs`
-  is deliberately not in CI yet (real Firebase/Ollama/admin token requirements) — see Testing.
+  secrets/variables are listed in `docs/DEPLOYMENT.md`. `deploy.yml` uses `FIREBASE_TOKEN` first
+  (a `firebase login:ci` token; current `firebase-tools` 15.x cannot reliably use ADC/WIF for
+  `firebase deploy`). If unset, it falls back to Workload Identity Federation
+  (`GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`, no key), then
+  `FIREBASE_SERVICE_ACCOUNT` JSON for orgs that allow key creation. The service account needs
+  Hosting Admin + Rules Admin. `deploy.yml` pins `firebase-tools@15.22.1` because 15.22.2+
+  rejects ADC/WIF with "Failed to authenticate" (firebase-tools #10716). Full `e2e.mjs` is
+  deliberately not in CI yet (real Firebase/Ollama/admin token requirements) — see Testing.
 - **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated, but
   only `server/` is deployed.
 

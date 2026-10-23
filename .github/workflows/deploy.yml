@@ -118,26 +118,36 @@ jobs:
           echo "::error::API did not become healthy after the Render deploy."
           exit 1
 
-      - name: Validate Google Cloud authentication settings
+      - name: Validate Firebase authentication settings
+        id: auth-config
         env:
           WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           WIF_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          if [ -n "$WIF_PROVIDER" ]; then
+          if [ -n "$FIREBASE_TOKEN" ]; then
+            echo "method=token" >> "$GITHUB_OUTPUT"
+            echo "Using FIREBASE_TOKEN for the Firebase CLI."
+          elif [ -n "$WIF_PROVIDER" ]; then
             if [ -z "$WIF_SERVICE_ACCOUNT" ]; then
               echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER is set but GCP_SERVICE_ACCOUNT_EMAIL is missing."
               exit 1
             fi
-          elif [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "::error::Configure Workload Identity Federation (GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL) or set FIREBASE_SERVICE_ACCOUNT."
+            echo "method=wif" >> "$GITHUB_OUTPUT"
+            echo "Using Workload Identity Federation."
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "method=json" >> "$GITHUB_OUTPUT"
+            echo "Using FIREBASE_SERVICE_ACCOUNT JSON."
+          else
+            echo "::error::Configure FIREBASE_TOKEN, Workload Identity Federation (GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL), or FIREBASE_SERVICE_ACCOUNT."
             exit 1
           fi
 
-      # Preferred: short-lived OIDC credentials, no downloadable service-account
-      # key. This works when the org policy blocks key creation.
+      # Short-lived OIDC credentials, no downloadable service-account key.
+      # Used when FIREBASE_TOKEN is not set.
       - name: Authenticate to Google Cloud (Workload Identity Federation)
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        if: steps.auth-config.outputs.method == 'wif'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -145,7 +155,7 @@ jobs:
 
       # Fallback for orgs that still allow service-account JSON keys.
       - name: Authenticate to Google Cloud (service account JSON)
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' }}
+        if: steps.auth-config.outputs.method == 'json'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -159,6 +169,7 @@ jobs:
         env:
           PROD_API_URL: ${{ vars.PROD_API_URL || 'https://ai-canva-22-nbn.onrender.com' }}
           FIREBASE_PROJECT: ${{ vars.FIREBASE_PROJECT_ID || 'ai-canva-22-nbn-fee4b' }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: bash scripts/deploy-hosting.sh "$PROD_API_URL"
 
       - name: Smoke test production

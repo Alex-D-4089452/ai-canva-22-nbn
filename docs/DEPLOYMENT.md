@@ -110,17 +110,39 @@ Configure these in **GitHub → Settings → Secrets and variables → Actions**
 | Variable | `RENDER_SERVICE_ID` | Optional | Render service id (`srv-...`); enables precise deploy-status polling. |
 | Secret | `RENDER_DEPLOY_HOOK_URL` | **Yes** | Render → service → Settings → Deploy Hook. |
 | Secret | `RENDER_API_KEY` | Optional | Render API key; with `RENDER_SERVICE_ID`, waits for the exact new deploy to be `live`. |
+| Secret | `FIREBASE_TOKEN` | **Firebase CLI** | Output of `firebase login:ci`. Preferred for the current CLI; it is a user refresh token, not a service-account key, so the key-creation org policy does not block it. |
 | Variable | `GCP_WORKLOAD_IDENTITY_PROVIDER` | **WIF auth** | Full Workload Identity Federation provider resource (see below). |
 | Variable | `GCP_SERVICE_ACCOUNT_EMAIL` | **WIF auth** | Deploy service-account email, e.g. `github-deploy@ai-canva-22-nbn-fee4b.iam.gserviceaccount.com`. |
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | **JSON fallback** | Service-account JSON. Only use this if your organisation allows key creation. |
 
-Use **one** Google Cloud authentication method:
+The workflow picks **one** authentication method in this order:
 
-#### Workload Identity Federation (recommended; no service-account key)
+1. `FIREBASE_TOKEN` (if set)
+2. Workload Identity Federation (`GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`)
+3. `FIREBASE_SERVICE_ACCOUNT` JSON
 
-This is the path to use when the organisation policy blocks service-account key creation. The
-service account still exists, but GitHub gets short-lived credentials through OIDC instead of a
-downloadable JSON key.
+#### Firebase CLI token (current practical default)
+
+`google-github-actions/auth` can authenticate to Google Cloud with WIF, but `firebase-tools` 15.x
+does not reliably use ADC/WIF for `firebase deploy` (it fails with "Failed to authenticate, have
+you run firebase login?"; see firebase-tools issues #10716 and #10726). Until that is fixed, use a
+Firebase CI token for Hosting + rules deploys:
+
+```bash
+firebase login:ci
+```
+
+Copy the printed token into the repository secret `FIREBASE_TOKEN` (GitHub → Settings → Secrets
+and variables → Actions → Secrets). It is a long-lived credential: keep it secret, and revoke it
+with `firebase logout --token <token>` if it is ever exposed. This is **not** a service-account
+key, so an organisation policy that blocks key creation does not prevent it.
+
+#### Workload Identity Federation (no service-account key)
+
+Use this for Google Cloud API access without a JSON key. The workflow only uses it when
+`FIREBASE_TOKEN` is not set. This is the path to use when the organisation policy blocks
+service-account key creation. The service account still exists, but GitHub gets short-lived
+credentials through OIDC instead of a downloadable JSON key.
 
 Run these commands with a Google Cloud account that can create service accounts and set IAM
 policy (replace `OWNER/REPO` with the GitHub repository, e.g.

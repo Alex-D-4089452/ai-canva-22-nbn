@@ -37,14 +37,16 @@ current state).
   creation. Added config validation and the `gcloud` WIF setup to `docs/DEPLOYMENT.md` after the
   organisation policy blocked service-account key creation. Provisioned the `github` WIF
   pool/provider, the `github-deploy` service account, Hosting/Rules roles, and the
-  `workloadIdentityUser` binding; WIF auth now succeeds in Actions. Pinned
-  `firebase-tools@15.22.1` because 15.22.2+ rejects ADC/WIF with "Failed to authenticate"
-  (firebase-tools #10716).
-- **In flight:** -
-- **Next steps:** rerun the deploy workflow; optionally add `RENDER_API_KEY` +
-  `RENDER_SERVICE_ID` so it waits for the exact Render deploy instead of the health-check
-  fallback. If WIF is ever unavailable, a legacy `firebase login:ci` token (`FIREBASE_TOKEN`) is
-  the last-resort fallback, but it is not wired in.
+  `workloadIdentityUser` binding; WIF auth now succeeds in Actions. `firebase-tools` still
+  rejects ADC/WIF at deploy time ("Failed to authenticate"), so `deploy.yml` now prefers a
+  `FIREBASE_TOKEN` (`firebase login:ci`) secret, then WIF, then JSON. Pinned
+  `firebase-tools@15.22.1` for the WIF path (15.22.2+ has an ADC regression, firebase-tools
+  #10716; deploy-time WIF is also broken in #10726).
+- **In flight:** the `FIREBASE_TOKEN` secret is not set yet, so the deploy workflow still stops
+  at the Firebase CLI step.
+- **Next steps:** add `FIREBASE_TOKEN` (run `firebase login:ci` and store the token), then rerun
+  the deploy. Optionally add `RENDER_API_KEY` + `RENDER_SERVICE_ID` so it waits for the exact
+  Render deploy instead of the health-check fallback.
 
 ## 2026-10-23 — GitHub Actions CI/CD
 
