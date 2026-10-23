@@ -42,11 +42,15 @@ current state).
   `FIREBASE_TOKEN` (`firebase login:ci`) secret, then WIF, then JSON. Pinned
   `firebase-tools@15.22.1` for the WIF path (15.22.2+ has an ADC regression, firebase-tools
   #10716; deploy-time WIF is also broken in #10726).
-- **In flight:** the `FIREBASE_TOKEN` secret is not set yet, so the deploy workflow still stops
-  at the Firebase CLI step.
-- **Next steps:** add `FIREBASE_TOKEN` (run `firebase login:ci` and store the token), then rerun
-  the deploy. Optionally add `RENDER_API_KEY` + `RENDER_SERVICE_ID` so it waits for the exact
-  Render deploy instead of the health-check fallback.
+- **Deployed:** set `FIREBASE_TOKEN`; CI run `39899411616` and deploy run `39899498572` are green.
+  The deploy triggered Render, published Firebase Hosting + Firestore rules, and passed the
+  production smoke test. `/api/health` returns `status: ok`; Hosting returns 200 with the relay
+  page.
+- **In flight:** -
+- **Next steps:** optionally add `RENDER_API_KEY` + `RENDER_SERVICE_ID` so the workflow waits for
+  the exact Render deploy instead of the health-check fallback. A WIF-native Hosting/rules deploy
+  would remove the long-lived `FIREBASE_TOKEN`, but needs a custom REST deployer (firebase-tools
+  #10726). Full `e2e.mjs` remains local/nightly.
 
 ## 2026-10-23 — GitHub Actions CI/CD
 
