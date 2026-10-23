@@ -24,7 +24,7 @@ Everyone interacting in this project is expected to follow the [Code of Conduct]
 
 To build and run locally, follow the [Quick Start](README.md#-quick-start-local-development) in the README. You'll need:
 
-- Node.js (see `engines`/`package.json`; the project targets modern Node)
+- Node.js 20+ (22 LTS recommended)
 - Real API keys for Ollama (required for text boxes), and optionally fal.ai and Google Stitch
 - Optional: a Firebase project for cloud save, auth, and collaboration
 

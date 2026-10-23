@@ -29,6 +29,14 @@ current state).
 
 ---
 
+## 2026-10-23 — Node 20 onboarding requirement
+
+- **Done:** corrected `docs/ONBOARDING.md` and `CONTRIBUTING.md` to require Node.js 20+
+  (22 LTS recommended) and added an `EBADENGINE` troubleshooting row. Node 18 is too old for the
+  locked AWS SDK, Firebase, pdfjs-dist, and Vitest dependencies.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-23 — Firestore data model
 
 - **Done:** added `docs/DATA_MODEL.md` with a collection map, Mermaid ER-style relationship

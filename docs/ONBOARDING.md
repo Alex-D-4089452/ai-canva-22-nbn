@@ -26,7 +26,8 @@ Two processes plus optional cloud services:
 ## Step 0 — What you need
 
 - **Git** (to clone and manage the repo)
-- **Node.js 18+** (recommended: a recent LTS, e.g. 20 or 22). Check with `node -v`.
+- **Node.js 20+** (recommended: 22 LTS). Node 18 is too old for the current dependencies.
+  Check with `node -v`.
 - A **code editor** (VS Code, etc.)
 - Optional but recommended for AI: **Ollama** (free, runs locally) — see [Step 4](#step-4--ai-providers).
 
@@ -40,7 +41,7 @@ node --version
 npm --version
 ```
 
-All three should print a version (not an error).
+All three should print a version (not an error). `node --version` should report `v20` or newer.
 
 ---
 
@@ -184,6 +185,7 @@ is also a great learning exercise.
 | Symptom | Likely fix |
 |---------|-----------|
 | `node: command not found` | Install Node.js from https://nodejs.org and reopen the terminal. |
+| `EBADENGINE` / unsupported Node version warnings | Upgrade to Node.js 20+ (22 LTS recommended). Node 18 is too old for the locked dependencies. |
 | `npm` install errors | Ensure you ran `npm run install:all` (both `server/` and `client/` need deps). |
 | `OLLAMA_API_KEY is not configured` / no AI output | Set `OLLAMA_API_KEY` (cloud) or `OLLAMA_HOST=http://localhost:11434` (local) in `server/.env`, then restart `npm run dev`. |
 | Server says a port was "switched" | That's expected; the client auto-adapts via `.server-port`. |
