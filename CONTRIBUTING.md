@@ -63,7 +63,7 @@ We welcome PRs of any size — a typo fix is as appreciated as a new box type.
 
 ```bash
 npm install          # root
-npm run install:all  # server + client
+npm install --prefix server && npm install --prefix client  # server + client
 npm run dev          # both dev servers with hot reload
 ```
 

@@ -94,8 +94,8 @@ Course materials for using relay as a teaching/learning project. A complete set 
 
 ```bash
 git clone https://github.com/Alex-D-4089452/ai-canva-22-nbn.git relay && cd relay
-npm install                 # root tooling (concurrently)
-npm run install:all         # installs server/ + client/ deps
+npm install                                                 # root tooling (concurrently)
+npm install --prefix server && npm install --prefix client  # installs server/ + client/ deps
 ```
 
 ### 2. Configure API keys

@@ -51,7 +51,7 @@ old name; update them only if explicitly asked.
 npm run dev            # run server + client together (concurrently)
 npm run dev:server     # local Express backend only
 npm run dev:client     # Vite client only
-npm run install:all    # npm install in both server/ and client/
+npm install --prefix server && npm install --prefix client  # npm install in both server/ and client/
 npm test               # run server + client unit tests (Vitest)
 npm run test:watch    # watch mode for both server and client tests
 npm run deploy         # legacy Firebase Hosting + Functions deploy (needs Blaze; not current path)

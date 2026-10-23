@@ -60,7 +60,7 @@ cd relay
 
 ```bash
 npm install          # root tooling (concurrently)
-npm run install:all  # installs server/ and client/ dependencies
+npm install --prefix server && npm install --prefix client  # installs server/ and client/ dependencies
 ```
 
 This creates the `node_modules/` folders. You only run this once (or after a fresh clone).
@@ -186,7 +186,7 @@ is also a great learning exercise.
 |---------|-----------|
 | `node: command not found` | Install Node.js from https://nodejs.org and reopen the terminal. |
 | `EBADENGINE` / unsupported Node version warnings | Upgrade to Node.js 20+ (22 LTS recommended). Node 18 is too old for the locked dependencies. |
-| `npm` install errors | Ensure you ran `npm run install:all` (both `server/` and `client/` need deps). |
+| `npm` install errors | Ensure you ran `npm install --prefix server && npm install --prefix client` (both `server/` and `client/` need deps). |
 | `OLLAMA_API_KEY is not configured` / no AI output | Set `OLLAMA_API_KEY` (cloud) or `OLLAMA_HOST=http://localhost:11434` (local) in `server/.env`, then restart `npm run dev`. |
 | Server says a port was "switched" | That's expected; the client auto-adapts via `.server-port`. |
 | Sign-in button does nothing | Firebase isn't configured / auth not enabled — see Step 7. |
@@ -214,7 +214,7 @@ Once it runs, try these to build confidence:
 
 ```bash
 git clone <your-repo-url> relay && cd relay
-npm install && npm run install:all
+npm install && npm install --prefix server && npm install --prefix client
 cp server/.env.example server/.env   # then edit: OLLAMA_API_KEY or OLLAMA_HOST
 npm run dev                          # open http://localhost:5173
 ```
