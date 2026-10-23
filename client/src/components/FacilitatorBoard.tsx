@@ -174,13 +174,13 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
               <h2 className="mb-3 text-sm font-bold text-slate-700">New workshop</h2>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                   placeholder="Workshop name (e.g. Design Thinking 101)"
                   value={workshopName}
                   onChange={(e) => setWorkshopName(e.target.value)}
                 />
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                   placeholder="Description (optional)"
                   value={workshopDesc}
                   onChange={(e) => setWorkshopDesc(e.target.value)}
@@ -254,7 +254,7 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <select
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none"
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden"
                   value={selectedWorkshopId}
                   onChange={(e) => setSelectedWorkshopId(e.target.value)}
                 >
@@ -264,7 +264,7 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
                   ))}
                 </select>
                 <select
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none"
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden"
                   value={teamTemplateId}
                   onChange={(e) => setTeamTemplateId(e.target.value)}
                 >
@@ -274,7 +274,7 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
                   ))}
                 </select>
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                   placeholder="Team name (e.g. Team Alpha)"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
@@ -404,7 +404,7 @@ export default function FacilitatorBoard({ user, onBack, onOpenBoard }: Facilita
               </p>
               <div className="flex gap-2">
                 <input
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                   placeholder="Template name (e.g. Empathy Map Exercise)"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}

@@ -213,6 +213,13 @@ stays slate-400 — keep light-on-dark text as-is when restyling. The destructiv
 and React Flow **connection dots are 14px** inline in `BoxNode.tsx` (both handles; 22px on coarse
 pointers via `index.css`).
 
+**Tailwind is v4 (2026-10-23):** `client/src/index.css` loads it with `@import "tailwindcss";` and
+`@config "../tailwind.config.js";`; PostCSS uses `@tailwindcss/postcss`. The JS config remains the
+source of `darkMode: "class"`, the `canvas` color and the content paths. Use v4 utility names:
+`outline-hidden` (not `outline-none`, which v4 drops), and prefer `shrink-0`/`grow-0` over the
+legacy `flex-shrink-0`/`flex-grow-0` aliases. The v3 `shadow-sm`/`rounded-sm` names still exist
+but map to the v4 scale, so re-check card screenshots when touching shadows/radii.
+
 **`components/Header.tsx` owns its store subscriptions** (boardTitle, saveStatus,
 boardList, currentBoardId) and is `memo`-ized. App must NOT subscribe to those
 slices — otherwise every keystroke in the board-title input re-renders the whole
@@ -421,6 +428,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Conventions & gotchas
 
 - **Adding a new box type:** see `docs/BOX_TYPES.md` and `docs/course/05_how_to_build_a_box.md`.
+- **Dependency audits / overrides (2026-10-23):** `npm audit --audit-level=high` is clean in the
+  root, `server/`, `client/` and `functions/`. The fixes live in each package's `overrides`
+  (`proxy-addr`, `@modelcontextprotocol/sdk`, `fast-uri`, `undici`, `source-map-js`,
+  `@grpc/grpc-js`) and in the client's Tailwind 4 upgrade — Tailwind 3's `braces` chain has no
+  patched release. Keep those overrides when bumping dependencies and rerun the audit.
 - **New-box placement (no explicit position):** `addBox`/`addCustomBox` called WITHOUT a position
   (palette, canvas-rail Note, custom-box instances) drop the box in the **middle of the visible
   viewport**, then move it to the nearest free box-sized tile around that centre (right first,

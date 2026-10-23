@@ -87,7 +87,7 @@ export default function InputRulesPanel({ open, onClose }: InputRulesPanelProps)
             ref={closeRef}
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500/50"
             title="Close input rules"
             aria-label="Close input rules"
           >

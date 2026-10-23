@@ -177,7 +177,7 @@ function Header({
               value={boardTitle}
               onChange={(e) => setBoardTitle(e.target.value)}
               placeholder="Untitled board"
-              className="h-8 w-48 md:w-60 rounded-lg border border-transparent bg-white/5 px-2.5 text-[13px] font-medium text-white transition hover:border-white/10 hover:bg-white/10 focus:border-indigo-400/70 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              className="h-8 w-48 md:w-60 rounded-lg border border-transparent bg-white/5 px-2.5 text-[13px] font-medium text-white transition hover:border-white/10 hover:bg-white/10 focus:border-indigo-400/70 focus:bg-white/10 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/40"
             />
             {saveLabel && (
               <span

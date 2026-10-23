@@ -369,7 +369,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           {isEditingLabel ? (
             <input
               autoFocus
-              className="nodrag w-44 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-bold text-slate-700 shadow-md focus:outline-none focus:ring-2 focus:ring-slate-300"
+              className="nodrag w-44 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-bold text-slate-700 shadow-md focus:outline-hidden focus:ring-2 focus:ring-slate-300"
               value={labelDraft}
               placeholder="Label text…"
               onChange={(e) => setLabelDraft(e.target.value)}
@@ -662,7 +662,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 }
                 if (e.key === "Escape") setIsEditingName(false);
               }}
-              className="font-semibold text-slate-700 text-[15px] bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
+              className="font-semibold text-slate-700 text-[15px] bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-hidden focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
             />
           ) : (
             <span
@@ -733,7 +733,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 {(status === "idle" || status === "stopped") && (
                   <>
                     <input
-                      className="w-[70px] rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-center font-mono text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-[70px] rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-center font-mono text-sm text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-cyan-500"
                       value={draft}
                       placeholder="MM:SS"
                       title="Duration — e.g. 5:30 or 90"
@@ -848,7 +848,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             `output` so the text flows downstream). */}
         {(isIdea || isMedia) && (
           <textarea
-            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-amber-300"
             placeholder={
               isMedia
                 ? "Write your idea here — or just upload files/an image below…"
@@ -881,7 +881,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           return (
             <div className="flex flex-col gap-2 min-h-[140px]">
               <textarea
-                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="nodrag nowheel w-full min-h-[64px] resize-y rounded-lg border border-indigo-200 p-2 text-base text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                 placeholder="Describe the task for the agent, e.g. “Turn this idea into a full pitch: research it, write a PRD, and build a landing page prototype”"
                 value={boxData.content}
                 onChange={(e) => updateBoxData(id, { content: e.target.value })}
@@ -1202,7 +1202,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   aria-invalid={handoffMissing.from ? true : undefined}
                   title={handoffMissing.from ? "Required before running" : undefined}
                   className={
-                    "nodrag border-b border-dashed focus:outline-none text-slate-700 w-28 " +
+                    "nodrag border-b border-dashed focus:outline-hidden text-slate-700 w-28 " +
                     (handoffMissing.from
                       ? "bg-red-50 border-red-500 focus:border-red-500 placeholder:text-red-300 ring-2 ring-red-200 rounded-sm"
                       : "bg-transparent border-slate-300 focus:border-indigo-400 placeholder:text-slate-400")
@@ -1225,7 +1225,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   aria-invalid={handoffMissing.to ? true : undefined}
                   title={handoffMissing.to ? "Required before running" : undefined}
                   className={
-                    "nodrag border-b border-dashed focus:outline-none text-slate-700 w-32 " +
+                    "nodrag border-b border-dashed focus:outline-hidden text-slate-700 w-32 " +
                     (handoffMissing.to
                       ? "bg-red-50 border-red-500 focus:border-red-500 placeholder:text-red-300 ring-2 ring-red-200 rounded-sm"
                       : "bg-transparent border-slate-300 focus:border-indigo-400 placeholder:text-slate-400")
@@ -1571,7 +1571,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   placeholder="Describe what you want to build... (e.g. a counter app with increment/decrement buttons)"
                   value={boxData.content}
                   onChange={(e) => updateBoxData(id, { content: e.target.value })}
-                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+                  className="w-full min-h-[80px] resize-y rounded-lg border border-slate-200 p-2 text-base text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-cyan-300"
                 />
                 <p className="text-xs text-slate-500">
                   Type a description above and click Run, or connect a Research/PRD/Idea box.
@@ -1725,7 +1725,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   : "System Prompt (role / behavior)"}
               </label>
               <textarea
-                className="w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
+                className="w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-300 min-h-[60px] resize-y"
                 value={boxData.systemPrompt}
                 onChange={(e) =>
                   updateBoxData(id, { systemPrompt: e.target.value })
@@ -1743,7 +1743,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
             </label>
             <textarea
               ref={promptRef}
-              className={"w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-none focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
+              className={"w-full text-sm rounded-lg border border-slate-200 p-2 font-mono text-slate-700 focus:outline-hidden focus:ring-2" + (isCartoon ? " focus:ring-pink-300" : " focus:ring-blue-300") + " min-h-[80px] resize-y"}
               value={boxData.prompt}
               onChange={(e) =>
                 updateBoxData(id, { prompt: e.target.value })

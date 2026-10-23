@@ -75,7 +75,7 @@ const SIZE: Record<ButtonSize, string> = {
 const BASE =
   "inline-flex items-center justify-center font-medium whitespace-nowrap " +
   "transition-colors duration-150 select-none cursor-pointer " +
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-1 " +
+  "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-1 " +
   "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

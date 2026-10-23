@@ -77,7 +77,7 @@ export default function LandingFeatures() {
               <button
                 type="button"
                 onClick={() => setRulesOpen(true)}
-                className="w-fit shrink-0 rounded text-[13px] font-semibold text-emerald-400 underline decoration-emerald-500/50 underline-offset-2 transition hover:text-emerald-300 hover:decoration-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 md:text-sm"
+                className="w-fit shrink-0 rounded text-[13px] font-semibold text-emerald-400 underline decoration-emerald-500/50 underline-offset-2 transition hover:text-emerald-300 hover:decoration-emerald-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/60 md:text-sm"
                 aria-haspopup="dialog"
               >
                 Read the input rules

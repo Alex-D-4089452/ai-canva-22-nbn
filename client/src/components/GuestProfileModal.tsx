@@ -60,7 +60,7 @@ export default function GuestProfileModal({
             <label className="text-xs font-semibold text-slate-600 block mb-1">Your name</label>
             <input
               autoFocus
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
               placeholder="e.g. Alex"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -73,7 +73,7 @@ export default function GuestProfileModal({
             </label>
             <input
               type="email"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

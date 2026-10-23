@@ -29,6 +29,20 @@ current state).
 
 ---
 
+## 2026-10-23 — High/critical dependency audit clean
+
+- **Done:** patched every high/critical `npm audit` finding in the root, `server/`, `client/` and
+  `functions/` trees. Added `overrides` for `proxy-addr` (critical IP spoofing), the MCP TypeScript
+  SDK, `fast-uri`, `undici`, `source-map-js` and `@grpc/grpc-js`; upgraded client Vite to 6.4.5.
+  The client also moved from Tailwind 3 to 4.3.3 (`@tailwindcss/postcss`, `@import "tailwindcss"` +
+  `@config`, and `outline-none` → `outline-hidden`), because Tailwind 3's `braces` chain has no
+  patched release. `npm audit --audit-level=high` is now 0 high / 0 critical in all four trees
+  (moderates remain: server 7, client 2, functions 14).
+- **Verified:** server tests 37/37, client tests 259/259, all builds, `markers-check` 45/45,
+  `ui-smoke` 18/18, and a dark-mode landing screenshot.
+- **In flight:** —
+- **Next steps:** optional moderate-only cleanup; keep the `overrides` when bumping dependencies.
+
 ## 2026-10-23 — CI auth without service-account keys
 
 - **Done:** `deploy.yml` now prefers Google Cloud Workload Identity Federation (OIDC, short-lived

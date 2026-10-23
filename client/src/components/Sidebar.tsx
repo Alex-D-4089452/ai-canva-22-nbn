@@ -186,7 +186,7 @@ export default function Sidebar() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="e.g. brief, compare, upload"
-                className="w-full h-9 rounded-lg border border-slate-200 bg-white pl-8 pr-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+                className="w-full h-9 rounded-lg border border-slate-200 bg-white pl-8 pr-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 transition"
               />
             </span>
           </label>
@@ -197,7 +197,7 @@ export default function Sidebar() {
             <select
               value={role}
               onChange={(e) => selectRole(e.target.value as "all" | BoxRole)}
-              className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2 text-[13px] font-medium text-slate-700 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+              className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2 text-[13px] font-medium text-slate-700 focus:border-indigo-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 transition"
               title="Filter which boxes appear in the palette"
             >
               <option value="all">🧩 All boxes</option>

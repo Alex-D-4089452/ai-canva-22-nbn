@@ -97,7 +97,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
                 type="text"
                 readOnly
                 value={shareLink}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 bg-slate-50 focus:outline-none"
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 bg-slate-50 focus:outline-hidden"
               />
               <button
                 onClick={handleCopy}
@@ -124,7 +124,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
                 />
                 <button
                   type="submit"

@@ -45,7 +45,7 @@ export default function CodeChangePanel({ id, boxType }: { id: string; boxType: 
             if (e.key === "Enter" && !isRunning && (boxData.changePrompt || "").trim()) applyChangeRequest(id);
           }}
           placeholder="Request a change… e.g. “make the header dark and add a search field”"
-          className="nodrag flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-300"
+          className="nodrag flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1 text-[11px] text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-cyan-300"
           title="The AI applies this to the code in this box. Nothing else is rewritten."
         />
         <button

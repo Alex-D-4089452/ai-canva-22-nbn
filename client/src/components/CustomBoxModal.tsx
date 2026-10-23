@@ -74,7 +74,7 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
               <label className="text-xs font-semibold text-slate-600 block mb-1">Name</label>
               <input
                 autoFocus
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
                 placeholder="e.g. Translate to French"
                 value={label}
                 maxLength={40}
@@ -134,7 +134,7 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
               Description <span className="text-slate-400">(optional)</span>
             </label>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-300"
               placeholder="What does this box do?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -147,7 +147,7 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
               Prompt template
             </label>
             <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[90px] resize-y"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-300 min-h-[90px] resize-y"
               placeholder={"What the AI should do. Use connected inputs:\n\nTranslate the following to French:\n{{input_1}}"}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -163,7 +163,7 @@ export default function CustomBoxModal({ onClose }: { onClose: () => void }) {
               System prompt <span className="text-slate-400">(the AI's role)</span>
             </label>
             <textarea
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-300 min-h-[60px] resize-y"
               placeholder="e.g. You are a professional translator. Reply only with the translation."
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}

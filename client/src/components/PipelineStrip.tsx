@@ -64,7 +64,7 @@ export default function PipelineStrip() {
       <button
         type="button"
         onClick={() => setRulesOpen(true)}
-        className="text-[11px] font-medium text-[#1a73e8] underline decoration-[#1a73e8]/30 underline-offset-2 transition hover:text-[#1667d6] hover:decoration-[#1a73e8]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1a73e8]/50 rounded"
+        className="text-[11px] font-medium text-[#1a73e8] underline decoration-[#1a73e8]/30 underline-offset-2 transition hover:text-[#1667d6] hover:decoration-[#1a73e8]/60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[#1a73e8]/50 rounded"
         aria-haspopup="dialog"
       >
         Input rules

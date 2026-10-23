@@ -48,7 +48,7 @@ export default function LandingWorkshop({ workshop, onSignIn }: LandingWorkshopP
               <div className="mt-4 flex gap-2">
                 <input
                   aria-label="Workshop code"
-                  className="lp-code-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-300 dark:border-white/15 dark:bg-[#0a0a0c] dark:text-white"
+                  className="lp-code-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-mono text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-300 dark:border-white/15 dark:bg-[#0a0a0c] dark:text-white"
                   placeholder="CODE"
                   maxLength={8}
                   value={code}

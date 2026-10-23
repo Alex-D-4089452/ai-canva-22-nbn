@@ -145,7 +145,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <input
           ref={inputRef}
-          className="checklist-add-input nodrag min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[14px] text-slate-700 transition placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50"
+          className="checklist-add-input nodrag min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[14px] text-slate-700 transition placeholder:text-slate-400 focus:border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50"
           placeholder={full ? "List is full" : "Add a task…"}
           value={draft}
           disabled={full}
@@ -209,7 +209,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
               {editingId === item.id ? (
                 <input
                   autoFocus
-                  className="nodrag w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-[14px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  className="nodrag w-full rounded border border-slate-300 bg-white px-1 py-0.5 text-[14px] text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-emerald-400"
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
                   onBlur={commitEdit}
@@ -233,7 +233,7 @@ export default function ChecklistPanel({ boxId, items }: ChecklistPanelProps) {
               <div className="mt-0.5 flex items-center gap-1.5">
                 <select
                   className={
-                    "checklist-assign nodrag max-w-[110px] rounded-full border px-1 py-0 text-[10px] font-medium transition focus:outline-none " +
+                    "checklist-assign nodrag max-w-[110px] rounded-full border px-1 py-0 text-[10px] font-medium transition focus:outline-hidden " +
                     (item.assignee
                       ? "border-indigo-200 bg-indigo-50 text-indigo-700"
                       : "border-slate-200 bg-white text-slate-500")

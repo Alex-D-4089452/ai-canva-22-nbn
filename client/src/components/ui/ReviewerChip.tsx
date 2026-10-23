@@ -81,7 +81,7 @@ export default function ReviewerChip({
         aria-label={reviewed ? `Remove review by ${reviewer}` : "Mark this handoff brief as reviewed"}
         className={
           BASE +
-          " nodrag cursor-pointer transition hover:bg-zinc-800 focus:outline-none " +
+          " nodrag cursor-pointer transition hover:bg-zinc-800 focus:outline-hidden " +
           "focus-visible:ring-2 focus-visible:ring-emerald-400/70 dark:hover:bg-white/[0.14] " +
           className
         }
