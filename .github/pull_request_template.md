@@ -15,6 +15,7 @@
 ## Test plan
 
 - [ ] Unit tests pass (`npm run test`)
+- [ ] CI workflows pass (`Build and unit tests`, `UI marker and smoke checks`)
 - [ ] Manual smoke test against a dev Firebase project
 
 ## Firestore changes
