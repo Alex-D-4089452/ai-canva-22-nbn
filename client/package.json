@@ -33,7 +33,11 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3",
+    "vite": "^6.4.5",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6",
+    "source-map-js": "^1.2.2"
   }
 }

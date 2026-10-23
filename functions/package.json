@@ -22,5 +22,12 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "fast-uri": "^3.1.9",
+    "proxy-addr": "^2.0.8",
+    "undici": "^7.30.1"
   }
 }
