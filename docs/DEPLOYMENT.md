@@ -15,6 +15,8 @@ Functions path, then self-hosting.
 > 1. Create a Render **Web Service** from this repo (Blueprint picks up `render.yaml`, root `server/`).
 > 2. Set the env vars listed in `render.yaml` (Ollama + `R2_*` at minimum).
 > 3. Deploy the client: `bash scripts/deploy-hosting.sh https://<your-render-service>.onrender.com`
+> 4. For automated deploys, add the GitHub Actions secrets/variables in
+>    [CI/CD with GitHub Actions](#cicd-with-github-actions).
 >
 > The client build embeds `VITE_API_BASE` so the browser calls Render directly (server CORS is open).
 
@@ -32,7 +34,7 @@ Functions path, then self-hosting.
 ### 1. Create the Render service
 
 - Render Dashboard → **New → Blueprint** → connect the GitHub repo → uses `render.yaml`, **or**
-- **New → Web Service** → root directory `server` → build `npm install && npm run build` → start `npm start`.
+- **New → Web Service** → root directory `server` → build `npm ci && npm run build` → start `npm start`.
 
 Copy the service URL (this repo's live API is `https://ai-canva-22-nbn.onrender.com`).
 
@@ -52,7 +54,8 @@ bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
 ```
 
 Builds with `VITE_API_BASE=https://your-service.onrender.com/api` and runs
-`firebase deploy --only hosting,firestore:rules` (no functions).
+`firebase deploy --only hosting,firestore:rules` (no functions). This is also the command the
+GitHub Actions deploy workflow runs after CI passes.
 
 ### 4. R2 CORS (browser uploads)
 
@@ -73,6 +76,45 @@ In the Cloudflare R2 bucket **Settings → CORS policy**, allow your Hosting ori
   }
 ]
 ```
+
+### CI/CD with GitHub Actions
+
+The repo ships two workflows:
+
+- **`ci.yml`** runs on every pull request and on pushes to `main`. It installs the root, server
+  and client lockfiles with `npm ci`, builds both packages, runs all Vitest suites, then starts
+  the real dev app and runs `client/markers-check.mjs` + `client/ui-smoke.mjs`. Those browser
+  checks use the fake dev user and mocked `/api/generate`, so they need no Ollama key and no
+  Firebase login.
+- **`deploy.yml`** runs only after `CI` succeeds on `main` (or from a manual dispatch on `main`).
+  It triggers the Render deploy hook pinned to the exact commit CI tested, waits for the new API
+  deploy to be live (or falls back to the health endpoint), deploys Firebase Hosting + Firestore
+  rules through `scripts/deploy-hosting.sh`, then smoke-tests the API and Hosting URLs.
+
+`render.yaml` sets `autoDeployTrigger: off` so the API is deployed exactly once, by the gated
+workflow. Sync the Blueprint in Render after changing it so the setting takes effect. Use the
+Render dashboard's **Manual Deploy** button (or the deploy hook) if you need an emergency deploy
+outside CI.
+
+Configure these in **GitHub → Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Required | Purpose |
+|------|------|----------|---------|
+| Variable | `PROD_API_URL` | Recommended | Render API base URL, e.g. `https://ai-canva-22-nbn.onrender.com`. Defaults to the live URL in the workflows. |
+| Variable | `WEB_URL` | Recommended | Firebase Hosting URL, e.g. `https://ai-canva-22-nbn-fee4b.web.app`. Defaults to the live URL. |
+| Variable | `FIREBASE_PROJECT_ID` | Optional | Firebase project to deploy; defaults to `ai-canva-22-nbn-fee4b`. |
+| Variable | `RENDER_SERVICE_ID` | Optional | Render service id (`srv-...`); enables precise deploy-status polling. |
+| Secret | `RENDER_DEPLOY_HOOK_URL` | **Yes** | Render → service → Settings → Deploy Hook. |
+| Secret | `RENDER_API_KEY` | Optional | Render API key; with `RENDER_SERVICE_ID`, waits for the exact new deploy to be `live`. |
+| Secret | `FIREBASE_SERVICE_ACCOUNT` | **Yes** | Service-account JSON with Firebase Hosting Admin + Firebase Rules Admin (and permission to read the project). |
+
+The service account can be created in Google Cloud Console → IAM & Admin → Service Accounts,
+then granted the two Firebase roles. Do not commit the JSON; store it only as the
+`FIREBASE_SERVICE_ACCOUNT` secret.
+
+**Not in CI yet:** the full E2E (`client/e2e.mjs`) needs real Firebase Auth/Firestore, a real
+Ollama call, and a `firebase-tools` admin token from the developer machine. Run it locally or add
+it as a separately configured nightly workflow after moving those credentials into CI.
 
 ### Render limitations (same as local server)
 

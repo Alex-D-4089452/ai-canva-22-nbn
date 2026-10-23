@@ -7,7 +7,11 @@ services:
     runtime: node
     plan: free
     rootDir: server
-    buildCommand: npm install && npm run build
+    # GitHub Actions (.github/workflows/deploy.yml) triggers this service with
+    # the Render deploy hook after CI passes. Disable Render's own push-to-deploy
+    # so a main push cannot race the gated deployment.
+    autoDeployTrigger: "off"
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

@@ -4,7 +4,9 @@
 # The API runs on Render (see render.yaml); the client calls it via VITE_API_BASE.
 #
 # Prereqs:
-#   - firebase CLI logged in; .firebaserc → ai-canva-22-nbn-fee4b
+#   - Firebase CLI available; locally logged in, or in CI authenticated with a
+#     service account (GOOGLE_APPLICATION_CREDENTIALS)
+#   - .firebaserc -> ai-canva-22-nbn-fee4b
 #   - RENDER_API_URL set (or passed as $1), e.g. https://ai-canva-22-nbn.onrender.com
 #   - Firestore rules already deployed (or deploy them here too)
 #
@@ -33,17 +35,21 @@ PROJECT="${FIREBASE_PROJECT:-ai-canva-22-nbn-fee4b}"
 
 echo "==> Deploy target project: $PROJECT"
 echo "==> VITE_API_BASE: $API_URL"
-firebase use "$PROJECT"
+# In CI the Firebase CLI is authenticated with a service account and the
+# explicit --project below is enough; `firebase use` is only for local DX.
+if [ -z "${CI:-}" ]; then
+  firebase use "$PROJECT"
+fi
 
 echo "==> Building client"
 # On Windows, a bash env-prefix on `npm run build` does not reach Vite —
 # write .env.production instead (Vite loads it for `vite build`).
 printf 'VITE_API_BASE=%s\n' "$API_URL" > client/.env.production
+trap 'rm -f client/.env.production' EXIT
 ( cd client && npm run build )
-rm -f client/.env.production
 
 echo "==> Deploying hosting + firestore rules (no functions)"
-firebase deploy --project "$PROJECT" --only hosting,firestore:rules
+firebase deploy --project "$PROJECT" --only hosting,firestore:rules --non-interactive
 
 echo
 echo "==> Deploy complete."

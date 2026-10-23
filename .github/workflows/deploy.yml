@@ -1,0 +1,141 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy API and client
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.WEB_URL || 'https://ai-canva-22-nbn-fee4b.web.app' }}
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Deploy API to Render
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          PROD_API_URL: ${{ vars.PROD_API_URL || 'https://ai-canva-22-nbn.onrender.com' }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL is not set. Add the Render deploy hook as a repository secret."
+            exit 1
+          fi
+
+          before_id=""
+          if [ -n "${RENDER_API_KEY:-}" ] && [ -n "${RENDER_SERVICE_ID:-}" ]; then
+            before_id="$(curl -fsS \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys?limit=1" \
+              | jq -r '.[0].deploy.id // empty')"
+            echo "Current Render deploy: ${before_id:-none}"
+          fi
+
+          # Pin the deploy to the exact commit CI tested. The hook URL already
+          # contains ?key=..., so append ref with the right separator.
+          case "$RENDER_DEPLOY_HOOK_URL" in
+            *\?*) separator="&" ;;
+            *) separator="?" ;;
+          esac
+          curl -fsS -X POST "${RENDER_DEPLOY_HOOK_URL}${separator}ref=${DEPLOY_SHA}" > /dev/null
+          echo "Render deploy triggered for ${DEPLOY_SHA}."
+
+          if [ -n "${RENDER_API_KEY:-}" ] && [ -n "${RENDER_SERVICE_ID:-}" ]; then
+            for i in $(seq 1 60); do
+              payload="$(curl -fsS \
+                -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys?limit=1")"
+              deploy_id="$(printf '%s' "$payload" | jq -r '.[0].deploy.id // empty')"
+              status="$(printf '%s' "$payload" | jq -r '.[0].deploy.status // empty')"
+              echo "Render deploy ${deploy_id:-unknown}: ${status:-unknown}"
+
+              if [ -n "$deploy_id" ] && [ "$deploy_id" != "$before_id" ] && [ "$status" = "live" ]; then
+                echo "Render deploy is live."
+                exit 0
+              fi
+
+              case "$status" in
+                build_failed|update_failed|canceled|deactivated)
+                  echo "::error::Render deploy ended with status $status."
+                  exit 1
+                  ;;
+              esac
+
+              sleep 10
+            done
+
+            echo "::error::Timed out waiting for the Render deploy."
+            exit 1
+          fi
+
+          echo "RENDER_API_KEY/RENDER_SERVICE_ID are not set; falling back to the API health check."
+          sleep 30
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 60 "${PROD_API_URL%/}/api/health" > /dev/null; then
+              echo "API health check passed."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::API did not become healthy after the Render deploy."
+          exit 1
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Deploy client and Firestore rules
+        env:
+          PROD_API_URL: ${{ vars.PROD_API_URL || 'https://ai-canva-22-nbn.onrender.com' }}
+          FIREBASE_PROJECT: ${{ vars.FIREBASE_PROJECT_ID || 'ai-canva-22-nbn-fee4b' }}
+        run: bash scripts/deploy-hosting.sh "$PROD_API_URL"
+
+      - name: Smoke test production
+        env:
+          PROD_API_URL: ${{ vars.PROD_API_URL || 'https://ai-canva-22-nbn.onrender.com' }}
+          WEB_URL: ${{ vars.WEB_URL || 'https://ai-canva-22-nbn-fee4b.web.app' }}
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 60 "${PROD_API_URL%/}/api/health" | grep -q '"status":"ok"'
+          curl -fsS --max-time 60 -L "${WEB_URL%/}/" > /dev/null
+          echo "Production smoke test passed."

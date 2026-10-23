@@ -40,6 +40,7 @@ old name; update them only if explicitly asked.
 | `server/` | Express API, run locally and as the production Render Web Service (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
 | `functions/` | Legacy/optional Firebase Cloud Functions copy (`onRequest`; requires Blaze; not deployed). Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | Legacy Firebase deploy (build client, build Functions, deploy Hosting + Functions + rules; needs Blaze). Current production uses Render + `scripts/deploy-hosting.sh`. |
+| `.github/workflows/` | GitHub Actions: `ci.yml` (builds + tests + browser checks on PR/main) and `deploy.yml` (gated Render + Firebase Hosting/rules deploy after CI on `main`). |
 | `docs/` | Guides: `OVERVIEW`, `SYSTEM_CONTEXT`, `ONBOARDING`, `ARCHITECTURE`, `DATA_MODEL`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
 | `firebase.json`, `firestore.rules` | Firebase Hosting + Firestore config and security rules (static client; no `/api` rewrite; file storage is Cloudflare R2, not Firebase Storage). |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
@@ -57,6 +58,8 @@ npm run deploy         # legacy Firebase Hosting + Functions deploy (needs Blaze
 # Current production (no Blaze): API on Render from render.yaml (root server/), client on Hosting:
 #   bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
 #   (writes client/.env.production for VITE_API_BASE — bash env-prefix does NOT reach Vite on Windows)
+# CI/CD: .github/workflows/ci.yml on PR + main; deploy.yml after CI succeeds on main.
+#   Render autoDeploy is off; the workflow triggers the Render deploy hook.
 ```
 
 ## Architecture notes
@@ -300,6 +303,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
 ## Testing (Vitest)
 
 - **Run all:** `npm test` (server then client). **Watch:** `npm run test:watch`.
+- **CI:** `.github/workflows/ci.yml` runs the unit suites plus `markers-check` and `ui-smoke`
+  (boots `npm run dev`; no Ollama/Firebase needed). The full `e2e.mjs` stays local/nightly for
+  now because it needs real Firebase Auth/Firestore, a real model call, and a firebase-tools
+  admin token.
 - **Server tests** (`server/src/*.test.ts`, supertest + Vitest): hit `createApp()` from
   `server/src/app.ts` with the AI modules (`ollama`/`fal`/`stitch`) mocked via `vi.mock`; they cover
   route validation, response shaping, the stitch job flow, and `generateContent` token parsing.
@@ -838,6 +845,17 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   The Firebase Functions path (`scripts/deploy.sh`) requires Blaze and is legacy/optional. Also
   the `ai-canva-deploy` skill (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI
   logged in and real API keys (Ollama, optionally fal.ai + Google Stitch).
+- **CI/CD (GitHub Actions):** `.github/workflows/ci.yml` runs on PRs and pushes to `main`:
+  `npm ci` for root/server/client, server + client builds, `npm test`, then `markers-check` +
+  `ui-smoke` against the real dev app. `.github/workflows/deploy.yml` runs only after CI succeeds
+  on `main` (or manual dispatch on `main`): triggers the Render deploy hook pinned to the tested
+  commit, waits for the new deploy (Render API when `RENDER_API_KEY` + `RENDER_SERVICE_ID` are
+  set, health-check fallback), runs `scripts/deploy-hosting.sh` (Hosting + Firestore rules),
+  then smoke-tests production.
+  `render.yaml` sets `autoDeployTrigger: off` so Render does not deploy in parallel. Required repo
+  secrets/variables are listed in `docs/DEPLOYMENT.md`; `FIREBASE_SERVICE_ACCOUNT` needs Hosting
+  Admin + Rules Admin. Full `e2e.mjs` is deliberately not in CI yet (real Firebase/Ollama/admin
+  token requirements) — see the Testing section.
 - **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated, but
   only `server/` is deployed.
 

@@ -29,7 +29,22 @@ current state).
 
 ---
 
-## 2026-10-23 — Node 20 onboarding requirement
+## 2026-10-23 — GitHub Actions CI/CD
+
+- **Done:** added `.github/workflows/ci.yml` (Node 20; `npm ci` for root/server/client; server +
+  client builds; all Vitest suites; then `markers-check` + `ui-smoke` against the real dev app)
+  and `.github/workflows/deploy.yml` (successful CI on `main`, or a manual dispatch on `main` →
+  Render deploy hook pinned to the tested commit + wait → Firebase Hosting/rules deploy →
+  production smoke test). `render.yaml` now uses `npm ci` and `autoDeployTrigger: off` so Render cannot race the gated deploy;
+  `scripts/deploy-hosting.sh` skips `firebase use` in CI and deploys non-interactively. Required
+  GitHub variables/secrets and the workflow behavior are documented in `docs/DEPLOYMENT.md`.
+- **In flight:** -
+- **Next steps:** add the repository secrets/variables before relying on deploys
+  (`RENDER_DEPLOY_HOOK_URL` + `FIREBASE_SERVICE_ACCOUNT` are required; `RENDER_API_KEY` +
+  `RENDER_SERVICE_ID` enable exact Render deploy polling). Full `e2e.mjs` remains local/nightly
+  until its Firebase admin-token dependency is moved to CI.
+
+## 2026-10-23 - Node 20 onboarding requirement
 
 - **Done:** corrected `docs/ONBOARDING.md` and `CONTRIBUTING.md` to require Node.js 20+
   (22 LTS recommended) and added an `EBADENGINE` troubleshooting row. Node 18 is too old for the
