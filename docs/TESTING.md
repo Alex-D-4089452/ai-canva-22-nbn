@@ -55,7 +55,7 @@ npm test --prefix client
 
 ## Coverage gaps / future work
 
-- No tests yet for `functions/` — they require the Firebase emulator + Admin SDK.
+- No tests yet for the legacy `functions/` copy — they require the Firebase emulator + Admin SDK.
 - No React component / DOM tests (e.g. `boxStore.runBox` orchestration) — would need jsdom +
   mocking Firestore/auth.
 - The shared logic between `server/` and `functions/` is intentionally duplicated; it is covered

@@ -50,12 +50,13 @@ has changed." If you change a model, **update the table and append to the change
    ```
    Verify with any box run: `/api/generate` responses echo the `model` used, and the box footer
    shows the token counts for that call.
-2. **Production** — set the same var in `functions/.env` (note: `scripts/deploy.sh` only copies
-   `OLLAMA_API_KEY` from `server/.env` — anything else you must add yourself), then `npm run deploy`.
+2. **Production** — set the same var in the **Render dashboard** (Environment) and redeploy the
+   service. Production runs `server/` on Render.
 3. **Changing a hardcoded default** — the API logic is **intentionally duplicated** between
-   `server/` and `functions/` (see `AGENTS.md`): a default change must be made in **both** copies
-   (`server/src/ollama.ts` *and* `functions/src/ollama.ts`, same for `fal.ts`/`stitch.ts`). The fal
-   model IDs have no env override — editing both files is the only way.
+   `server/` and the legacy `functions/` copy (see `AGENTS.md`): a default change must be made in
+   **both** copies (`server/src/ollama.ts` *and* `functions/src/ollama.ts`, same for
+   `fal.ts`/`stitch.ts`). The fal model IDs have no env override — editing both files is the only
+   way.
 
 ## Where model usage is recorded (runtime observability)
 

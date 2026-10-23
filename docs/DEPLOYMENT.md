@@ -3,11 +3,13 @@
 You can run relay three ways:
 
 1. **Local development** — Vite + the local Express server (see the [README](../README.md)).
-2. **Production on Render (recommended, Spark/free Firebase)** — API as a Render Web Service,
-   client on Firebase Hosting (static only — **no Cloud Functions / Blaze plan**).
-3. **Production on Firebase** — Hosting + Cloud Functions (**requires Blaze**).
+2. **Current production: Render + Firebase Hosting** — API as a Render Web Service, client on
+   Firebase Hosting (Spark/free Firebase; **no Cloud Functions / Blaze plan**).
+3. **Legacy/optional: Firebase Functions** — Hosting + Cloud Functions (**requires Blaze**). This
+   path is not used by the current deployment.
 
-This guide covers the Render path first, then Firebase Functions, then self-hosting.
+This guide covers the current Render path first, then shared Firebase setup and the legacy
+Functions path, then self-hosting.
 
 > **Render quick path:**
 > 1. Create a Render **Web Service** from this repo (Blueprint picks up `render.yaml`, root `server/`).
@@ -18,7 +20,7 @@ This guide covers the Render path first, then Firebase Functions, then self-host
 
 ---
 
-## Production on Render (no Blaze)
+## Production on Render (current)
 
 | Piece | Where |
 |-------|--------|
@@ -74,20 +76,16 @@ In the Cloudflare R2 bucket **Settings → CORS policy**, allow your Hosting ori
 
 ### Render limitations (same as local server)
 
-- **Workshop join / admin role admin / admin stats** need a service account or a proxy:
+- **Workshop join / admin roles / admin stats** need a service account or a proxy:
   set `WORKSHOP_PROXY_URL` (or future `WORKSHOP_SERVICE_ACCOUNT`) on Render — otherwise those routes return **501**.
 - Free instances **spin down** when idle → first request after idle is slow (cold start).
 - In-memory Stitch job store is per-instance (fine for a single free instance).
 
 ---
 
-## Production on Firebase (requires Blaze)
+## Firebase project setup (shared)
 
-> Cloud Functions require the **Blaze (pay-as-you-go)** plan. Prefer the Render path above if you want $0.
-
----
-
-## Prerequisites
+### Prerequisites
 
 - A [Firebase](https://console.firebase.google.com) project.
 - The [Firebase CLI](https://firebase.google.com/docs/cli) installed and logged in:
@@ -97,7 +95,7 @@ In the Cloudflare R2 bucket **Settings → CORS policy**, allow your Hosting ori
   ```
 - Real API keys (Ollama, and optionally fal.ai + Google Stitch).
 
-## 2. Enable Firebase services
+### Enable Firebase services
 
 1. **Authentication** — Console → Authentication → Sign-in method → **Google** → Enable.
 2. **Firestore** — Console → Firestore Database → Create database (start in production mode).
@@ -106,9 +104,10 @@ In the Cloudflare R2 bucket **Settings → CORS policy**, allow your Hosting ori
    [dash.cloudflare.com](https://dash.cloudflare.com) → R2, enable its **Public Development URL**,
    and create an API token with Object Read & Write. Put `R2_ACCOUNT_ID`,
    `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` in
-   `server/.env` (the deploy script copies them to `functions/.env`).
+   `server/.env` for local dev and in the **Render dashboard** for production (see the Render
+   section above).
 
-## 3. Point the app at your Firebase project
+### Point the app at your Firebase project
 
 The client config lives in `client/src/lib/firebase.ts`. Replace the hardcoded `firebaseConfig`
 with your own project's web app config:
@@ -123,7 +122,7 @@ into `firebaseConfig` (no `storageBucket` — file storage is Cloudflare R2).
 > **For open hosting:** prefer reading these from environment variables (`VITE_FIREBASE_*`) at
 > build time rather than hardcoding them. See [OSS_READINESS.md](OSS_READINESS.md).
 
-## 4. Publish security rules
+### Publish security rules
 
 Deploy the rules that ship in the repo:
 
@@ -135,51 +134,61 @@ firebase deploy --only firestore:rules
 > user can read/update any board). Before deploying to the public, replace it with the
 > ownership/collaborator rules in [OSS_READINESS.md](OSS_READINESS.md).
 
-## 5. Configure the Cloud Function environment
+### Configure the API environment
 
-Create `functions/.env` from `functions/.env.example` and set your real keys:
+Create `server/.env` from `server/.env.example` for local development, and set the same variables
+in the Render dashboard for production:
 
 ```bash
-cp functions/.env.example functions/.env
+cp server/.env.example server/.env
 # OLLAMA_API_KEY=your-ollama-api-key
 # OLLAMA_MODEL=deepseek-v4.1-flash
 # FAL_KEY=...
 # STITCH_API_KEY=...
 ```
 
-> `functions/.env` is git-ignored. Never commit real keys.
+> `server/.env` is git-ignored. Never commit real keys.
+> For the legacy Functions path, mirror the values into `functions/.env`.
 
-## 6. Set the deploy target project
+### Set the deploy target project
 
-The repo ships a `.firebaserc` with `carbondocs` as the default project. Set it to your project:
+The repo's `.firebaserc` defaults to `ai-canva-22-nbn-fee4b`. To use your own project:
 
 ```bash
 firebase use <your-project-id>
 ```
 
-## 7. Build and deploy
+## Deploy the client (current path)
 
 ```bash
-# Build the client (produces client/dist)
-cd client && npm run build && cd ..
-
-# Deploy hosting + functions + rules
-firebase deploy
+bash scripts/deploy-hosting.sh https://<your-render-service>.onrender.com
 ```
 
-This deploys:
-- **Hosting** — the built client at your Firebase Hosting URL. `firebase.json` rewrites `/api/**`
-  to the `api` Cloud Function and all other routes to `index.html` (SPA).
-- **Functions** — the `api` Cloud Function (`onRequest`), configured for `maxInstances: 5`,
-  `timeoutSeconds: 120`, `memory: 512MiB`.
+This builds the client with `VITE_API_BASE` pointing at Render and deploys Hosting + Firestore
+rules only.
+
+### Legacy: deploy the Firebase Functions path (optional)
+
+> This path requires the **Blaze** plan and is **not used by the current deployment**.
+
+```bash
+cd client && npm run build && cd ..
+firebase deploy --only hosting,functions,firestore:rules
+```
+
+The current `firebase.json` rewrites all routes to `index.html` and does **not** proxy `/api/**`;
+it is configured for the Render path. To use the legacy Functions path, add a Hosting rewrite
+from `/api/**` to the `api` function. The `api` function is configured for `maxInstances: 5`,
+`timeoutSeconds: 120`, `memory: 512MiB`.
 
 After deploy, open your Hosting URL. Sign in with Google to get cloud save and collaboration.
 
 ---
 
-## Self-hosting the server instead
+## Self-hosting the Express API
 
-If you'd rather not use Firebase Functions, you can run the Express server directly:
+The Render service is the supported production host, but you can also run the Express server
+directly:
 
 ```bash
 cd server
@@ -187,8 +196,8 @@ npm run build && npm start
 ```
 
 Set `PORT` in `server/.env` if needed. In this mode the client still needs Firebase for auth and
-persistence, and the Vite proxy (dev only) must point `/api` at your server — in production you'd
-configure your reverse proxy / CDN to forward `/api` to the server.
+persistence. Build the client with `VITE_API_BASE` pointing at your server, or put a reverse
+proxy / CDN in front and forward `/api` to it.
 
 ---
 
@@ -196,7 +205,8 @@ configure your reverse proxy / CDN to forward `/api` to the server.
 
 | Problem | Check |
 |---------|-------|
-| `OLLAMA_API_KEY is not configured` / request fails | The key is missing from `functions/.env` or `server/.env`. |
+| `OLLAMA_API_KEY is not configured` / request fails | The key is missing from the Render environment or `server/.env`. |
 | Boards don't sync | Auth is enabled + rules permit access; the user is signed in. |
-| `404` on `/api/*` in prod | Cloud Function named `api` exists and hosting rewrites are in `firebase.json`. |
+| `404` on `/api/*` in prod | `VITE_API_BASE` points at the Render URL and the Render service is healthy. |
+| `501` from admin/workshop/R2 routes | Configure the Admin SDK proxy or R2 environment variables (see the Render limitations above). |
 | Deploy fails on rules | Replace the placeholder rules with the strict ones from OSS_READINESS. |

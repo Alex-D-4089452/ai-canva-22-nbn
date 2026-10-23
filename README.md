@@ -17,7 +17,7 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 | [Architecture](docs/ARCHITECTURE.md)                 | Deep dive into the client, backend, and Firebase layers        |
 | [Box Types](docs/BOX_TYPES.md)                       | Every box and how to add a new one                             |
 | [API](docs/API.md)                                   | The backend endpoints and environment variables                |
-| [Deployment](docs/DEPLOYMENT.md)                     | Ship it to Firebase Hosting + Functions                        |
+| [Deployment](docs/DEPLOYMENT.md)                     | Ship the client to Firebase Hosting + the API to Render        |
 | [Testing](docs/TESTING.md)                           | Running and writing Vitest unit tests for server + client      |
 | [Open-Source Readiness](docs/OSS_READINESS.md)       | Pre-launch security and project checks                         |
 
@@ -199,15 +199,15 @@ relay/
 │       ├── types/            # Box definitions — one file per box type + core shapes
 │       ├── App.tsx           # Shell / layout
 │       └── main.tsx          # Entry point
-├── server/                   # Express API (local dev backend)
+├── server/                   # Express API (local + Render production)
 │   └── src/                  # index.ts, ollama.ts, fal.ts, stitch.ts, findPort.ts
-├── functions/                # Firebase Cloud Functions (production backend)
+├── functions/                # Legacy optional Firebase Functions copy (not deployed; needs Blaze)
 │   └── src/                  # Mirrors the server API
 ├── firestore.rules           # Firestore security rules
-└── firebase.json             # Firebase hosting/functions/firestore config (files → Cloudflare R2)
+└── firebase.json             # Firebase Hosting/Firestore config (static client; files → Cloudflare R2)
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a deep dive, [docs/API.md](docs/API.md) for the backend endpoints, and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) to deploy to Firebase.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a deep dive, [docs/API.md](docs/API.md) for the backend endpoints, and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) to deploy the client to Firebase Hosting and the API to Render.
 
 ---
 

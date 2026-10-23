@@ -347,5 +347,6 @@ Tagging a box does not affect collaboration, the canvas, or `runBox` — it is p
    union there (hides Run / status strip / settings / target handle) and renders its body.
 4. Add run behavior in `boardStore.ts` `runBox()` (or route to an existing branch — a plain text
    box needs no branch at all; an input box just joins the input-type early-return guard).
-5. Add any new backend endpoint in `server/src/index.ts` **and** `functions/src/index.ts`.
+5. Add any new backend endpoint in `server/src/index.ts` (and, for the legacy copy,
+   `functions/src/index.ts`).
 6. Update the box-type tables in the README and this document.

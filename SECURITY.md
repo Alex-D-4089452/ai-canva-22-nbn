@@ -38,8 +38,9 @@ Please include:
 
 The app is designed to be self-hosted. Before deploying publicly, review these:
 
-- **API keys** live in `server/.env` / `functions/.env` (Ollama, fal.ai, Stitch). Never commit
-  these or share them. Any public deployment with AI endpoints must protect them server-side.
+- **API keys** live in `server/.env` / the Render dashboard (and, for the legacy Functions path,
+  `functions/.env`) — Ollama, fal.ai, Stitch. Never commit these or share them. Any public
+  deployment with AI endpoints must protect them server-side.
 - **Firestore rules** (`firestore.rules`) currently contain a permissive placeholder that lets any
   signed-in user read/update any board. **Tighten these before a public deploy** — see
   [docs/OSS_READINESS.md](docs/OSS_READINESS.md) for the recommended ownership/collaborator rules.

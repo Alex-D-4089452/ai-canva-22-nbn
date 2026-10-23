@@ -29,6 +29,16 @@ current state).
 
 ---
 
+## 2026-10-23 — Docs reflect the Render + Firebase Hosting deployment
+
+- **Done:** updated `ARCHITECTURE`, `OVERVIEW`, `README`, `API`, `MODELS`, `DEPLOYMENT`, and
+  `AGENTS` to describe the current deployment: static client on **Firebase Hosting**, Express API
+  on **Render**, Firebase Auth/Firestore for accounts and sync, and **Cloudflare R2** for blobs.
+  The `functions/` copy and Cloud Functions deploy path are now explicitly legacy/optional because
+  they require the Blaze plan.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-22 — Handoff Brief reviewer chip
 
 - **Done:** a completed Handoff Brief now carries the landing page's reviewer chip beside its

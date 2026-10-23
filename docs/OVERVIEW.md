@@ -77,24 +77,37 @@ The heart of this logic lives in `client/src/store/boardStore.ts` (the `runBox` 
 ## 4. Architecture at a glance
 
 ```
-+---------------------+   /api   +---------------------+   SDK   +----------------------+
-|  Client (browser)   | -------> |  Backend (Node)     | ------> |  AI providers        |
-|  React 19 + Vite    |          |  Express (dev) or   |         |  Ollama (DeepSeek)   |
-|  React Flow canvas  |          |  Cloud Functions    |         |  fal.ai (images)     |
-|  Zustand store      |          |  (production)       |         |  Google Stitch (UI)  |
-+---------------------+          +---------------------+         +----------------------+
-        |  Firebase SDK
-        v
-   Firebase: Auth (Google) · Firestore (boards, presence) · Cloudflare R2 (images/documents)
++-------------------------------+
+| Firebase Hosting              |
+| serves client/dist            |
++---------------+---------------+
+                | loads the static app
+                v
++-------------------------------+      /api (HTTPS)      +-------------------------------+
+| Browser (React client)        | ---------------------> | Render Web Service            |
+| React + Vite · React Flow     |                        | server/ · Node + Express      |
+| Zustand store                 |                        |                               |
++---------------+---------------+                        +---------------+---------------+
+                |                                                        |
+                | Firebase SDK                                           | AI provider SDKs
+                v                                                        v
++-------------------------------+                        +-------------------------------+
+| Firebase                      |                        | Ollama Cloud (text)           |
+| Auth (Google) · Firestore     |                        | fal.ai (images)               |
+| boards · presence · usage     |                        | Google Stitch (UI)            |
++-------------------------------+                        +-------------------------------+
+
+Board images/documents: browser -> Cloudflare R2 via a presigned PUT from Render.
 ```
 
 Three layers worth understanding:
 
 1. **Client (`client/`)** — the whole UI. React 19, Vite, TypeScript, Tailwind CSS, React Flow for
-   the canvas, and Zustand for state. State is held in one central store.
-2. **Backend (`server/` + `functions/`)** — a small Node API. The local `server/` is an Express
-   app for development; `functions/` is the same API packaged as a Firebase Cloud Function for
-   production. Both call the same AI providers.
+   the canvas, and Zustand for state. State is held in one central store. Firebase Hosting serves
+   the built static bundle.
+2. **Backend (`server/`)** — a small Node/Express API. It runs locally for development and as a
+   Render Web Service in production. `functions/` is a legacy, optional Firebase Functions copy
+   and is not deployed in the current architecture (it requires the Blaze plan).
 3. **Firebase + Cloudflare R2** — Firebase handles **accounts** (Google sign-in), **cloud
    storage** of boards (Firestore), and **real-time collaboration** (live board + cursor sync);
    **Cloudflare R2** stores file blobs (image/document uploads).
@@ -115,7 +128,7 @@ Three layers worth understanding:
 | AI | Ollama (DeepSeek), fal.ai, Stitch | Prompt engineering, API integration, async workflows |
 | Cloud | Firebase (Auth, Firestore) + Cloudflare R2 (files) | Authentication, NoSQL, real-time sync, object storage, security rules |
 | Collaboration | Firestore real-time + presence | Live cursors, presence tracking, conflict/echo handling |
-| DevOps | Firebase Hosting + Functions | Building, deploying, CI, environment config |
+| DevOps | Firebase Hosting + Render | Building, deploying, CI, environment config |
 | Open source | Git + GitHub | Forking, PRs, issues, documentation, licensing |
 
 ---
@@ -144,7 +157,7 @@ toy. Depending on your focus, you can learn:
   (parsing JSON from an LLM for slides/code).
 - **Backend:** Express, REST endpoints, proxying third-party APIs, environment variables.
 - **Cloud & realtime:** Firebase auth, Firestore, real-time sync, live cursors, security rules.
-- **Ops:** building and deploying to Firebase Hosting + Cloud Functions.
+- **Ops:** building the client for Firebase Hosting and deploying the API to Render.
 - **Open source:** contributing to a real repo with docs, a license, and a contributing guide.
 
 ---

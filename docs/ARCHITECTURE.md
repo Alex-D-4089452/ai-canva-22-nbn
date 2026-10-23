@@ -1,40 +1,54 @@
 # Architecture
 
-This document explains how relay is structured. It's a **client-side, React Flow canvas** that
-talks to a **Node backend** for AI generation and to **Firebase** for accounts, real-time
-sync, and **Cloudflare R2** for file blobs (board images/documents).
+This document explains how relay is structured. It is a **client-side React Flow canvas** served
+as a static bundle by **Firebase Hosting**. The browser calls a **Node/Express API on Render** for
+AI generation and storage signing, and uses **Firebase** for accounts and real-time board sync.
+File blobs (board images/documents) live in **Cloudflare R2**. The legacy Cloud Functions copy in
+`functions/` is optional and is not part of the current deployment (Cloud Functions require the
+Blaze plan).
 
 ## High-level overview
 
 ```
-+---------------------+         +--------------------+         +----------------------+
-|   Client (browser)  |  /api   |  Backend           |  SDK    |  AI providers        |
-|   React + Vite      | ------->|  Express or        | ------->|  AI providers        |
-|   React Flow canvas  |         |  Cloud Functions   |         |  Ollama Cloud (LLM)   |
-|   Zustand store      |         |                    |         |  fal.ai (images)     |
-|   Zustand store      |         |                    |         |  Google Stitch (UI)  |
-+---------------------+         +--------------------+         +----------------------+
-        |  Firebase SDK
-        v
-+----------------------------------------------+
-| Firebase: Auth (Google) · Firestore (boards, |
-| presence)                    Cloudflare R2:  |
-|                          board images/docs    |
-+----------------------------------------------+
++-------------------------------+
+| Firebase Hosting              |
+| serves client/dist            |
++---------------+---------------+
+                | loads the static app
+                v
++-------------------------------+      /api (HTTPS)      +-------------------------------+
+| Browser (React client)        | ---------------------> | Render Web Service            |
+| React + Vite · React Flow     |                        | server/ · Node + Express      |
+| Zustand store                 |                        |                               |
++---------------+---------------+                        +---------------+---------------+
+                |                                                        |
+                | Firebase SDK                                           | AI provider SDKs
+                v                                                        v
++-------------------------------+                        +-------------------------------+
+| Firebase                      |                        | Ollama Cloud (text)           |
+| Auth (Google) · Firestore     |                        | fal.ai (images)               |
+| boards · presence · usage     |                        | Google Stitch (UI)            |
++-------------------------------+                        +-------------------------------+
+
+Board images/documents:
+  Browser (React client) --presigned PUT--> Cloudflare R2
+  Browser --POST /api/storage/sign--> Render --signs the PUT--> Cloudflare R2
 ```
 
-### Two backends
+### API server and legacy Functions path
 
-The same API surface exists in two places:
+The API surface exists in two copies:
 
-1. **`server/`** — an Express app for **local development**. It serves
-   `/api/generate`, `/api/generate-image`, `/api/stitch-generate`, and `/api/health`. The Vite
-   client proxies `/api` to it during dev.
-2. **`functions/`** — the same endpoints packaged as a **Firebase Cloud Function** (`onRequest`)
-   for **production** deployment (Firebase Hosting rewrites `/api/**` to it).
+1. **`server/`** — the Express API. It runs locally for development and as the production
+   **Render Web Service** (`render.yaml`). In production the browser calls it through
+   `VITE_API_BASE`; during local dev Vite proxies `/api` to it.
+2. **`functions/`** — an optional Firebase Cloud Functions packaging of the same endpoints
+   (`onRequest`). It is **not deployed in the current architecture**: Cloud Functions require the
+   Blaze plan, so production uses Render. The code remains for a legacy Firebase-only path.
 
-The API logic is duplicated across the two because Cloud Functions runs in the Firebase
-environment while the local server runs in Node. Both use the same SDKs.
+The two copies are kept in sync when the optional Functions path changes; `server/` is the
+deployed implementation. Admin-SDK-only routes (admin stats/roles, workshop join) are implemented
+in `functions/`; on Render they return `501` unless a proxy or service account is configured.
 
 ---
 
@@ -153,10 +167,11 @@ and `copyToClipboard` power the Save/Copy buttons.
 
 ## Backend
 
-### Local Express server (`server/`)
+### Express API (`server/`)
 
-`server/src/index.ts` sets up CORS, JSON body parsing (10 MB limit), four endpoints, and starts
-the server on a detected free port (see `findPort.ts`). The actual port is written to
+`server/src/index.ts` calls `createApp()` (CORS, JSON body parsing with a 10 MB limit, and all
+API routes) and starts the server on a detected free port (see `findPort.ts`) for local dev.
+Render runs the built app with `npm start` and supplies `PORT`. The local port is written to
 `.server-port` in the project root so the Vite proxy can target it.
 
 Provider modules are created **lazily** (not at import time) because ES-module imports are
@@ -174,8 +189,9 @@ hoisted ahead of `dotenv.config()`:
   project and generate a screen, then fetches and returns the HTML + screenshot URL. Prompts are
   capped (`MAX_PROMPT_CHARS`, default 6000) and use the fast `GEMINI_3_FLASH` model so real
   pipelines (large `{{inputs}}`) neither time out nor degrade into written specs.
-- **`stitchJobs.ts`** *(functions only)* — the async job worker. Stitch generation is slow (40s+)
-  and exceeds the ~60s Firebase Hosting rewrite timeout, so it runs on a Cloud Task queue. See
+- **Stitch job handling** — Stitch generation is slow (40s+). `server/src/app.ts` keeps an
+  in-memory job store for local/Render and returns a `jobId` immediately; the legacy
+  `functions/` path uses Firestore plus a Cloud Task worker (`functions/src/stitchJobs.ts`). See
   `POST /api/stitch-generate` / `GET /api/stitch-status/:jobId` below.
 
 ### Firestore data model
@@ -202,7 +218,7 @@ Subcollection `boards/{boardId}/presence/{uid}`:
 { userId, email, displayName, initials, color, cursorX, cursorY, lastActive }
 ```
 
-Collection `stitchJobs/{jobId}` *(production only, server-side)*:
+Collection `stitchJobs/{jobId}` *(legacy Functions path only, server-side)*:
 
 ```
 { status: "queued" | "running" | "done" | "error", prompt, html?, imageUrl?, error?, createdAt, updatedAt? }
@@ -219,9 +235,9 @@ Collection `stitchJobs/{jobId}` *(production only, server-side)*:
    (`/api/generate`, `/api/generate-image`, or `/api/stitch-generate`).
 4. The backend calls the relevant AI SDK and returns a result. **Stitch is asynchronous**: the
    server returns a `jobId` immediately, the client polls `GET /api/stitch-status/:jobId` until
-   the job is `done`/`error`, then receives the HTML. (A synchronous Stitch round-trip exceeded the
-   ~60s Firebase Hosting rewrite timeout, so the deployed box reported "Request failed" even though
-   the screen was created in Stitch.)
+   the job is `done`/`error`, then receives the HTML. (The async flow was introduced on the legacy
+   Firebase Hosting → Cloud Functions path to stay under the ~60s rewrite timeout; the Render
+   deployment keeps the same contract.)
 5. `runBox` post-processes it (parse slides JSON, extract code, etc.) and writes it into
    `boxData` with `status: "done"`.
 6. `scheduleSave()` triggers a debounced Firestore write; collaborators see it via `onSnapshot`.
@@ -232,8 +248,9 @@ A permission layer parallel to admins: `facilitators/{uid}` docs (granted via th
 `/api/admin/roles` endpoint). The Facilitator Dashboard (admins + facilitators) manages
 **workshops** (`workshops/{id}`), **template boards** (ordinary boards flagged `isTemplate`,
 copied when a team is created), and **teams** (`teams/{id}`, max 5 seats, facilitator-created).
-Each seat is a code at top-level `codes/{code}`; the `/api/workshop/join` Cloud Function redeems a
+Each seat is a code at top-level `codes/{code}`; the `/api/workshop/join` endpoint redeems a
 code for a Firebase **custom token** bound to a durable per-code guest uid — guests join without
 login, pick a name, land on their team board (via the board's `memberUids`), and can create their
-own boards. The local dev server proxies the join endpoint to the deployed function.
+own boards. Minting requires the Admin SDK: the legacy `functions/` path implements it directly,
+while the Render server proxies to `WORKSHOP_PROXY_URL` when configured (otherwise `501`).
 

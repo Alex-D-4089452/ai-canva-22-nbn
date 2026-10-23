@@ -24,8 +24,9 @@ a UI rebrand. Course handouts under `docs/course/` and historical DEVLOG entries
 old name; update them only if explicitly asked.
 
 - **Client:** React + Vite + React Flow canvas, Zustand store, Tailwind CSS.
-- **Backend:** Node/Express for local dev; the same API packaged as a Firebase Cloud Function for
-  production.
+- **Backend:** Node/Express. It runs locally and as the production **Render Web Service**.
+  `functions/` is a legacy, optional Firebase Cloud Functions copy; it requires the Blaze plan
+  and is **not deployed** in the current architecture.
 - **AI providers:** Ollama (LLM text), fal.ai (image generation), Google Stitch (UI screens).
 - **Persistence & collaboration:** Firebase — Google Auth, Firestore (boards, presence, live
   cursors). **File blobs (board images/documents) live in Cloudflare R2** (free tier, zero
@@ -36,11 +37,11 @@ old name; update them only if explicitly asked.
 | Path | Purpose |
 |------|---------|
 | `client/` | React + Vite frontend. Entry `client/src/`, store at `client/src/store/boardStore.ts`. |
-| `server/` | Local Express dev backend (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
-| `functions/` | Same API as a Firebase Cloud Function (`onRequest`) for production. Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
-| `scripts/deploy.sh` | One-command production deploy (build client, build Functions, deploy Hosting + Functions + rules). |
+| `server/` | Express API, run locally and as the production Render Web Service (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
+| `functions/` | Legacy/optional Firebase Cloud Functions copy (`onRequest`; requires Blaze; not deployed). Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
+| `scripts/deploy.sh` | Legacy Firebase deploy (build client, build Functions, deploy Hosting + Functions + rules; needs Blaze). Current production uses Render + `scripts/deploy-hosting.sh`. |
 | `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
-| `firebase.json`, `firestore.rules` | Firebase config and security rules (Hosting + Functions + Firestore; file storage is Cloudflare R2, not Firebase Storage). |
+| `firebase.json`, `firestore.rules` | Firebase Hosting + Firestore config and security rules (static client; no `/api` rewrite; file storage is Cloudflare R2, not Firebase Storage). |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
 ## Key commands
@@ -52,17 +53,17 @@ npm run dev:client     # Vite client only
 npm run install:all    # npm install in both server/ and client/
 npm test               # run server + client unit tests (Vitest)
 npm run test:watch    # watch mode for both server and client tests
-npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions — needs Blaze)
-# Render path (no Blaze): create Web Service from render.yaml (root server/), then
+npm run deploy         # legacy Firebase Hosting + Functions deploy (needs Blaze; not current path)
+# Current production (no Blaze): API on Render from render.yaml (root server/), client on Hosting:
 #   bash scripts/deploy-hosting.sh https://ai-canva-22-nbn.onrender.com
 #   (writes client/.env.production for VITE_API_BASE — bash env-prefix does NOT reach Vite on Windows)
 ```
 
 ## Architecture notes
 
-- **Two backends, one API surface.** The API logic is duplicated in `server/` (local Express) and
-  `functions/` (Cloud Function) because Cloud Functions runs in the Firebase environment while the
-  local server runs in Node. Both use the same SDKs. Keep them in sync when changing endpoints.
+- **Two API copies; Render is production.** `server/` is the deployed Express API (local dev and
+  Render). `functions/` is a legacy, optional Firebase Functions copy (requires Blaze; not
+  deployed). Both use the same SDKs; keep them in sync when changing the optional path.
 - **Single Zustand store** (`client/src/store/boardStore.ts`) owns the whole board: `nodes`/`edges`
   (React Flow graph), `boxData` (per-box content/prompts/status/output — kept separate from the
   graph objects so it serializes cleanly to Firestore), and board/collaboration metadata.
@@ -78,12 +79,13 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   Google Stitch, slides → Ollama + JSON parsing, ui → Ollama + code extraction, else Ollama
   text).
 - **Stitch is asynchronous.** Stitch generation is slow (40s+) and exceeded the ~60s Firebase
-  Hosting rewrite timeout, so the deployed box previously reported "Request failed" even though the
-  screen was created in Stitch. `POST /api/stitch-generate` now returns a `jobId` immediately; the
-  client polls `GET /api/stitch-status/:jobId` until the job is `done`/`error`. The client-side
-  `generateStitchUI(prompt)` in `client/src/lib/api.ts` hides this (start + poll). Local dev uses an
-  in-memory job store in `server/src/app.ts`; production uses Firestore (`stitchJobs/{jobId}`, no
-  client access) plus a Cloud Task worker `processStitchJob` in `functions/src/stitchJobs.ts`.
+  Hosting rewrite timeout on the legacy Functions path, so a synchronous request reported "Request
+  failed" even though the screen was created in Stitch. `POST /api/stitch-generate` returns a
+  `jobId` immediately; the client polls `GET /api/stitch-status/:jobId` until the job is
+  `done`/`error`. The client-side `generateStitchUI(prompt)` in `client/src/lib/api.ts` hides this
+  (start + poll). Local dev and Render use the in-memory job store in `server/src/app.ts`; the
+  legacy Functions path uses Firestore (`stitchJobs/{jobId}`, no client access) plus a Cloud Task
+  worker `processStitchJob` in `functions/src/stitchJobs.ts`.
   `stitch.ts` caps prompt length (6000), creates a fresh `StitchToolClient` per call
   (avoids an SDK v0.3.5 bug where the MCP transport reference goes stale after errors),
   and only sends required params (`projectId` + `prompt`)
@@ -113,7 +115,7 @@ npm run deploy         # = bash scripts/deploy.sh (Firebase Hosting + Functions 
   `boards/{boardId}/images/…` and `boards/{boardId}/documents/…`, so the sign endpoint is never a
   general bucket-write proxy; `listStorageUsage` feeds admin stats). Env:
   `R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`/`R2_PUBLIC_BASE_URL` in
-  `server/.env` (+ `functions/.env` — `scripts/deploy.sh` copies them). Missing config → sign
+  `server/.env` / the Render dashboard (and `functions/.env` only for the legacy path). Missing config → sign
   returns **501** and uploads degrade like the old signed-out mode (document text kept; the Image
   box keeps a **local base64 preview** and shows a visible error — base64 is stripped on the next
   Firestore save, so it won’t survive reload until a retry succeeds). The local server verifies ID tokens with **`server/src/auth.ts`**
@@ -284,9 +286,10 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   "Tokens ⬇" (output / `completionTokens`) columns — kept separate because they cost differently.
 - **Rules:** a user can create/read their own `tokenUsage` docs and read/write their own
   `usageTotals` doc; the admin function reads aggregates via the Admin SDK.
-- **Production-only:** the endpoint is implemented in `functions/` (uses `firebase-admin`). The
-  local `server/` returns `501` because it has no service account — this is an **intentional
-  deviation** from the server/functions duplication rule.
+- **Admin SDK only:** the endpoint is implemented in the legacy `functions/` copy (uses
+  `firebase-admin`). `server/` (local and Render) returns `501` because it has no service account —
+  an **intentional deviation** from the duplication rule. The admin board is unavailable on the
+  current Render deployment unless an Admin SDK proxy is added.
 - **Client files:** `client/src/lib/admin.ts` (isAdmin/profile/heartbeat/fetchAdminStats) and
   `client/src/components/AdminBoard.tsx` (the dashboard UI).
 
@@ -382,8 +385,9 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   project and can't sign into this app). The local proxy therefore 502s, the guest never gets a
   token, and **"TG guest gets the profile step" fails (30s timeout) by environment, not by code**
   — its landing-card check still passes. Fixing it needs a deployed Admin-SDK join endpoint for
-  `ai-canva-22-nbn-fee4b` (deploy `functions/`, or stand one up and repoint the env var); until
-  then expect **100/101**. TF/Guest were previously masked entirely by the stale `carbondocs`
+  `ai-canva-22-nbn-fee4b` (stand one up, or deploy the legacy `functions/` path with Blaze) and
+  repoint `WORKSHOP_PROXY_URL`; until then expect **100/101**. TF/Guest were previously masked
+  entirely by the stale `carbondocs`
   project id in the suite's admin REST calls (fixed in `e2e.mjs` — see the E2E suite bullet).
 - **T7 can fail spuriously under model latency:** Part 1's "research generated via real
   /api/generate" check polls at most 90s (45 × 2s) for a REAL model call to land, so a slow
@@ -794,14 +798,15 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   **top-level `codes/{code}`** (`{code, teamId, workshopId, uid?, claimed?}`) — top level so the
   join endpoint fetches by id with NO query/index (a collection-group query would need an index
   you cannot create without the console). **Guests:** the landing shows "🎟️ Have a workshop
-  code?" → `POST /api/workshop/join { code }` (functions only) mints a Firebase **custom token**
+  code?" → `POST /api/workshop/join { code }` (Admin SDK required) mints a Firebase **custom token**
   for a durable uid — first use creates the auth user and claims the code, later uses return a
   token for the SAME uid (codes are effectively bearer credentials), so guests keep their
   identity/boards across devices. Guests then pick a name (email optional, never for login) via
   `GuestProfileModal`, get added to the team board via `memberUids` (new BoardDoc field;
   `listSharedBoards(email, uid)` merges the email and memberUids queries), and can create their
-  own boards (guests skip the auto-"My First Board" creation — no auth email). The local dev
-  server PROXIES `/api/workshop/join` to the deployed function (Admin SDK needed). **Critical
+  own boards (guests skip the auto-"My First Board" creation — no auth email). The `server/` API
+  (local and Render) PROXIES `/api/workshop/join` to `WORKSHOP_PROXY_URL` when configured
+  (Admin SDK needed); otherwise it returns `501`. **Critical
   IAM gotcha:** custom-token minting failed with `iam.serviceAccounts.signBlob` denied until the
   project granted `roles/iam.serviceAccountTokenCreator` to the functions runtime service accounts
   (done once via `cloudresourcemanager setIamPolicy`; `saveBoard` must also carry
@@ -823,13 +828,14 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   grouping logic is the pure `groupRoster()` in `client/src/lib/presence.ts` (unit-tested).
 - **Client Firebase config** lives in `client/src/lib/firebase.ts` (hardcoded `firebaseConfig`).
   For open hosting, prefer `VITE_FIREBASE_*` env vars at build time (see `docs/OSS_READINESS.md`).
-- **Deploying:** follow `docs/DEPLOYMENT.md`. Preferred free path: **API on Render**
+- **Deploying:** follow `docs/DEPLOYMENT.md`. Current production is **API on Render**
   (`render.yaml`, root `server/`) + **client on Firebase Hosting** via
-  `scripts/deploy-hosting.sh <render-url>` (embeds `VITE_API_BASE`; no Cloud Functions /
-  Blaze). Full Firebase Functions path needs Blaze (`scripts/deploy.sh`). Also the
-  `ai-canva-deploy` skill (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI logged in and real API keys
-  (Ollama, optionally fal.ai + Google Stitch).
-- **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated.
+  `scripts/deploy-hosting.sh <render-url>` (embeds `VITE_API_BASE`; no Cloud Functions / Blaze).
+  The Firebase Functions path (`scripts/deploy.sh`) requires Blaze and is legacy/optional. Also
+  the `ai-canva-deploy` skill (`.dsh/skills/ai-canva-deploy/SKILL.md`). Requires Firebase CLI
+  logged in and real API keys (Ollama, optionally fal.ai + Google Stitch).
+- **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated, but
+  only `server/` is deployed.
 
 ## dsh GUI plugins
 

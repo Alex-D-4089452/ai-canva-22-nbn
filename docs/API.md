@@ -1,14 +1,16 @@
 # Backend API
 
-The API surface is identical between the **local Express server** (`server/`) and the
-**Firebase Cloud Function** (`functions/`). The client talks to it through the `/api` prefix
-(proxied by Vite during development, or rewritten to the Cloud Function in production).
+The API is implemented by the **Express server** (`server/`), which runs locally and as the
+production **Render Web Service**. The client calls it through `VITE_API_BASE` (the `/api`
+prefix; Vite proxies it during development). A legacy, optional **Firebase Cloud Functions** copy
+lives in `functions/`, but it is not deployed in the current architecture because Cloud Functions
+require the Blaze plan.
 
-> **Security note:** Most endpoints are **not authenticated** today. Anyone who can reach the
-> server/function can trigger paid AI generations. Rate-limit or protect them before exposing a
-> public deployment (see [OSS_READINESS.md](OSS_READINESS.md)). Exceptions that do check a
-> Firebase ID token: `POST /api/storage/sign` (any signed-in user) and the `/api/admin/*`
-> routes (admin role required).
+> **Security note:** Most endpoints are **not authenticated** today. Anyone who can reach the API
+> can trigger paid AI generations. Rate-limit or protect them before exposing a public deployment
+> (see [OSS_READINESS.md](OSS_READINESS.md)). Exceptions that do check a Firebase ID token:
+> `POST /api/storage/sign` (any signed-in user) and the `/api/admin/*` routes (admin role
+> required).
 
 ## Endpoints
 
@@ -116,10 +118,12 @@ Generates a cartoon profile image with fal.ai. Used by the **Cartoon Profile** b
 
 Starts an asynchronous Google Stitch UI-generation job. Used by the **Stitch UI** box.
 
-Stitch generation is slow (40s+), which previously exceeded the ~60s timeout Firebase Hosting
-applies when rewriting `/api/**` to the Cloud Function. To avoid that, this endpoint does **not**
-block on generation — it creates a job, kicks off the work asynchronously, and returns a `jobId`
-immediately. The client polls [`GET /api/stitch-status/:jobId`](#get-apistitch-statusjobid).
+Stitch generation is slow (40s+). This endpoint is intentionally asynchronous so it works on
+every host, including the legacy Firebase Hosting → Cloud Functions path where a synchronous
+request exceeded the ~60s rewrite timeout. It does **not** block on generation — it creates a job,
+kicks off the work asynchronously, and returns a `jobId` immediately. The client polls
+[`GET /api/stitch-status/:jobId`](#get-apistitch-statusjobid). The Render deployment keeps the
+same contract.
 
 **Request body**
 
@@ -240,7 +244,7 @@ Authorization: Bearer <Firebase ID token>
 ```
 
 (Any signed-in user — mirrors the old Firebase Storage rules. The local server verifies the token
-with `server/src/auth.ts`; the Cloud Function uses `firebase-admin`'s `verifyIdToken`.)
+with `server/src/auth.ts`; the legacy Functions copy uses `firebase-admin`'s `verifyIdToken`.)
 
 **Request body**
 
@@ -310,12 +314,12 @@ Authorization: Bearer <Firebase ID token>
 | `401` | Missing or invalid ID token |
 | `403` | Caller is not an admin |
 | `500` | Stats computation failed |
-| `501` | Local dev server (admin stats are production-only) |
+| `501` | Server has no Firebase service account (local and Render) |
 
-> **Note:** This endpoint is only implemented in the **Cloud Function** (`functions/`), which uses
-> the Firebase Admin SDK. The local dev server (`server/`) returns `501` because it has no service
-> account. Stats are computed server-side so sensitive aggregates are never exposed to client
-> Firestore rules.
+> **Note:** This endpoint requires the Firebase Admin SDK. It is implemented in the legacy
+> **Cloud Functions** copy (`functions/`); the `server/` API (local and Render) returns `501`
+> because it has no service account. Stats are computed server-side so sensitive aggregates are
+> never exposed to client Firestore rules.
 >
 > **User counts:** `total` and `newLast7d` are counted from **Firebase Auth** (`listUsers`), the
 > authoritative source of registered users. `activeLast5m` counts users whose `lastActive`
@@ -408,8 +412,9 @@ an **anonymous** here.now Site, live immediately but expiring after 24 hours and
 the claim token returned once at deploy time. Adding a here.now API key makes deployed Sites
 permanent and owned by the account. `/api/health` reports `herenowKey: "configured" | "anonymous"`.
 
-Copy the templates from `server/.env.example` / `functions/.env.example` into `.env` and fill in
-real values.
+Copy `server/.env.example` to `server/.env` and fill in real values for local development; set the
+same variables in the Render dashboard for production. The legacy `functions/` path uses
+`functions/.env.example`.
 
 > **Which model handles what?** See [docs/MODELS.md](MODELS.md) — the single source of truth for
 > the model map (text / UI screens / images), how to switch, and the change log.
@@ -425,11 +430,13 @@ custom token for the SAME uid, so guests keep their identity and boards on any d
 
 - **Response:** `{ token, isNew, teamId, workshopId, teamName, workshopName, boardId }`
 - **Errors:** `400` invalid code format · `404` unknown code / team gone · `409` team full (5/5)
-- **Only in the Cloud Function** — the local dev server proxies this endpoint to the deployed
-  function (custom-token minting needs the Admin SDK).
+- **Admin SDK required** — the legacy `functions/` path implements this endpoint. The `server/`
+  API (local and Render) proxies to `WORKSHOP_PROXY_URL` when configured; otherwise it returns
+  `501` (custom-token minting needs the Admin SDK).
 
 ### `POST /api/admin/roles` — `{ uid, role: "facilitator", grant }`
 
 Admin-only (Bearer ID token + `admins/{uid}`). Grants or revokes the facilitator role by
-writing/deleting `facilitators/{uid}`. Cloud Function only (501 locally).
+writing/deleting `facilitators/{uid}`. Legacy Cloud Functions path only; the `server/` API returns
+`501`.
 

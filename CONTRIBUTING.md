@@ -74,8 +74,8 @@ reads the server's actual port from `.server-port` so the `/api` proxy stays in 
 
 ```
 client/     Vite + React 19 + TypeScript + Tailwind + Zustand + React Flow
-server/     Express API used for local development (Ollama / fal.ai / Stitch)
-functions/  Firebase Cloud Functions — the production backend (mirrors server/)
+server/     Express API — local dev and production on Render (Ollama / fal.ai / Stitch)
+functions/  Legacy optional Firebase Functions copy (requires Blaze; not deployed)
 ```
 
 - **Box definitions** (labels, icons, colors, default prompts, sizes) live in
