@@ -93,8 +93,7 @@ Course materials for using relay as a teaching/learning project. A complete set 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Alex-D-4089452/ai-canva-22-nbn.git ai-canva-22-nbn
-cd ai-canva-22-nbn
+git clone https://github.com/Alex-D-4089452/ai-canva-22-nbn.git relay && cd relay
 npm install                 # root tooling (concurrently)
 npm run install:all         # installs server/ + client/ deps
 ```
@@ -128,6 +127,12 @@ Both processes detect if their default port is in use and switch to the next fre
 > **Optional:** To use accounts, cloud save, real-time collaboration, and image uploads, set up Firebase (see [Deployment](docs/DEPLOYMENT.md)) and put your project's config into `client/src/lib/firebase.ts`.
 
 ---
+
+### 4. Run test suite
+
+```bash
+npm run test
+```
 
 ## 🎨 Using the app
 
