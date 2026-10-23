@@ -29,6 +29,18 @@ current state).
 
 ---
 
+## 2026-10-23 — CI auth without service-account keys
+
+- **Done:** `deploy.yml` now prefers Google Cloud Workload Identity Federation (OIDC, short-lived
+  credentials) via `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`, with
+  `id-token: write`; `FIREBASE_SERVICE_ACCOUNT` JSON remains a fallback for orgs that allow key
+  creation. Added config validation and the `gcloud` WIF setup to `docs/DEPLOYMENT.md` after the
+  organisation policy blocked service-account key creation.
+- **In flight:** -
+- **Next steps:** create the WIF pool/provider + `github-deploy` service account and set the two
+  variables. If WIF is also blocked, a legacy `firebase login:ci` token (`FIREBASE_TOKEN`) is the
+  last-resort fallback, but it is not wired in yet.
+
 ## 2026-10-23 — GitHub Actions CI/CD
 
 - **Done:** added `.github/workflows/ci.yml` (Node 20; `npm ci` for root/server/client; server +
@@ -40,9 +52,9 @@ current state).
   GitHub variables/secrets and the workflow behavior are documented in `docs/DEPLOYMENT.md`.
 - **In flight:** -
 - **Next steps:** add the repository secrets/variables before relying on deploys
-  (`RENDER_DEPLOY_HOOK_URL` + `FIREBASE_SERVICE_ACCOUNT` are required; `RENDER_API_KEY` +
-  `RENDER_SERVICE_ID` enable exact Render deploy polling). Full `e2e.mjs` remains local/nightly
-  until its Firebase admin-token dependency is moved to CI.
+  (`RENDER_DEPLOY_HOOK_URL` is required; use WIF or a `FIREBASE_SERVICE_ACCOUNT` JSON key;
+  `RENDER_API_KEY` + `RENDER_SERVICE_ID` enable exact Render deploy polling). Full `e2e.mjs`
+  remains local/nightly until its Firebase admin-token dependency is moved to CI.
 
 ## 2026-10-23 - Node 20 onboarding requirement
 

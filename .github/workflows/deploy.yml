@@ -13,6 +13,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Required for Workload Identity Federation (no service-account JSON key).
+  id-token: write
 
 jobs:
   deploy:
@@ -116,7 +118,34 @@ jobs:
           echo "::error::API did not become healthy after the Render deploy."
           exit 1
 
-      - name: Authenticate to Google Cloud
+      - name: Validate Google Cloud authentication settings
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ]; then
+            if [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+              echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER is set but GCP_SERVICE_ACCOUNT_EMAIL is missing."
+              exit 1
+            fi
+          elif [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Configure Workload Identity Federation (GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL) or set FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+
+      # Preferred: short-lived OIDC credentials, no downloadable service-account
+      # key. This works when the org policy blocks key creation.
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # Fallback for orgs that still allow service-account JSON keys.
+      - name: Authenticate to Google Cloud (service account JSON)
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

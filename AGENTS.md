@@ -853,9 +853,11 @@ The app reports per-call LLM token usage and tracks cumulative usage per user an
   set, health-check fallback), runs `scripts/deploy-hosting.sh` (Hosting + Firestore rules),
   then smoke-tests production.
   `render.yaml` sets `autoDeployTrigger: off` so Render does not deploy in parallel. Required repo
-  secrets/variables are listed in `docs/DEPLOYMENT.md`; `FIREBASE_SERVICE_ACCOUNT` needs Hosting
-  Admin + Rules Admin. Full `e2e.mjs` is deliberately not in CI yet (real Firebase/Ollama/admin
-  token requirements) — see the Testing section.
+  secrets/variables are listed in `docs/DEPLOYMENT.md`. Google Cloud auth prefers Workload
+  Identity Federation (`GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`, no key);
+  `FIREBASE_SERVICE_ACCOUNT` JSON is a fallback for orgs that allow key creation. The service
+  account needs Hosting Admin + Rules Admin. Full `e2e.mjs` is deliberately not in CI yet (real
+  Firebase/Ollama/admin token requirements) — see the Testing section.
 - **Keep `server/` and `functions/` API logic in sync** — they are intentionally duplicated, but
   only `server/` is deployed.
 

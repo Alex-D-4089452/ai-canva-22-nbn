@@ -89,7 +89,8 @@ The repo ships two workflows:
 - **`deploy.yml`** runs only after `CI` succeeds on `main` (or from a manual dispatch on `main`).
   It triggers the Render deploy hook pinned to the exact commit CI tested, waits for the new API
   deploy to be live (or falls back to the health endpoint), deploys Firebase Hosting + Firestore
-  rules through `scripts/deploy-hosting.sh`, then smoke-tests the API and Hosting URLs.
+  rules through `scripts/deploy-hosting.sh`, then smoke-tests the API and Hosting URLs. Google
+  Cloud authentication uses Workload Identity Federation, so no service-account key is needed.
 
 `render.yaml` sets `autoDeployTrigger: off` so the API is deployed exactly once, by the gated
 workflow. Sync the Blueprint in Render after changing it so the setting takes effect. Use the
@@ -106,11 +107,83 @@ Configure these in **GitHub → Settings → Secrets and variables → Actions**
 | Variable | `RENDER_SERVICE_ID` | Optional | Render service id (`srv-...`); enables precise deploy-status polling. |
 | Secret | `RENDER_DEPLOY_HOOK_URL` | **Yes** | Render → service → Settings → Deploy Hook. |
 | Secret | `RENDER_API_KEY` | Optional | Render API key; with `RENDER_SERVICE_ID`, waits for the exact new deploy to be `live`. |
-| Secret | `FIREBASE_SERVICE_ACCOUNT` | **Yes** | Service-account JSON with Firebase Hosting Admin + Firebase Rules Admin (and permission to read the project). |
+| Variable | `GCP_WORKLOAD_IDENTITY_PROVIDER` | **WIF auth** | Full Workload Identity Federation provider resource (see below). |
+| Variable | `GCP_SERVICE_ACCOUNT_EMAIL` | **WIF auth** | Deploy service-account email, e.g. `github-deploy@ai-canva-22-nbn-fee4b.iam.gserviceaccount.com`. |
+| Secret | `FIREBASE_SERVICE_ACCOUNT` | **JSON fallback** | Service-account JSON. Only use this if your organisation allows key creation. |
 
-The service account can be created in Google Cloud Console → IAM & Admin → Service Accounts,
-then granted the two Firebase roles. Do not commit the JSON; store it only as the
-`FIREBASE_SERVICE_ACCOUNT` secret.
+Use **one** Google Cloud authentication method:
+
+#### Workload Identity Federation (recommended; no service-account key)
+
+This is the path to use when the organisation policy blocks service-account key creation. The
+service account still exists, but GitHub gets short-lived credentials through OIDC instead of a
+downloadable JSON key.
+
+Run these commands with a Google Cloud account that can create service accounts and set IAM
+policy (replace `OWNER/REPO` with the GitHub repository, e.g.
+`Alex-D-4089452/ai-canva-22-nbn`):
+
+```bash
+gcloud auth login
+gcloud config set project ai-canva-22-nbn-fee4b
+
+PROJECT_ID=ai-canva-22-nbn-fee4b
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+REPO=OWNER/REPO
+SA=github-deploy@$PROJECT_ID.iam.gserviceaccount.com
+
+gcloud services enable iamcredentials.googleapis.com sts.googleapis.com \
+  --project="$PROJECT_ID"
+
+gcloud iam service-accounts create github-deploy \
+  --project="$PROJECT_ID" \
+  --display-name="GitHub Actions deploy"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$SA" \
+  --role="roles/firebasehosting.admin"
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$SA" \
+  --role="roles/firebaserules.admin"
+# Optional if the CLI needs project read access:
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:$SA" \
+  --role="roles/firebase.viewer"
+
+gcloud iam workload-identity-pools create github \
+  --project="$PROJECT_ID" \
+  --location=global \
+  --display-name="GitHub Actions"
+
+gcloud iam workload-identity-pools providers create-oidc github \
+  --project="$PROJECT_ID" \
+  --location=global \
+  --workload-identity-pool=github \
+  --display-name="GitHub OIDC" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
+  --attribute-condition="assertion.repository=='$REPO' && assertion.ref=='refs/heads/main'"
+
+gcloud iam service-accounts add-iam-policy-binding "$SA" \
+  --project="$PROJECT_ID" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/$REPO"
+```
+
+Then add these GitHub **variables**:
+
+- `GCP_WORKLOAD_IDENTITY_PROVIDER` =
+  `projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github`
+- `GCP_SERVICE_ACCOUNT_EMAIL` =
+  `github-deploy@ai-canva-22-nbn-fee4b.iam.gserviceaccount.com`
+
+The deploy workflow already requests `id-token: write` and uses these values automatically.
+
+#### Service-account JSON (fallback only)
+
+If key creation is allowed, create a JSON key for the same service account and store the entire
+file contents as the `FIREBASE_SERVICE_ACCOUNT` secret. The service account needs Firebase Hosting
+Admin + Firebase Rules Admin (and project read access). Do not commit the JSON.
 
 **Not in CI yet:** the full E2E (`client/e2e.mjs`) needs real Firebase Auth/Firestore, a real
 Ollama call, and a `firebase-tools` admin token from the developer machine. Run it locally or add
