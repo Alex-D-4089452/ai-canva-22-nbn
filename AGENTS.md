@@ -40,7 +40,7 @@ old name; update them only if explicitly asked.
 | `server/` | Express API, run locally and as the production Render Web Service (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
 | `functions/` | Legacy/optional Firebase Cloud Functions copy (`onRequest`; requires Blaze; not deployed). Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | Legacy Firebase deploy (build client, build Functions, deploy Hosting + Functions + rules; needs Blaze). Current production uses Render + `scripts/deploy-hosting.sh`. |
-| `docs/` | Guides: `OVERVIEW`, `SYSTEM_CONTEXT`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
+| `docs/` | Guides: `OVERVIEW`, `SYSTEM_CONTEXT`, `ONBOARDING`, `ARCHITECTURE`, `DATA_MODEL`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
 | `firebase.json`, `firestore.rules` | Firebase Hosting + Firestore config and security rules (static client; no `/api` rewrite; file storage is Cloudflare R2, not Firebase Storage). |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 
@@ -67,6 +67,10 @@ npm run deploy         # legacy Firebase Hosting + Functions deploy (needs Blaze
 - **Single Zustand store** (`client/src/store/boardStore.ts`) owns the whole board: `nodes`/`edges`
   (React Flow graph), `boxData` (per-box content/prompts/status/output — kept separate from the
   graph objects so it serializes cleanly to Firestore), and board/collaboration metadata.
+- **Firestore board shape:** one `boards/{boardId}` doc embeds `nodes`, `edges`, and `boxData`
+  (a map keyed by node id) plus board metadata; presence is
+  `boards/{boardId}/presence/{uid}`. There is no `nodes` or `boxes` collection. `docs/DATA_MODEL.md`
+  is the full schema (no foreign keys; references are logical).
 - **Box definitions live one file per box** under `client/src/types/`: `core.ts` (the `BoxType`
   union, `BoxData`, `BoxTypeMeta`, shared shapes, `AREA_COLORS`), `boxes/<type>.ts` (each box's
   metadata — box-specific constants ride along: `AGENT_CONTROLLER_SYSTEM_PROMPT` in `agent.ts`,
@@ -879,6 +883,8 @@ app; the directory just lives in this repo so the plugins stay under version con
   flight, next steps. Read at session start (after this file); append an entry per finished unit
   of work. State lives here, knowledge lives in this file.
 - `docs/ARCHITECTURE.md` — deep dive into client, backend, and Firebase layers.
+- `docs/DATA_MODEL.md` — Firestore collection map, document shapes, the embedded board graph, and
+  logical relationships (no foreign keys).
 - `docs/API.md` — backend endpoints and environment variables.
 - `docs/MODELS.md` — **model registry** (single source of truth): which model serves text / Stitch
   UI / fal.ai images, the env overrides (`OLLAMA_MODEL`, `STITCH_MODEL`), how to switch, and a

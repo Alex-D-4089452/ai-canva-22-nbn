@@ -166,6 +166,7 @@ toy. Depending on your focus, you can learn:
 
 - **First-time setup:** [Onboarding & Environment Guide](ONBOARDING.md)
 - **System context:** [People, relay, and external services](SYSTEM_CONTEXT.md)
+- **Data model:** [Firestore collections, documents, and relationships](DATA_MODEL.md)
 - **Codebase map / deep dive:** [Architecture](ARCHITECTURE.md)
 - **The box system in detail:** [Box Types](BOX_TYPES.md)
 - **Backend endpoints:** [API](API.md)

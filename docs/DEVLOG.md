@@ -29,6 +29,16 @@ current state).
 
 ---
 
+## 2026-10-23 — Firestore data model
+
+- **Done:** added `docs/DATA_MODEL.md` with a collection map, Mermaid ER-style relationship
+  diagram, per-document schemas (boards and the embedded node/edge/boxData graph, presence, users
+  and custom boxes, token usage, workshops/teams/codes, role markers, legacy stitchJobs), timestamp
+  and serialization rules, and the actual Firestore access-rule matrix. Linked it from `README`,
+  `ARCHITECTURE`, `OVERVIEW`, and `AGENTS`.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-23 — System context diagram
 
 - **Done:** added `docs/SYSTEM_CONTEXT.md` with a C4-style context diagram showing relay's system

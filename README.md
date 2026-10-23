@@ -16,6 +16,7 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 | [System Context](docs/SYSTEM_CONTEXT.md)             | The system boundary, users, and external services at a glance  |
 | [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step        |
 | [Architecture](docs/ARCHITECTURE.md)                 | Deep dive into the client, backend, and Firebase layers        |
+| [Data Model](docs/DATA_MODEL.md)                     | Firestore collections, document shapes, and relationships      |
 | [Box Types](docs/BOX_TYPES.md)                       | Every box and how to add a new one                             |
 | [API](docs/API.md)                                   | The backend endpoints and environment variables                |
 | [Deployment](docs/DEPLOYMENT.md)                     | Ship the client to Firebase Hosting + the API to Render        |

@@ -9,6 +9,9 @@ Blaze plan).
 
 > **System context:** [SYSTEM_CONTEXT.md](SYSTEM_CONTEXT.md) shows the people and external
 > services around relay.
+>
+> **Data model:** [DATA_MODEL.md](DATA_MODEL.md) documents the Firestore collections, embedded
+> board graph, and logical relationships.
 
 ## High-level overview
 
