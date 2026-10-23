@@ -40,7 +40,7 @@ old name; update them only if explicitly asked.
 | `server/` | Express API, run locally and as the production Render Web Service (`/api/generate`, `/api/generate-image`, `/api/stitch-generate`, `/api/storage/sign`, `/api/health`). |
 | `functions/` | Legacy/optional Firebase Cloud Functions copy (`onRequest`; requires Blaze; not deployed). Also hosts `src/stitchJobs.ts` (the async Stitch Cloud Task worker). |
 | `scripts/deploy.sh` | Legacy Firebase deploy (build client, build Functions, deploy Hosting + Functions + rules; needs Blaze). Current production uses Render + `scripts/deploy-hosting.sh`. |
-| `docs/` | Guides: `OVERVIEW`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
+| `docs/` | Guides: `OVERVIEW`, `SYSTEM_CONTEXT`, `ONBOARDING`, `ARCHITECTURE`, `BOX_TYPES`, `API`, `MODELS`, `DEPLOYMENT`, `OSS_READINESS`, plus `docs/course/` teaching materials. `docs/DEVLOG.md` is the session journal (read at session start, append after finishing work). |
 | `firebase.json`, `firestore.rules` | Firebase Hosting + Firestore config and security rules (static client; no `/api` rewrite; file storage is Cloudflare R2, not Firebase Storage). |
 | `dsh-plugins/` | Out-of-tree plugins for the DeepSeek Harness Web GUI (not part of the app). See "dsh GUI plugins" below. |
 

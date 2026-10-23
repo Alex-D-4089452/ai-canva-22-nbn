@@ -7,6 +7,9 @@ File blobs (board images/documents) live in **Cloudflare R2**. The legacy Cloud 
 `functions/` is optional and is not part of the current deployment (Cloud Functions require the
 Blaze plan).
 
+> **System context:** [SYSTEM_CONTEXT.md](SYSTEM_CONTEXT.md) shows the people and external
+> services around relay.
+
 ## High-level overview
 
 ```

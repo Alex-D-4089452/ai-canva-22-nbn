@@ -165,6 +165,7 @@ toy. Depending on your focus, you can learn:
 ## 8. Where to go next
 
 - **First-time setup:** [Onboarding & Environment Guide](ONBOARDING.md)
+- **System context:** [People, relay, and external services](SYSTEM_CONTEXT.md)
 - **Codebase map / deep dive:** [Architecture](ARCHITECTURE.md)
 - **The box system in detail:** [Box Types](BOX_TYPES.md)
 - **Backend endpoints:** [API](API.md)

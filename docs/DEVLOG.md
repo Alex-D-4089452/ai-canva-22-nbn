@@ -29,6 +29,16 @@ current state).
 
 ---
 
+## 2026-10-23 — System context diagram
+
+- **Done:** added `docs/SYSTEM_CONTEXT.md` with a C4-style context diagram showing relay's system
+  boundary, four user roles (team member, facilitator, workshop guest, administrator), and the
+  external services (Firebase Hosting/Auth/Firestore, Cloudflare R2, Ollama, fal.ai, Stitch,
+  here.now, and the optional Admin SDK join service). Linked it from `README`, `ARCHITECTURE`,
+  and `AGENTS`.
+- **In flight:** —
+- **Next steps:** —
+
 ## 2026-10-23 — Docs reflect the Render + Firebase Hosting deployment
 
 - **Done:** updated `ARCHITECTURE`, `OVERVIEW`, `README`, `API`, `MODELS`, `DEPLOYMENT`, and

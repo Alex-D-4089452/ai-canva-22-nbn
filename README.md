@@ -13,6 +13,7 @@ A collaborative, AI-powered whiteboard where you compose visual pipelines of AI 
 | Guide                                                | What it covers                                                 |
 | ---------------------------------------------------- | -------------------------------------------------------------- |
 | [Project Overview](docs/OVERVIEW.md)                 | What relay is, how it works, and what you can learn from it    |
+| [System Context](docs/SYSTEM_CONTEXT.md)             | The system boundary, users, and external services at a glance  |
 | [Onboarding & Environment Setup](docs/ONBOARDING.md) | Get from a clean machine to a running app, step by step        |
 | [Architecture](docs/ARCHITECTURE.md)                 | Deep dive into the client, backend, and Firebase layers        |
 | [Box Types](docs/BOX_TYPES.md)                       | Every box and how to add a new one                             |
