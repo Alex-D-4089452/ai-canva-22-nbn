@@ -91,6 +91,9 @@ The repo ships two workflows:
   deploy to be live (or falls back to the health endpoint), deploys Firebase Hosting + Firestore
   rules through `scripts/deploy-hosting.sh`, then smoke-tests the API and Hosting URLs. Google
   Cloud authentication uses Workload Identity Federation, so no service-account key is needed.
+  The workflow pins `firebase-tools@15.22.1`: newer 15.x releases have an ADC/WIF regression
+  that fails with "Failed to authenticate, have you run firebase login?" (firebase-tools
+  issue #10716).
 
 `render.yaml` sets `autoDeployTrigger: off` so the API is deployed exactly once, by the gated
 workflow. Sync the Blueprint in Render after changing it so the setting takes effect. Use the

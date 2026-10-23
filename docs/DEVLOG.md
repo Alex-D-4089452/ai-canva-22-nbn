@@ -35,11 +35,16 @@ current state).
   credentials) via `GCP_WORKLOAD_IDENTITY_PROVIDER` + `GCP_SERVICE_ACCOUNT_EMAIL`, with
   `id-token: write`; `FIREBASE_SERVICE_ACCOUNT` JSON remains a fallback for orgs that allow key
   creation. Added config validation and the `gcloud` WIF setup to `docs/DEPLOYMENT.md` after the
-  organisation policy blocked service-account key creation.
+  organisation policy blocked service-account key creation. Provisioned the `github` WIF
+  pool/provider, the `github-deploy` service account, Hosting/Rules roles, and the
+  `workloadIdentityUser` binding; WIF auth now succeeds in Actions. Pinned
+  `firebase-tools@15.22.1` because 15.22.2+ rejects ADC/WIF with "Failed to authenticate"
+  (firebase-tools #10716).
 - **In flight:** -
-- **Next steps:** create the WIF pool/provider + `github-deploy` service account and set the two
-  variables. If WIF is also blocked, a legacy `firebase login:ci` token (`FIREBASE_TOKEN`) is the
-  last-resort fallback, but it is not wired in yet.
+- **Next steps:** rerun the deploy workflow; optionally add `RENDER_API_KEY` +
+  `RENDER_SERVICE_ID` so it waits for the exact Render deploy instead of the health-check
+  fallback. If WIF is ever unavailable, a legacy `firebase login:ci` token (`FIREBASE_TOKEN`) is
+  the last-resort fallback, but it is not wired in.
 
 ## 2026-10-23 — GitHub Actions CI/CD
 
